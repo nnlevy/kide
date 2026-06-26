@@ -1,0 +1,14 @@
+{
+  "name": "kide",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "mkdir -p dist && cp -r public/* dist/ 2>/dev/null || true; cp index.html dist/index.html 2>/dev/null || true; echo 'build complete'",
+    "check": "npm run build && npx wrangler deploy --dry-run",
+    "deploy": "npm run build && npx wrangler deploy",
+    "dev": "npx wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "^3.78.0"
+  }
+}
