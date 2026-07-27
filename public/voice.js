@@ -513,6 +513,11 @@
       "align-items:center;gap:10px;background:#fff;border-radius:999px;padding:10px 20px 10px 14px;" +
       "box-shadow:0 8px 26px rgba(0,0,0,.16);font:700 16px/1 -apple-system,BlinkMacSystemFont,'SF Pro Rounded','Segoe UI',Roboto,sans-serif;color:#2E3A3F}" +
       ".kv-mic.on{display:flex;animation:kvPop .3s ease}" +
+      // A host that puts something else at the bottom of the screen adds
+      // `kv-raise` to <body> and the indicator gets out of its way. Kide's
+      // sleepy-invite banner sits at bottom:14px; without this the mic pill
+      // lands squarely on top of its text.
+      "body.kv-raise .kv-mic{bottom:calc(104px + env(safe-area-inset-bottom,0px))}" +
       "@keyframes kvPop{from{transform:translateX(-50%) scale(.8);opacity:0}to{transform:translateX(-50%) scale(1);opacity:1}}" +
       ".kv-dot{position:relative;width:34px;height:34px;border-radius:50%;background:#6FD08C;flex-shrink:0;" +
       "display:flex;align-items:center;justify-content:center;font-size:17px}" +

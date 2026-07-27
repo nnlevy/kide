@@ -827,6 +827,11 @@ function render(){
 }
 
 function bodyStageClass(){
+  // The goodbye screen was written for the night sky — white heading, #EAF0FF
+  // body copy, a translucent recap card. Without this it rendered on the
+  // daytime gradient and its own text nearly vanished, on the one screen the
+  // whole product is built around.
+  if(state.screen==="goodbye") return "stage-sleepy";
   if(state.screen!=="play") return "";
   const frac = sessionFraction();
   if(frac>=1) return "stage-sleepy";
@@ -1646,11 +1651,15 @@ function showInvite(){
     '<div class="itext"><b>Pip is getting sleepy…</b>Should we tuck Pip in for the night?</div>'+
     '<button class="btn btn-primary" id="tuckBtn" style="padding:12px 18px;font-size:16px;white-space:nowrap">Tuck in</button>';
   document.body.appendChild(n);
+  document.body.classList.add("kv-raise");   // lift the mic pill clear of the banner
   document.getElementById("tuckBtn").addEventListener("click", goToGoodbye);
   if(window.KideVoice) KideVoice.mic.stop();
   say("sleepy-invite").then(function(ok){ if(ok && document.querySelector(".invite")) maybeListen(); });
 }
-function removeInvite(){ const n=document.querySelector(".invite"); if(n) n.remove(); }
+function removeInvite(){
+  const n=document.querySelector(".invite"); if(n) n.remove();
+  document.body.classList.remove("kv-raise");
+}
 
 function goToGoodbye(){
   sfxChime();

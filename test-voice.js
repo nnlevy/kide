@@ -41,9 +41,18 @@ async function micReady(pg, ms) {
 }
 const totalCorrect = (pg) => pg.evaluate(() => JSON.parse(localStorage.getItem("pip_ttf_progress_v1") || "{}").totalCorrect || 0);
 async function toGarden(pg) {
-  // Already-home screens have no home button; only press it if we're elsewhere.
-  if (await pg.locator('[data-act="letsplay"]').count() === 0) {
-    await pg.locator('[data-act="home"]').first().click(); await pg.waitForTimeout(250);
+  // Walk back to home from wherever we are: the play screen offers only a
+  // close-to-garden, the garden offers home, and home offers neither.
+  for (let i = 0; i < 3; i++) {
+    if (await pg.locator('[data-act="letsplay"]').count() > 0) break;
+    if (await pg.locator('[data-act="home"]').count() > 0) {
+      await pg.locator('[data-act="home"]').first().click();
+    } else if (await pg.locator('[data-act="garden"]').count() > 0) {
+      await pg.locator('[data-act="garden"]').first().click();
+    } else if (await pg.getByRole("button", { name: "See you soon!" }).count() > 0) {
+      await pg.getByRole("button", { name: "See you soon!" }).click();
+    } else break;
+    await pg.waitForTimeout(300);
   }
   await pg.getByRole("button", { name: "Let's Play!" }).click(); await pg.waitForTimeout(200);
   await pg.locator('[data-act="handover"]').click(); await pg.waitForTimeout(400);
@@ -258,6 +267,39 @@ const ok = (c, m) => { if (c) { pass++; console.log("  ✓ " + m); } else { fail
   }
   await page.waitForTimeout(400);
   ok(await handoffs(page) === h0, "backgrounding and returning does not log a phantom handoff");
+
+  console.log("\n── the goodbye screen ──");
+  // The screen the whole product is built around. Its heading is #fff and its
+  // body copy #EAF0FF — written for the night sky, invisible without it.
+  await toGarden(page);
+  await page.locator('[data-level="shapes"]').click(); await page.waitForTimeout(500);
+  await page.locator('[data-act="sleepytap"]').click(); await page.waitForTimeout(500);
+  ok(await page.locator("h1", { hasText: "Nighty-night" }).isVisible(), "the goodbye screen renders");
+  ok(await page.evaluate(() => document.body.className.includes("stage-sleepy")),
+     "it renders on the night sky it was designed for, not the daytime gradient");
+  const contrast = await page.evaluate(() => {
+    const bg = getComputedStyle(document.body).backgroundImage;
+    const fg = getComputedStyle(document.querySelector("h1")).color;
+    return { darkBg: /35,?\s*43|232B4D|58,\s*62/.test(bg) || /rgb\(3[0-9]|rgb\(2[0-9]/.test(bg), fg };
+  });
+  ok(contrast.darkBg, "background is actually dark behind the white heading");
+  await page.getByRole("button", { name: "See you soon!" }).click(); await page.waitForTimeout(300);
+
+  console.log("\n── mic indicator vs the sleepy banner ──");
+  await toGarden(page);
+  await page.locator('[data-level="colors"]').click();
+  await micReady(page, 15000);
+  const collide = await page.evaluate(() => {
+    // Force the invite the product would show at the end of a session.
+    const n = document.createElement("div");
+    n.className = "invite";
+    n.innerHTML = '<div class="itext"><b>Pip is getting sleepy…</b>Should we tuck Pip in?</div>';
+    document.body.appendChild(n);
+    document.body.classList.add("kv-raise");
+    const a = n.getBoundingClientRect(), b = document.querySelector(".kv-mic").getBoundingClientRect();
+    return { overlap: !(b.bottom <= a.top || b.top >= a.bottom) };
+  });
+  ok(!collide.overlap, "the listening pill sits clear of the banner instead of covering its text");
 
   console.log("\n── share moment ──");
   // The share only exists once there is something true to say, and it lives
