@@ -3,3 +3,5 @@ node_modules/
 dist/
 .DS_Store
 *.log
+# generator scratch — the shipped pack lives in public/voice/v1/
+tools/voice/out/
