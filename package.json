@@ -9,7 +9,9 @@
 		"dev": "npx wrangler dev",
 		"predeploy": "bash scripts/deploy-guard.sh",
 		"test:voice": "npm run build && node test-voice.js",
-		"voice:render": "node tools/voice/generate.js"
+		"voice:render": "node tools/voice/generate.js",
+		"test:routines": "npm run build && node test-routines.js",
+		"test": "npm run test:voice && node test-routines.js"
 	},
 	"devDependencies": {
 		"playwright": "^1.62.0",

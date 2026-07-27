@@ -256,12 +256,64 @@ p.lead{font-size:19px;color:var(--ink-soft);text-align:center;margin:0 0 18px;ma
 .voice-pill{position:absolute;top:calc(12px + var(--safe-t));left:12px;z-index:40;border:0;background:rgba(255,255,255,.85);
   border-radius:999px;width:40px;height:40px;font-size:17px;box-shadow:0 3px 10px rgba(0,0,0,.1);cursor:pointer;}
 @media (prefers-reduced-motion:reduce){.handoff-card,.consent-card{transition:none;}}
+
+/* ============================ PIP'S TURN =============================
+   Pretend-play rehearsal. Deliberately shares nothing with the quiz
+   screens: no score, no streak, no timer, no wrong answer, no leaf dots.
+   A toddler plays with a waterless play sink because doing the routine
+   IS the reward; adding points to that would only get in the way.
+   See docs/HABITS.md.
+--------------------------------------------------------------------- */
+.routine-head{width:100%;max-width:480px;text-align:center;margin-bottom:10px;}
+.routine-head .r-say{font-size:clamp(20px,5.4vw,27px);font-weight:800;line-height:1.25;color:var(--ink);}
+.routine-head .r-cue{font-size:15.5px;color:var(--ink-soft);font-weight:700;margin-top:6px;min-height:20px;}
+.scene{position:relative;width:min(100%,480px,60vh);aspect-ratio:1/1;background:var(--card);
+  border-radius:26px;box-shadow:0 6px 0 rgba(0,0,0,.08);overflow:hidden;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;user-select:none;}
+.scene:active{transform:translateY(2px);box-shadow:0 4px 0 rgba(0,0,0,.08);}
+.scene svg{position:absolute;inset:0;width:100%;height:100%;}
+/* Pip needs an explicit box: .pip-wrap is 100%/100% of its parent, so a
+   parent with no height renders an invisible mascot. */
+.scene .sc-pip{position:absolute;width:25%;aspect-ratio:1/1;left:50%;bottom:16%;
+  transform:translateX(-50%);
+  transition:left .5s cubic-bezier(.4,1.3,.6,1), bottom .5s ease;}
+.scene.at-door .sc-pip{left:84%;}
+.scene.at-potty .sc-pip{left:26.5%;bottom:25%;}
+.scene.at-sink .sc-pip{left:66%;bottom:13%;}
+.sc-hit{position:absolute;border-radius:50%;pointer-events:none;}
+.sc-hit.on{animation:scpulse 1.6s ease-in-out infinite;}
+@keyframes scpulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(255,209,102,.85);}
+  50%{box-shadow:0 0 0 16px rgba(255,209,102,0);}
+}
+.sc-fade{opacity:0;transition:opacity .45s ease;}
+.sc-fade.show{opacity:1;}
+.bub{position:absolute;border-radius:50%;background:rgba(255,255,255,.9);
+  box-shadow:inset 0 0 0 2px rgba(86,198,230,.55);animation:bubrise 2.4s ease-in infinite;}
+@keyframes bubrise{0%{transform:translateY(0) scale(.6);opacity:0;}
+  25%{opacity:.95;}100%{transform:translateY(-70px) scale(1.1);opacity:0;}}
+.routine-foot{width:100%;max-width:480px;display:flex;gap:12px;justify-content:center;margin-top:16px;}
+.step-dots{display:flex;gap:6px;justify-content:center;margin-top:14px;}
+.step-dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.55);}
+.step-dots i.done{background:var(--grass-deep);}
+.step-dots i.now{background:var(--sun);transform:scale(1.35);}
+.routine-card{display:flex;align-items:center;gap:16px;background:var(--card);border-radius:var(--radius-lg);
+  padding:16px 18px;box-shadow:0 6px 0 rgba(0,0,0,.08);border:none;text-align:left;cursor:pointer;width:100%;
+  outline:3px solid rgba(255,255,255,.75);outline-offset:-3px;}
+.routine-card:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,.08);}
+.garden-sub{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+  color:rgba(46,58,63,.5);margin:22px 0 10px;}
+@media (prefers-reduced-motion:reduce){
+  .sc-hit.on{animation:none;box-shadow:0 0 0 7px rgba(255,209,102,.5);}
+  .bub{animation:none;opacity:.9;}
+  .scene .sc-pip{transition:none;}
+}
 </style>
 </head>
 <body>
 <div id="app"></div>
 
-<script src="/voice.js?v=1"></script>
+<script src="/voice.js?v=2"></script>
 <script>
 (function(){
 "use strict";
@@ -282,6 +334,7 @@ const DEFAULT_PROGRESS = {
   shapes:   { tier: 1, streak: 0, miss: 0, best: 1 },
   totalCorrect: 0,
   goodbyes: 0,
+  routineRuns: 0,
   // Handoff record: one entry per session handed to the child.
   // { s: startedAtMs, g: 1 if it ended with a goodbye, else 0 }
   // Never leaves the device. Capped so localStorage cannot grow without bound.
@@ -337,6 +390,79 @@ const SHAPE_TIERS = {
   3:{ pool:["circle","square","triangle"], collect:true, gridSize:6 }
 };
 
+
+/* ========================= PIP'S TURN — routines =========================
+   Rehearsal, not assessment. The child helps Pip; the child is never the
+   one being tested. Nothing here is scored, timed, or unlockable — see
+   docs/HABITS.md for why (short version: material rewards measurably
+   reduce toddlers' spontaneous helping, and performance pressure around
+   elimination is the causal path to withholding).
+========================================================================= */
+
+/* Every step: what Pip says, what the grown-up-facing cue says, which prop
+   glows, where Pip stands, and which scene props are visible. A tap
+   anywhere on the scene advances — a two-year-old's aim is not the skill
+   being practised, so there is no way to miss. */
+const R_POTTY_OPEN = [
+  { clip:"r-potty-0", say:"Pip's tummy feels wiggly.",        cue:"Tap Pip.",              hit:"pip",   pos:"" },
+  { clip:"r-potty-1", say:"Pip needs to go potty!",           cue:"Tap the potty.",        hit:"potty", pos:"" }
+];
+const R_POTTY_SIT = [
+  { clip:"r-potty-2", say:"Here we go — pants down.",         cue:"Tap Pip's pants.",      hit:"pip",   pos:"at-potty", flags:["pants"] },
+  { clip:"r-potty-3", say:"Sit down, Pip.",                   cue:"Tap the potty seat.",   hit:"potty", pos:"at-potty", flags:["pants","sit"] },
+  { clip:"r-potty-4", say:"Now we wait. Let's hum a song.",   cue:"Wait with Pip.",        hit:"pip",   pos:"at-potty", flags:["pants","sit"] }
+];
+const R_WENT = [
+  { clip:"r-went-0", say:"Pip did it! Right in the potty.",   cue:"Tap the paper.",        hit:"tp",    pos:"at-potty", flags:["pants","sit"] },
+  { clip:"r-went-1", say:"All clean. Pants back up!",         cue:"Tap Pip.",              hit:"pip",   pos:"at-potty" },
+  { clip:"r-went-2", say:"Now we flush.",                     cue:"Tap the potty.",        hit:"potty", pos:"at-potty" }
+];
+/* The most important branch in the product. Sitting and producing nothing is
+   the ordinary case, not a failure, and it ends exactly as warmly. */
+const R_NONE = [
+  { clip:"r-none-0", say:"Nothing this time. That's okay!",   cue:"Tap Pip.",              hit:"pip",   pos:"at-potty" },
+  { clip:"r-none-1", say:"We can try again later.",           cue:"Tap the sink.",         hit:"sink",  pos:"at-potty" }
+];
+/* Pip has accidents on purpose, and nobody is cross about it. A child who has
+   just wet themselves should have already watched this happen to Pip. */
+const R_ACC = [
+  { clip:"r-acc-0", say:"Oh! Pip didn't make it in time.",    cue:"Tap Pip.",              hit:"pip",   pos:"", flags:["puddle"] },
+  { clip:"r-acc-1", say:"That's okay, Pip. Accidents happen.",cue:"Give Pip a hug.",       hit:"pip",   pos:"", flags:["puddle"] },
+  { clip:"r-acc-2", say:"Let's find some dry clothes.",       cue:"Tap the clothes.",      hit:"clothes", pos:"", flags:["puddle","clothes"] },
+  { clip:"r-acc-3", say:"All better. We'll try the potty next time.", cue:"Tap the sink.", hit:"sink",  pos:"" }
+];
+const R_WASH = [
+  { clip:"r-wash-0", say:"Time to wash our hands!",           cue:"Turn on the water.",    hit:"tap",   pos:"at-sink" },
+  { clip:"r-wash-1", say:"Now some soap.",                    cue:"Tap the soap.",         hit:"soap",  pos:"at-sink", flags:["water"] },
+  { clip:"r-wash-2", say:"Scrub, scrub, scrub!",              cue:"Tap Pip's hands.",      hit:"pip",   pos:"at-sink", flags:["water","bubbles"], repeat:3 },
+  { clip:"r-wash-3", say:"Rinse them off.",                   cue:"Tap the water.",        hit:"tap",   pos:"at-sink", flags:["water","bubbles"] },
+  { clip:"r-wash-4", say:"And dry them.",                     cue:"Tap the towel.",        hit:"towel", pos:"at-sink" }
+];
+const R_DONE = { clip:"r-done", say:"I did it! Thank you for helping me.", cue:"", pos:"", end:true };
+
+/* Which ending this run gets. Fixed rotation rather than a coin flip so that
+   every child meets all three within a handful of plays — and so the very
+   first run is the whole happy sequence, start to finish. */
+const R_OUTCOMES = ["went","none","went","acc","went","none","went","went","none","acc"];
+
+const ROUTINES = {
+  potty: {
+    label:"Going Potty", sub:"Help Pip use the potty", emoji:"🚽", bg:"#DFF3FF",
+    build(outcome){
+      if(outcome === "acc") return R_POTTY_OPEN.slice(0,1).concat(R_ACC, R_WASH, [R_DONE]);
+      const tail = outcome === "none" ? R_NONE : R_WENT;
+      return R_POTTY_OPEN.concat(R_POTTY_SIT, tail, R_WASH, [R_DONE]);
+    }
+  },
+  handwash: {
+    label:"Washing Hands", sub:"Soap, scrub and rinse with Pip", emoji:"🫧", bg:"#E4F7EC",
+    build(){
+      return [{ clip:"r-handwash-0", say:"Pip's hands are all mucky!", cue:"Tap Pip.", hit:"pip", pos:"" }]
+        .concat(R_WASH, [R_DONE]);
+    }
+  }
+};
+
 const AFFIRM_WORDS = ["Yes!","You found it!","Pip is so happy!","Great eyes!","Wonderful!","That's it!"];
 const RETRY_WORDS = ["Let's look again!","Almost — try another!","Keep looking!","So close!"];
 
@@ -351,6 +477,7 @@ let state = {
   awaitingNext: false,
   missOnQuestion: 0,
   collected: [],           // for shapes collect-mode
+  routine: null,          // { key, steps, i, taps }
   gateTarget: null,
   gateFrom: "settings",
   qSerial: 0              // increments per question so repeats are not mistaken for re-renders
@@ -463,6 +590,7 @@ function promptClip(){
   // would mean eight seconds of Pip talking before a two-year-old gets a turn.
   if(state.screen === "garden")  return listenOn() ? "listen-garden" : "garden-intro";
   if(state.screen === "goodbye") return "goodbye";
+  if(state.screen === "routine"){ const st = rStep(); return st ? st.clip : null; }
   if(state.screen !== "play" || !state.question) return null;
   const q = state.question;
   if(q.type === "colors")         return "prompt-color-" + q.target;
@@ -704,6 +832,7 @@ function renderScreen(){
   if(state.screen==="consent") return screenConsent();
   if(state.screen==="garden") return screenGarden();
   if(state.screen==="play") return screenPlay();
+  if(state.screen==="routine") return screenRoutine();
   if(state.screen==="goodbye") return screenGoodbye();
   if(state.screen==="gate") return screenGate();
   if(state.screen==="settings") return screenSettings();
@@ -712,7 +841,7 @@ function renderScreen(){
 
 function screenHome(){
   const c = document.createElement("div");
-  c.style.width="100%"; c.style.display="flex"; c.style.flexDirection="column"; c.style.alignItems="center"; c.style.flex="1"; c.style.justifyContent="center";
+  c.style.width="100%"; c.style.display="flex"; c.style.flexDirection="column"; c.style.alignItems="center"; c.style.flex="1";
   c.innerHTML =
     '<div class="topbar"><div class="spacer"></div><button class="icon-btn" data-act="parents" aria-label="Parents">⚙️</button></div>'+
     '<div class="home-pip">'+pipHTML()+'</div>'+
@@ -744,6 +873,16 @@ function screenGarden(){
         return '<button class="level-card" data-act="playlevel" data-level="'+cd.key+'">'+
           '<div class="level-emoji" style="background:'+cd.bg+'">'+cd.emoji+'</div>'+
           '<div class="level-info"><b>'+cd.label+'</b><span>'+cd.sub+'</span><div class="leaf-row">'+leafDots+'</div></div>'+
+        '</button>';
+      }).join("")+
+    '</div>'+
+    '<div class="garden-sub">Pip\'s Turn</div>'+
+    '<div class="grid">'+
+      Object.keys(ROUTINES).map(function(k){
+        const rt = ROUTINES[k];
+        return '<button class="routine-card" data-act="playroutine" data-routine="'+k+'">'+
+          '<div class="level-emoji" style="background:'+rt.bg+'">'+rt.emoji+'</div>'+
+          '<div class="level-info"><b>'+rt.label+'</b><span>'+rt.sub+'</span></div>'+
         '</button>';
       }).join("")+
     '</div>';
@@ -857,9 +996,142 @@ function pipGlowIconHTML(){
   return '<svg viewBox="0 0 100 100" width="100%" height="100%"><circle cx="50" cy="60" r="34" fill="#6FD08C"/><circle cx="38" cy="55" r="6" fill="#fff"/><circle cx="62" cy="55" r="6" fill="#fff"/><circle cx="38" cy="56" r="3" fill="#2E3A3F"/><circle cx="62" cy="56" r="3" fill="#2E3A3F"/></svg>';
 }
 
+
+/* ------------------------- Pip's Turn: the scene ------------------------
+   One bathroom, drawn in flat rounded shapes like everything else in the
+   system, with props that fade in as the routine needs them. No image
+   files — same reason Pip has none. */
+function sceneSvg(){
+  return '<svg viewBox="0 0 400 400" aria-hidden="true">'+
+    '<rect x="0" y="0" width="400" height="302" fill="#E8F4FB"/>'+
+    '<rect x="0" y="302" width="400" height="98" fill="#F7E8D7"/>'+
+    '<rect x="0" y="296" width="400" height="8" fill="#E7D2B8"/>'+
+    /* mirror */
+    '<rect x="204" y="66" width="72" height="62" rx="15" fill="#D6EEF9" stroke="#fff" stroke-width="6"/>'+
+    /* door */
+    '<rect x="336" y="118" width="64" height="180" rx="12" fill="#C8AEE4"/>'+
+    '<rect x="345" y="130" width="46" height="76" rx="9" fill="#D9C6EE"/>'+
+    '<circle cx="352" cy="232" r="6" fill="#8E6FB8"/>'+
+    /* toilet paper */
+    '<rect x="186" y="186" width="7" height="18" rx="3.5" fill="#C9D4D9"/>'+
+    '<circle cx="171" cy="204" r="18" fill="#fff" stroke="#DCE6EA" stroke-width="2"/><circle cx="171" cy="204" r="5.5" fill="#E2E7E9"/>'+
+    '<path d="M163 210 H180 V244 Q171.5 239 163 244 Z" fill="#F7FAFB" stroke="#DCE6EA" stroke-width="2"/>'+
+    /* potty */
+    '<ellipse cx="106" cy="316" rx="48" ry="10" fill="rgba(0,0,0,.07)"/>'+
+    '<path d="M64 262 H148 L139 308 Q138 314 132 314 H80 Q74 314 73 308 Z" fill="#fff"/>'+
+    '<ellipse cx="106" cy="262" rx="43" ry="13" fill="#FF8A73"/>'+
+    '<ellipse cx="106" cy="262" rx="27" ry="7" fill="#F16E55"/>'+
+    /* sink */
+    '<rect x="228" y="240" width="26" height="58" rx="6" fill="#EDF2F4"/>'+
+    '<rect x="196" y="212" width="88" height="30" rx="12" fill="#fff"/>'+
+    '<rect x="201" y="216" width="78" height="15" rx="7.5" fill="#D6EEF9"/>'+
+    '<path d="M240 212 V186 Q240 178 248 178 H260" stroke="#BAC7CD" stroke-width="8" fill="none" stroke-linecap="round"/>'+
+    /* soap */
+    '<rect x="290" y="222" width="22" height="18" rx="7" fill="#FF8FA8"/>'+
+    /* towel */
+    '<rect x="298" y="92" width="38" height="6" rx="3" fill="#BAC7CD"/>'+
+    '<rect x="303" y="96" width="28" height="48" rx="8" fill="#FFD166"/>'+
+    /* --- props that fade in when the routine needs them --- */
+    '<rect class="sc-fade" data-p="water" x="255" y="184" width="9" height="34" rx="4.5" fill="#7FD3EF"/>'+
+    '<ellipse class="sc-fade" data-p="puddle" cx="296" cy="344" rx="40" ry="12" fill="#BDE7F7"/>'+
+    '<g class="sc-fade" data-p="clothes">'+
+      '<rect x="22" y="150" width="58" height="36" rx="9" fill="#56C6E6"/>'+
+      '<rect x="22" y="150" width="58" height="11" rx="5.5" fill="#3FB2D4"/>'+
+      '<rect x="29" y="189" width="44" height="28" rx="8" fill="#FFD166"/>'+
+    '</g>'+
+  '</svg>';
+}
+
+/* Where the glow sits, per prop, as a percentage box over the scene. */
+const R_HITBOX = {
+  potty:  "left:13%;top:61%;width:27%;height:19%;",
+  tp:     "left:36%;top:44%;width:12%;height:14%;",
+  sink:   "left:47%;top:51%;width:24%;height:13%;",
+  tap:    "left:56%;top:42%;width:15%;height:14%;",
+  soap:   "left:69%;top:52%;width:11%;height:10%;",
+  towel:  "left:73%;top:21%;width:11%;height:14%;",
+  clothes:"left:4%;top:35%;width:17%;height:19%;",
+  pip:    null
+};
+
+function rStep(){
+  const r = state.routine;
+  return r ? r.steps[r.i] : null;
+}
+
+function screenRoutine(){
+  const r = state.routine, st = rStep();
+  const c = document.createElement("div");
+  c.style.width="100%"; c.style.display="flex"; c.style.flexDirection="column"; c.style.alignItems="center";
+  c.style.flex="1";
+  const flags = st.flags || [];
+  const hit = st.hit && R_HITBOX[st.hit] ? '<i class="sc-hit on" style="'+R_HITBOX[st.hit]+'"></i>' : "";
+  const bubbles = flags.indexOf("bubbles") > -1
+    ? '<i class="bub" style="left:62%;bottom:36%;width:14px;height:14px;"></i>'+
+      '<i class="bub" style="left:68%;bottom:34%;width:10px;height:10px;animation-delay:.7s"></i>'+
+      '<i class="bub" style="left:58%;bottom:33%;width:8px;height:8px;animation-delay:1.4s"></i>'
+    : "";
+  const dots = r.steps.map(function(_,i){
+    return '<i class="'+(i < r.i ? "done" : (i === r.i ? "now" : ""))+'"></i>';
+  }).join("");
+  c.innerHTML =
+    '<div class="topbar">'+
+      '<button class="icon-btn" data-act="garden" aria-label="Back">🌿</button><div class="spacer"></div>'+
+      '<button class="icon-btn" data-act="parents" aria-label="Parents">⚙️</button>'+
+    '</div>'+
+    '<div class="routine-head">'+
+      '<div class="r-say">'+st.say+'</div>'+
+      '<div class="r-cue">'+(st.cue || "")+'</div>'+
+    '</div>'+
+    '<div class="scene '+(st.pos || "")+'" id="scene">'+
+      sceneSvg()+
+      '<div class="sc-pip'+'">'+pipHTML({ celebrate: !!st.end })+'</div>'+
+      hit + bubbles +
+    '</div>'+
+    '<div class="step-dots">'+dots+'</div>'+
+    (st.end
+      ? '<div class="routine-foot">'+
+          '<button class="btn btn-primary" data-act="routine-again">Again!</button>'+
+          '<button class="btn btn-secondary" data-act="garden">Pip\'s Garden</button>'+
+        '</div>'
+      : "");
+  /* Fade in only the props this step calls for. */
+  const svg = c.querySelector("svg");
+  flags.forEach(function(f){
+    const n = svg.querySelector('[data-p="'+f+'"]');
+    if(n) n.classList.add("show");
+  });
+  return c;
+}
+
+/* One tap = one step. There is no wrong tap and no way to fail, which is the
+   whole point: the child is rehearsing a sequence, not being assessed on it. */
+function routineTap(){
+  const r = state.routine, st = rStep();
+  if(!r || !st || st.end) return;
+  if(st.repeat && (r.taps + 1) < st.repeat){ r.taps++; sfxTry(); return; }
+  r.taps = 0; r.i++;
+  state.qSerial++;
+  const now = rStep();
+  if(now && now.end){ sfxCelebrate(); progress.routineRuns = (progress.routineRuns || 0) + 1; saveJSON(STORE_KEY, progress); }
+  else sfxCorrect();
+  render();
+}
+
+function startRoutine(key){
+  const def = ROUTINES[key];
+  if(!def) return;
+  const outcome = R_OUTCOMES[(progress.routineRuns || 0) % R_OUTCOMES.length];
+  state.routine = { key: key, steps: def.build(outcome), i: 0, taps: 0 };
+  state.screen = "routine";
+  state.qSerial++;
+  startSessionIfNeeded();
+  render();
+}
+
 function screenGoodbye(){
   const c = document.createElement("div");
-  c.style.width="100%"; c.style.display="flex"; c.style.flexDirection="column"; c.style.alignItems="center"; c.style.flex="1"; c.style.justifyContent="center";
+  c.style.width="100%"; c.style.display="flex"; c.style.flexDirection="column"; c.style.alignItems="center"; c.style.flex="1";
   const rows = [["colors","Colors"],["counting","Counting"],["shapes","Shapes"]].map(([k,label])=>{
     const n = state.sessionCorrectByLevel[k];
     const stars = n>0 ? "⭐".repeat(Math.min(5,n)) : "—";
@@ -932,7 +1204,7 @@ function screenHello(){
 function screenConsent(){
   const c = document.createElement("div");
   c.style.width="100%"; c.style.display="flex"; c.style.flexDirection="column";
-  c.style.alignItems="center"; c.style.flex="1"; c.style.justifyContent="center";
+  c.style.alignItems="center"; c.style.flex="1";
   const granted = !!(window.KideVoice && KideVoice.consent.get());
 
   let body, actions;
@@ -968,7 +1240,7 @@ function screenGate(){
   state.gateTarget = a+b;
   const opts = shuffle([state.gateTarget, state.gateTarget+1, Math.max(1,state.gateTarget-2)]);
   const c = document.createElement("div");
-  c.style.width="100%"; c.style.display="flex"; c.style.flexDirection="column"; c.style.alignItems="center"; c.style.flex="1"; c.style.justifyContent="center";
+  c.style.width="100%"; c.style.display="flex"; c.style.flexDirection="column"; c.style.alignItems="center"; c.style.flex="1";
   c.innerHTML =
     '<div class="gate-card">'+
       '<div class="p-eyebrow" style="color:var(--ink-soft);font-weight:700">GROWN-UPS ONLY</div>'+
@@ -1024,6 +1296,13 @@ function screenSettings(){
       '<div class="slider-row"><input type="range" min="4" max="20" step="1" id="sessLen" value="'+settings.sessionMinutes+'"><span class="slider-val" id="sessLenVal">'+settings.sessionMinutes+' min</span></div>'+
     '</div>'+
     '<div class="settings-card">'+
+      '<h3>Pip\'s Turn — routines</h3>'+
+      '<p>Going Potty and Washing Hands are not games and nothing in them is scored. Your child helps <b>Pip</b> through the steps, which is the point: a two-year-old plays with a toy sink that has no water because <i>doing the routine</i> is the reward. Adding points to that only gets in the way.</p>'+
+      '<p style="margin-top:10px"><b>Three things worth knowing.</b> Play it <i>before</i> the real moment, in another room — never on the toilet, where a screen pulls attention away from the body signals your child is learning to read. Pip sometimes sits and nothing happens, and sometimes doesn\'t make it in time; both are on purpose, so your child has already watched it be okay. And we never reward your child for going — pressure around this is the fastest route to holding it in.</p>'+
+      '<p style="margin-top:10px">Played '+(progress.routineRuns||0)+' '+((progress.routineRuns===1)?"time":"times")+' on this device.</p>'+
+      '<p style="margin-top:10px">If your child is holding poop in for days, is in pain, or was trained and has started soiling, that is a medical thing rather than a motivation thing — worth a call to your pediatrician, and worth pushing if you feel brushed off.</p>'+
+    '</div>'+
+    '<div class="settings-card">'+
       '<h3>How Pip adapts</h3>'+
       '<p>Pip tracks a simple streak per game — a few in a row right and the game nudges up a notch; a few misses and it eases back down. That is the whole "adaptive" system: transparent rules, not a trained model, and it all runs on this device.</p>'+
     '</div>'+
@@ -1074,6 +1353,10 @@ function wireScreen(){
   if(state.screen==="play"){
     const optWrap = document.getElementById("optWrap");
     if(optWrap) optWrap.addEventListener("click", onOptionTap);
+  }
+  if(state.screen==="routine"){
+    const sc = document.getElementById("scene");
+    if(sc) sc.addEventListener("click", routineTap, {passive:true});
   }
   if(state.screen==="gate"){
     app.querySelectorAll(".gate-opt").forEach(b=>b.addEventListener("click", onGateTap));
@@ -1130,6 +1413,8 @@ function onAction(e){
     startSessionIfNeeded();
     render();
   }
+  else if(act==="playroutine"){ startRoutine(e.currentTarget.getAttribute("data-routine")); }
+  else if(act==="routine-again"){ startRoutine(state.routine ? state.routine.key : "potty"); }
   else if(act==="sleepytap"){ goToGoodbye(); }
   else if(act==="replay"){ speakScreen(true); }
   else if(act==="mute"){

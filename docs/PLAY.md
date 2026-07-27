@@ -39,3 +39,32 @@ form, so a parent can sign up from either surface.
 and `/` are served straight from `dist/` (built from `public/` + root `index.html` by
 `npm run build`) with no per-route code needed. Add a new static page by dropping
 `public/<path>/index.html` in and it's live at `/<path>` on the next deploy.
+
+## Pip's Turn (added 2026-07-27)
+
+`/play` now carries two pretend-play routines alongside the three quiz games —
+**Going Potty** and **Washing Hands**. They deliberately share no mechanics with
+the quiz: no score, no streak, no tier, no timer, no wrong tap, no fail state.
+The child helps Pip; the child is never the one being tested.
+
+Read [HABITS.md](./HABITS.md) before touching them. The short version of why
+they are built this way:
+
+- Material rewards measurably *reduce* toddlers' spontaneous helping (53% of
+  trials after a reward, vs 89% with none), so the leaf/streak engine must not
+  be extended to habit or character content.
+- Children under about three transfer poorly from screen to life, so the screen
+  rehearses and primes; the habit itself happens in the bathroom.
+- Performance pressure around elimination is the causal path to withholding,
+  which ~24% of children go through. Scoring a child's poop is not neutral.
+
+Content lives in `R_POTTY_OPEN` / `R_POTTY_SIT` / `R_WENT` / `R_NONE` / `R_ACC` /
+`R_WASH` and is assembled by `ROUTINES[key].build(outcome)`. Endings follow a
+fixed 10-run rotation (`R_OUTCOMES`) rather than a coin flip, so every child
+meets all three — success, nothing-happened, and an accident — within a handful
+of plays, and the very first run is always the whole happy sequence.
+
+`npm run test:routines` drives the real UI through every branch. Several of its
+assertions are negative on purpose (no mastery dots, no scoring vocabulary,
+no change to `totalCorrect`) — those are the ones that will catch a future
+change quietly turning this back into a game.

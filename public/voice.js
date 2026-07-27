@@ -64,7 +64,28 @@
     "listen-shape": "Say the shape out loud, or tap it!",
     "listen-again": "I didn't quite hear that. Try again, or tap!",
     "listen-garden": "Say colors, counting, or shapes... or tap one!",
-    "handoff-hello": "Hi there! Are you ready to play with me?"
+    "handoff-hello": "Hi there! Are you ready to play with me?",
+    "r-potty-0": "Pip's tummy feelswiggly.",
+    "r-potty-1": "Pip needs to gopotty!",
+    "r-potty-2": "Here we go. Pantsdown.",
+    "r-potty-3": "Sit downPip.",
+    "r-potty-4": "Now we wait. Let's hum a littlesong.",
+    "r-went-0": "Pip did it! Right in thepotty.",
+    "r-went-1": "All clean. Pants backup!",
+    "r-went-2": "Now weflush.",
+    "r-none-0": "Nothing this time. That'sokay!",
+    "r-none-1": "We can try againlater.",
+    "r-acc-0": "Oh! Pip didn't make it intime.",
+    "r-acc-1": "That's okay, Pip. Accidentshappen.",
+    "r-acc-2": "Let's find some dryclothes.",
+    "r-acc-3": "All better. We'll try the pottynext time.",
+    "r-wash-0": "Time to wash ourhands!",
+    "r-wash-1": "Now somesoap.",
+    "r-wash-2": "Scrubscrubscrub!",
+    "r-wash-3": "Rinse themoff.",
+    "r-wash-4": "Anddry them.",
+    "r-done": "I did it! Thank you for helpingme.",
+    "r-handwash-0": "Pip's hands are allmucky!"
   };
 
   /* Clips needed inside the first few seconds. Warmed on the handoff tap;

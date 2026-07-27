@@ -75,6 +75,29 @@ module.exports = {
     { id: "listen-garden", text: "Say colors, counting, or shapes... or tap one!" },
 
     /* ---- the moment the grown-up hands the device over ---- */
-    { id: "handoff-hello", text: "Hi there! Are you ready to play with me?" }
+    { id: "handoff-hello", text: "Hi there! Are you ready to play with me?" },
+
+    /* ---- Pip's Turn: routine rehearsal (see docs/HABITS.md) ---- */
+    { id: "r-potty-0", text: "Pip's tummy feels... wiggly." },
+    { id: "r-potty-1", text: "Pip needs to go... potty!" },
+    { id: "r-potty-2", text: "Here we go. Pants... down." },
+    { id: "r-potty-3", text: "Sit down... Pip." },
+    { id: "r-potty-4", text: "Now we wait. Let's hum a little... song." },
+    { id: "r-went-0", text: "Pip did it! Right in the... potty." },
+    { id: "r-went-1", text: "All clean. Pants back... up!" },
+    { id: "r-went-2", text: "Now we... flush." },
+    { id: "r-none-0", text: "Nothing this time. That's... okay!" },
+    { id: "r-none-1", text: "We can try again... later." },
+    { id: "r-acc-0", text: "Oh! Pip didn't make it in... time." },
+    { id: "r-acc-1", text: "That's okay, Pip. Accidents... happen." },
+    { id: "r-acc-2", text: "Let's find some dry... clothes." },
+    { id: "r-acc-3", text: "All better. We'll try the potty... next time." },
+    { id: "r-wash-0", text: "Time to wash our... hands!" },
+    { id: "r-wash-1", text: "Now some... soap." },
+    { id: "r-wash-2", text: "Scrub... scrub... scrub!" },
+    { id: "r-wash-3", text: "Rinse them... off." },
+    { id: "r-wash-4", text: "And... dry them." },
+    { id: "r-done", text: "I did it! Thank you for helping... me." },
+    { id: "r-handwash-0", text: "Pip's hands are all... mucky!" }
   ]
 };
