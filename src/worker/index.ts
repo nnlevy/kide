@@ -1,3 +1,75 @@
-export interface Env { DB?: D1Database; ASSETS: Fetcher; }
-const HTML = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kide.us — Kids Activities, Play Ideas &amp; Family Fun 2026</title><meta name="description" content="AI-powered kids activities, play ideas, learning games, and family joy. Free generators for parents and educators. Part of the revenue platform."><script src="https://cdn.tailwindcss.com"></script><link rel="sitemap" href="/sitemap.xml"></head><body class="bg-sky-50"><nav class="bg-white border-b"><div class="max-w-5xl mx-auto px-4 py-3 flex justify-between"><div class="flex items-center gap-2"><span class="text-2xl">🧒</span><span class="font-bold">Kide</span></div><div class="text-sm"><a href="https://growth.business" class="underline">growth.business</a></div></div></nav><header class="max-w-5xl mx-auto px-4 py-12 text-center"><h1 class="text-4xl font-bold">Kide.us</h1><p class="mt-2 text-lg text-gray-600">Play ideas, activities &amp; learning that actually work for real kids (and tired parents). AI generators + publisher guides.</p><a href="#ideas" class="inline-block mt-4 px-6 py-2 bg-black text-white rounded">Get Activity Ideas</a></header><section id="ideas" class="max-w-5xl mx-auto px-4"><div class="p-6 bg-white rounded-2xl border"><h2 class="font-semibold mb-3">AI Kids Activity Coach (local-sim)</h2><form onsubmit="gen(event)" class="flex gap-2"><input id="age" placeholder="Age e.g. 5" class="border p-2 rounded"><input id="theme" placeholder="Theme e.g. dinosaurs outdoors" class="border p-2 rounded flex-1"><button class="px-4 bg-black text-white rounded">Generate 3 Ideas</button></form><div id="out" class="hidden mt-3 text-sm"></div></div></section><section class="max-w-5xl mx-auto px-4 py-8"><h3 class="font-medium mb-2">Publisher Library (5)</h3><ul class="text-sm grid gap-1"><li>Article 1: 10 Rainy Day Activities That Build Real Skills (not screens)</li><li>Article 2: Outdoor Play in 2026 Cities — Safe, Free, High-Impact</li><li>Article 3: The Power of Messy Play for Brain Development</li><li>Article 4: Low-Prep Birthday Party Themes Kids Actually Love</li><li>Article 5: How to Turn Everyday Errands into Learning Adventures</li></ul></section><footer class="max-w-5xl mx-auto p-4 text-xs text-gray-500 border-t">© Kide.us — part of growth.business platform. <a href="/ads.txt">ads.txt</a> · Network: growth.business · chatulah.com · doting.co · 10-7.org</footer><script>function gen(e){e.preventDefault();const o=document.getElementById('out');o.innerHTML='<b>Local coach:</b> 1. Dinosaur dig in backyard with clues. 2. Kitchen science: baking soda volcanoes. 3. Story chain: each adds silly sentence. <a href="https://growth.business">Full on hub</a>';o.classList.remove('hidden');}</script></body></html>`;
-export default { async fetch(req: Request, env: Env) { const u=new URL(req.url); if(u.pathname==='/ads.txt') return new Response('google.com, pub-1860356577073395, DIRECT, f08c47fec0942fa0\n',{headers:{'Content-Type':'text/plain'}}); if(u.pathname==='/sitemap.xml') return new Response('<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://kide.us/</loc></url></urlset>',{headers:{'Content-Type':'application/xml'}}); if(u.pathname==='/robots.txt') return new Response('User-agent: *\nAllow: /\nSitemap: https://kide.us/sitemap.xml'); try { const a=await env.ASSETS.fetch(req); if(a.status!=404) return a; }catch{} return new Response(HTML,{headers:{'Content-Type':'text/html; charset=utf-8'}}); } };
+export interface Env {
+  DB?: D1Database;
+  ASSETS: Fetcher;
+  KIDE_LEADS: KVNamespace;
+}
+
+const SITEMAP = `<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://kide.us/</loc></url><url><loc>https://kide.us/play</loc></url><url><loc>https://kide.us/privacy</loc></url><url><loc>https://kide.us/terms</loc></url></urlset>`;
+
+const NOT_FOUND_HTML = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Page not found · Kide</title><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#56C6E6,#BDEBFF);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;text-align:center;color:#fff;}h1{font-size:22px;}a{color:#fff;font-weight:800;}</style></head><body><div><div style="font-size:64px">🌱</div><h1>Pip couldn't find that page</h1><p><a href="/">Back to Kide</a></p></div></body></html>`;
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+
+    if (url.pathname === "/ads.txt") {
+      return new Response("google.com, pub-1860356577073395, DIRECT, f08c47fec0942fa0\n", {
+        headers: { "Content-Type": "text/plain" },
+      });
+    }
+
+    if (url.pathname === "/sitemap.xml") {
+      return new Response(SITEMAP, { headers: { "Content-Type": "application/xml" } });
+    }
+
+    if (url.pathname === "/robots.txt") {
+      return new Response("User-agent: *\nAllow: /\nSitemap: https://kide.us/sitemap.xml");
+    }
+
+    if (url.pathname === "/api/notify" && request.method === "POST") {
+      return handleNotify(request, env);
+    }
+
+    try {
+      const asset = await env.ASSETS.fetch(request);
+      if (asset.status !== 404) return asset;
+    } catch {
+      // static asset lookup failed — fall through to the 404 below
+    }
+
+    return new Response(NOT_FOUND_HTML, { status: 404, headers: { "Content-Type": "text/html; charset=utf-8" } });
+  },
+};
+
+// Minimal KV-backed waitlist. No accounts, no third-party processor — just an
+// email address a parent chose to give us, stored once per address.
+async function handleNotify(request: Request, env: Env): Promise<Response> {
+  const json = (data: unknown, status = 200) =>
+    new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
+
+  let body: any;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ ok: false, error: "bad_request" }, 400);
+  }
+
+  const email = String(body?.email || "").trim().toLowerCase();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) {
+    return json({ ok: false, error: "invalid_email" }, 400);
+  }
+
+  const record = {
+    email,
+    name: String(body?.name || "").slice(0, 200),
+    need: String(body?.need || "").slice(0, 300),
+    matchedDomain: String(body?.matchedDomain || "kide").slice(0, 100),
+    matchedTitle: String(body?.matchedTitle || "").slice(0, 200),
+    pageUrl: String(body?.pageUrl || "").slice(0, 500),
+    ts: Date.now(),
+  };
+
+  await env.KIDE_LEADS.put(`lead:${email}`, JSON.stringify(record));
+
+  return json({ ok: true });
+}

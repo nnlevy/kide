@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kide — Where Little Ones Learn by Playing</title>
+<meta name="description" content="Pip the Sprout teaches toddlers colors, counting, shapes, and early screen-time awareness — through a joyful, privacy-first game. No accounts, no ads, nothing ever leaves the device.">
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#56C6E6">
+<link rel="canonical" href="https://kide.us/">
+<link rel="icon" type="image/png" href="/icon-32.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="sitemap" href="/sitemap.xml">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Kide — Where Little Ones Learn by Playing">
+<meta property="og:description" content="Pip the Sprout teaches toddlers colors, counting, shapes, and early screen-time awareness. No accounts, no ads, nothing ever leaves the device.">
+<meta property="og:url" content="https://kide.us/">
+<meta property="og:image" content="https://kide.us/icon-512.png">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Organization","name":"Kide","url":"https://kide.us","logo":"https://kide.us/icon-512.png","parentOrganization":{"@type":"Organization","name":"Quizbiz LLC"}}
+</script>
+<style>
+:root{
+  --sky-top:#56C6E6; --sky-bottom:#BDEBFF;
+  --sun:#FFD166; --sun-deep:#FFC94A;
+  --grass:#6FD08C; --grass-deep:#4FB874; --grass-dark:#3D9C63;
+  --coral:#FF8A73; --coral-deep:#F16E55;
+  --berry:#FF8FA8; --berry-deep:#FF6F9C;
+  --sand:#4EA8DE; --sand-deep:#3B8FC4;
+  --grape:#B497D6; --grape-deep:#9C7BC7;
+  --pumpkin:#FF9F5B; --pumpkin-deep:#F2843A;
+  --cream:#FFFBF2; --card:#FFFFFF;
+  --ink:#2E3A3F; --ink-soft:#5B6A67; --ink-faint:#9AA6A3;
+  --radius-lg:28px; --radius-md:20px; --radius-sm:14px;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;background:var(--cream);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;}
+a{color:inherit;}
+.wrap{max-width:960px;margin:0 auto;padding:0 22px;}
+
+/* ---- nav ---- */
+nav{padding:20px 0;}
+nav .row{display:flex;align-items:center;justify-content:space-between;}
+.wordmark{font-size:24px;font-weight:800;color:var(--grass-dark);letter-spacing:-.02em;text-decoration:none;}
+.nav-play{font-size:15px;font-weight:800;color:var(--grass-dark);text-decoration:none;padding:8px 16px;border-radius:999px;border:2px solid var(--grass-deep);}
+
+/* ---- Pip (identical construction to the product) ---- */
+.pip-wrap{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
+.pip{position:relative;width:100%;height:100%;}
+.pip-shadow{position:absolute;bottom:-6%;left:50%;width:58%;height:10%;background:rgba(0,0,0,.16);border-radius:50%;transform:translateX(-50%);filter:blur(2px);}
+.pip-bob{width:100%;height:100%;transform-origin:bottom center;animation:bob 3.2s ease-in-out infinite;}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(0deg);}50%{transform:translateY(-4%) rotate(-1.5deg);}}
+.pip-body{position:absolute;left:8%;right:8%;bottom:4%;top:14%;background:linear-gradient(160deg,var(--grass),var(--grass-deep));border-radius:48% 48% 46% 46% / 58% 58% 42% 42%;box-shadow:inset 0 -10px 18px rgba(0,0,0,.10),inset 0 8px 14px rgba(255,255,255,.35);}
+.pip-belly{position:absolute;left:26%;right:26%;bottom:8%;height:38%;background:var(--grass-dark);opacity:.28;border-radius:50%;}
+.pip-cheek{position:absolute;width:13%;height:8%;background:var(--berry);opacity:.55;border-radius:50%;top:56%;}
+.pip-cheek.l{left:14%;}.pip-cheek.r{right:14%;}
+.pip-eye{position:absolute;width:19%;height:22%;background:#fff;border-radius:50%;top:32%;box-shadow:0 2px 3px rgba(0,0,0,.08);}
+.pip-eye.l{left:22%;}.pip-eye.r{right:22%;}
+.pip-pupil{position:absolute;width:52%;height:52%;background:var(--ink);border-radius:50%;top:26%;left:26%;animation:blink 5.5s ease-in-out infinite;}
+@keyframes blink{0%,92%,100%{transform:scaleY(1);}94%{transform:scaleY(.15);}96%{transform:scaleY(1);}}
+.pip-mouth{position:absolute;left:32%;right:32%;top:60%;height:16%;}
+.pip-sprout{position:absolute;top:-6%;left:50%;transform:translateX(-50%);width:34%;height:26%;}
+.pip-stem{position:absolute;bottom:0;left:50%;width:6%;height:70%;background:var(--grass-dark);transform:translateX(-50%);border-radius:3px;}
+.pip-leaf{position:absolute;width:46%;height:32%;background:linear-gradient(160deg,#8CE3A9,var(--grass-deep));border-radius:0% 100% 0% 100%;bottom:32%;}
+.pip-leaf.n1{left:2%;transform:rotate(-18deg);}
+.pip-leaf.n2{right:2%;transform:rotate(18deg) scaleX(-1);bottom:46%;}
+
+/* ---- hero ---- */
+.hero{background:linear-gradient(180deg,var(--sky-top),var(--sky-bottom));border-radius:var(--radius-lg);padding:52px 26px 34px;text-align:center;position:relative;overflow:hidden;margin-top:6px;}
+.hero-pip{width:150px;height:150px;margin:0 auto 8px;filter:drop-shadow(0 10px 12px rgba(0,0,0,.16));}
+.hero h1{font-size:clamp(32px,7vw,52px);margin:6px 0 0;color:#fff;text-shadow:0 3px 0 rgba(0,0,0,.08);}
+.hero p{color:#fff;font-size:17px;margin:14px auto 0;opacity:.96;max-width:480px;}
+.cta{display:inline-block;margin-top:24px;border:none;border-radius:999px;padding:17px 34px;font-size:18px;font-weight:800;color:#fff;text-decoration:none;background:linear-gradient(180deg,var(--coral),var(--coral-deep));box-shadow:0 5px 0 rgba(0,0,0,.14);}
+
+/* ---- sections ---- */
+section{margin-top:56px;}
+h2{font-size:26px;margin:0 0 10px;text-align:center;}
+p.desc{color:var(--ink-soft);font-size:16px;max-width:560px;margin:0 auto 30px;text-align:center;}
+
+.card-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
+.mini-card{background:var(--card);border-radius:var(--radius-md);padding:20px 18px;box-shadow:0 5px 0 rgba(0,0,0,.05);}
+.mini-card .emoji{font-size:26px;}
+.mini-card b{display:block;font-size:16px;margin:8px 0 2px;}
+.mini-card span{font-size:13.5px;color:var(--ink-soft);}
+
+.notify{background:var(--card);border-radius:var(--radius-lg);padding:34px 26px;text-align:center;box-shadow:0 3px 14px rgba(0,0,0,.05);}
+.notify h2{margin-bottom:8px;}
+.notify-form{display:flex;gap:10px;max-width:400px;margin:20px auto 0;flex-wrap:wrap;justify-content:center;}
+.notify-form input{flex:1;min-width:200px;border:2px solid #EFE9DA;border-radius:999px;padding:13px 20px;font-size:15px;font-family:inherit;color:var(--ink);}
+.notify-form input:focus{outline:none;border-color:var(--sand);}
+.notify-form button{border:none;border-radius:999px;padding:13px 24px;font-size:15px;font-weight:800;color:#fff;background:linear-gradient(180deg,var(--sand),var(--sand-deep));cursor:pointer;}
+.notify-msg{margin-top:14px;font-size:14px;font-weight:700;min-height:18px;}
+.notify-msg.ok{color:var(--grass-dark);}
+.notify-msg.err{color:var(--coral-deep);}
+
+footer{margin-top:64px;padding:30px 0 46px;text-align:center;color:var(--ink-faint);font-size:13px;}
+footer a{text-decoration:underline;}
+footer .links{margin-top:6px;}
+footer .links a{margin:0 8px;color:var(--ink-soft);}
+
+@media (max-width:520px){.card-grid{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <nav><div class="row">
+    <a class="wordmark" href="/">kide</a>
+    <a class="nav-play" href="/play">Play</a>
+  </div></nav>
+
+  <div class="hero">
+    <div class="hero-pip">
+      <div class="pip-wrap"><div class="pip"><div class="pip-shadow"></div><div class="pip-bob">
+        <div class="pip-sprout"><div class="pip-stem"></div><div class="pip-leaf n1"></div><div class="pip-leaf n2"></div></div>
+        <div class="pip-body"><div class="pip-belly"></div><div class="pip-cheek l"></div><div class="pip-cheek r"></div>
+          <div class="pip-eye l"><div class="pip-pupil"></div></div><div class="pip-eye r"><div class="pip-pupil"></div></div>
+          <div class="pip-mouth"><svg viewBox="0 0 40 20" width="100%" height="100%"><path d="M4,4 Q20,20 36,4" stroke="#2E3A3F" stroke-width="4" fill="none" stroke-linecap="round"/></svg></div>
+        </div></div></div></div>
+    </div>
+    <h1>Where little ones learn by playing.</h1>
+    <p>Pip the Sprout teaches colors, counting and shapes at a toddler's own pace — and helps build the very first habit of noticing when a turn on the screen is done. No accounts. No ads. Nothing ever leaves the device.</p>
+    <a class="cta" href="/play">Let's Play — it's free</a>
+  </div>
+
+  <section>
+    <h2>One home for everything little kids need</h2>
+    <p class="desc">Kide is where Quizbiz LLC builds joyful, honest learning experiences for little kids — starting with Pip's first game, growing into more over time. Every product here follows the same rule: gentle pace, real privacy, zero pressure on your child or your wallet.</p>
+  </section>
+
+  <section>
+    <h2>What Pip teaches today</h2>
+    <div class="card-grid">
+      <div class="mini-card"><div class="emoji">🎨</div><b>Colors</b><span>Find the color Pip names</span></div>
+      <div class="mini-card"><div class="emoji">🔢</div><b>Counting</b><span>Count along, one at a time</span></div>
+      <div class="mini-card"><div class="emoji">🔺</div><b>Shapes</b><span>Spot shapes in the world around</span></div>
+      <div class="mini-card"><div class="emoji">🌙</div><b>Screen-time awareness</b><span>Notice when it's time to say goodbye</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="notify">
+      <h2>More concept packs are coming</h2>
+      <p class="desc" style="margin-bottom:0">Letters, feelings, and more — Pip is just getting started. Want to know the moment something new lands?</p>
+      <form class="notify-form" id="notifyForm">
+        <input type="email" id="notifyEmail" placeholder="you@email.com" required>
+        <button type="submit">Notify me</button>
+      </form>
+      <div class="notify-msg" id="notifyMsg"></div>
+    </div>
+  </section>
+
+  <footer>
+    kide.us — a Quizbiz LLC product
+    <div class="links"><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></div>
+  </footer>
+</div>
+
+<script>
+document.getElementById('notifyForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  var emailInput = document.getElementById('notifyEmail');
+  var msg = document.getElementById('notifyMsg');
+  var email = emailInput.value.trim();
+  var btn = e.target.querySelector('button');
+  msg.className = 'notify-msg';
+  msg.textContent = '';
+  btn.disabled = true;
+  fetch('/api/notify', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      email: email,
+      matchedDomain: 'kide',
+      matchedTitle: 'Kide — landing page signup',
+      need: 'Notify me about new Kide activities',
+      pageUrl: location.href
+    })
+  }).then(function(r){ return r.json().then(function(data){ return {ok: r.ok, data: data}; }); })
+  .then(function(res){
+    btn.disabled = false;
+    if(res.ok && res.data.ok){
+      msg.textContent = "Thanks — we'll let you know!";
+      msg.className = 'notify-msg ok';
+      emailInput.value = '';
+    } else {
+      msg.textContent = 'Please double-check that email address.';
+      msg.className = 'notify-msg err';
+    }
+  }).catch(function(){
+    btn.disabled = false;
+    msg.textContent = "Couldn't reach the server — please try again.";
+    msg.className = 'notify-msg err';
+  });
+});
+</script>
+</body>
+</html>

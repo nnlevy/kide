@@ -7,5 +7,6 @@
   "routes": ["kide.us/*", "www.kide.us/*"],
   "observability": {"enabled": true},
   "assets": {"directory": "./dist", "not_found_handling": "single-page-application"},
-  "d1_databases": [{"binding": "DB", "database_name": "domains-db", "database_id": "b41e909b-ad01-4fd5-84ca-d8d014706942"}]
+  "d1_databases": [{"binding": "DB", "database_name": "domains-db", "database_id": "b41e909b-ad01-4fd5-84ca-d8d014706942"}],
+  "kv_namespaces": [{"binding": "KIDE_LEADS", "id": "5798aa0569ce449aa818bdc3f6533f63"}]
 }
