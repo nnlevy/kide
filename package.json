@@ -11,10 +11,13 @@
 		"test:voice": "npm run build && node test-voice.js",
 		"voice:render": "node tools/voice/generate.js",
 		"test:routines": "npm run build && node test-routines.js",
+		"share:render": "node tools/share/card.js",
 		"test": "npm run test:voice && node test-routines.js"
 	},
 	"devDependencies": {
 		"playwright": "^1.62.0",
+		"png-to-ico": "^3.0.2",
+		"sharp": "^0.35.3",
 		"wrangler": "^3.78.0"
 	}
 }

@@ -41,7 +41,10 @@ async function micReady(pg, ms) {
 }
 const totalCorrect = (pg) => pg.evaluate(() => JSON.parse(localStorage.getItem("pip_ttf_progress_v1") || "{}").totalCorrect || 0);
 async function toGarden(pg) {
-  await pg.locator('[data-act="home"]').first().click(); await pg.waitForTimeout(250);
+  // Already-home screens have no home button; only press it if we're elsewhere.
+  if (await pg.locator('[data-act="letsplay"]').count() === 0) {
+    await pg.locator('[data-act="home"]').first().click(); await pg.waitForTimeout(250);
+  }
   await pg.getByRole("button", { name: "Let's Play!" }).click(); await pg.waitForTimeout(200);
   await pg.locator('[data-act="handover"]').click(); await pg.waitForTimeout(400);
   await pg.getByRole("button", { name: "Yes!" }).click(); await pg.waitForTimeout(400);
@@ -255,6 +258,30 @@ const ok = (c, m) => { if (c) { pass++; console.log("  ✓ " + m); } else { fail
   }
   await page.waitForTimeout(400);
   ok(await handoffs(page) === h0, "backgrounding and returning does not log a phantom handoff");
+
+  console.log("\n── share moment ──");
+  // The share only exists once there is something true to say, and it lives
+  // behind the grown-ups gate — never on the child-facing goodbye screen.
+  await openParentCorner(page);
+  ok(await page.locator("#shareWeek").count() === 0, "no share offered before the habit has any evidence behind it");
+  await page.locator('[data-act="home"]').first().click(); await page.waitForTimeout(200);
+  for (let i = 0; i < 2; i++) {                       // two real goodbyes
+    await toGarden(page);
+    await page.locator('[data-level="shapes"]').click(); await page.waitForTimeout(500);
+    await page.locator('[data-act="sleepytap"]').click(); await page.waitForTimeout(400);
+    await page.getByRole("button", { name: "See you soon!" }).click(); await page.waitForTimeout(300);
+  }
+  await openParentCorner(page);
+  ok(await page.locator("#shareWeek").isVisible(), "share appears once two sessions have ended with a goodbye");
+  ok(await page.locator(".home-actions #shareWeek").count() === 0, "share is in Parent Corner, not on the child's goodbye screen");
+  const shareText = await page.evaluate(() => {
+    let captured = null;
+    navigator.share = (d) => { captured = d; return Promise.resolve(); };
+    document.getElementById("shareWeek").click();
+    return captured;
+  });
+  ok(!!shareText && /ended with my kid saying goodnight/.test(shareText.text), "share text leads with the parent's own result");
+  ok(!!shareText && shareText.url === "https://kide.us", "share carries the link");
 
   console.log("\n── pronunciation matcher ──");
   const CASES = [
