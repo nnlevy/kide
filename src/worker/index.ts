@@ -31,18 +31,11 @@ export default {
     }
 
     try {
+      // Note: static assets are served by the Assets binding BEFORE this Worker
+      // runs, so setting response headers on them here would be dead code —
+      // caching for /voice/* lives in public/_headers instead.
       const asset = await env.ASSETS.fetch(request);
-      if (asset.status !== 404) {
-        // The voice pack is content-addressed by directory (/voice/v1/...), so
-        // a new pack means a new path and these can cache forever. Keeps the
-        // marginal cost of Pip talking at zero no matter how many kids play.
-        if (url.pathname.startsWith("/voice/")) {
-          const headers = new Headers(asset.headers);
-          headers.set("Cache-Control", "public, max-age=31536000, immutable");
-          return new Response(asset.body, { status: asset.status, headers });
-        }
-        return asset;
-      }
+      if (asset.status !== 404) return asset;
     } catch {
       // static asset lookup failed — fall through to the 404 below
     }

@@ -1,0 +1,12 @@
+# Cloudflare Workers Assets serves static files BEFORE the Worker runs, so
+# response headers for them belong here, not in src/worker/index.ts.
+
+# The voice pack is versioned by directory (/voice/v1/…), so a new pack is a new
+# path and these can cache for a year. This is what keeps the marginal cost of
+# Pip talking at zero, and what lets the game keep speaking offline.
+/voice/v1/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# The module itself is small and changes with the game; a day is plenty.
+/voice.js
+  Cache-Control: public, max-age=86400
