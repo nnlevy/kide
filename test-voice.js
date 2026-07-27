@@ -202,7 +202,11 @@ const ok = (c, m) => { if (c) { pass++; console.log("  ✓ " + m); } else { fail
 
   console.log("\n── clip missing / offline ──");
   const p3 = await ctx.newPage();
-  await p3.route("**/voice/v1/prompt-color-*.mp3", (r) => r.fulfill({ status: 404, body: "" }));
+  // Simulates the real production failure mode, not a tidy 404: Cloudflare's
+  // SPA not-found handling answers a missing file with 200 + the HTML shell,
+  // so the audio element receives text/html and has to fail gracefully.
+  await p3.route("**/voice/v1/prompt-color-*.mp3", (r) =>
+    r.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: "<!DOCTYPE html><html><body>shell</body></html>" }));
   await p3.addInitScript(() => {
     window.__tts = [];
     if (window.speechSynthesis) window.speechSynthesis.speak = function (u) {
