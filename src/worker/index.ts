@@ -8,16 +8,6 @@ const SITEMAP = `<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/sch
 
 const NOT_FOUND_HTML = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Page not found · Kide</title><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#56C6E6,#BDEBFF);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;text-align:center;color:#fff;}h1{font-size:22px;}a{color:#fff;font-weight:800;}</style></head><body><div><div style="font-size:64px">🌱</div><h1>Pip couldn't find that page</h1><p><a href="/">Back to Kide</a></p></div></body></html>`;
 
-// Route paths in this app are all extensionless (/play, /privacy, …), so a
-// trailing ".<ext>" means the request is for a file that should exist.
-const FILE_EXT = /\.[a-z0-9]{2,5}$/i;
-function looksLikeFile(pathname: string): boolean {
-  return FILE_EXT.test(pathname);
-}
-function isHtml(res: Response): boolean {
-  return (res.headers.get("Content-Type") || "").includes("text/html");
-}
-
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -41,25 +31,19 @@ export default {
     }
 
     try {
-      // Note: static assets are served by the Assets binding BEFORE this Worker
-      // runs, so setting response headers on them here would be dead code —
-      // caching for /voice/* lives in public/_headers instead.
+      // Two things about this binding that are easy to get wrong, both learned
+      // the hard way on this site:
+      //   1. Assets are served BEFORE this Worker runs, so setting response
+      //      headers on them here is dead code — caching for /voice/* lives in
+      //      public/_headers.
+      //   2. This is a static multi-page site, so not_found_handling is "none".
+      //      With "single-page-application" the Assets layer answered every
+      //      missing FILE with 200 + the HTML shell: a missing favicon or
+      //      og:image rendered nothing while every check stayed green, and a
+      //      missing voice clip arrived as 200 text/html. Misses now reach
+      //      the 404 below, honestly.
       const asset = await env.ASSETS.fetch(request);
-      if (asset.status !== 404) {
-        // `not_found_handling: single-page-application` answers a MISSING file
-        // with 200 + the HTML shell. For a page route that is the point; for a
-        // file it is a silent lie — a missing favicon or og:image looks fine to
-        // every check, and a missing voice clip arrives as text/html with a 200
-        // so the audio element fails in a way nothing reports. Real paths have
-        // no extension, so anything asking for one gets an honest 404.
-        if (looksLikeFile(url.pathname) && isHtml(asset)) {
-          return new Response(NOT_FOUND_HTML, {
-            status: 404,
-            headers: { "Content-Type": "text/html; charset=utf-8" },
-          });
-        }
-        return asset;
-      }
+      if (asset.status !== 404) return asset;
     } catch {
       // static asset lookup failed — fall through to the 404 below
     }
