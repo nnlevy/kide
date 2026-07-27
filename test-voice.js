@@ -238,6 +238,20 @@ const ok = (c, m) => { if (c) { pass++; console.log("  ✓ " + m); } else { fail
   ok(/without sending your child/i.test(set2), "Parent Corner explains the refusal honestly");
   ok(await p2.locator("#listenSwitch").count() === 0, "no way to switch on a cloud mic at all");
 
+  console.log("\n── handoff record ──");
+  // The goodbye ritual's counter lives in the same session hooks the voice
+  // layer's resume-on-return touches. Backgrounding the tab must not log a
+  // second handoff, or the Parent Corner over-reports every screen lock.
+  const handoffs = (pg) => pg.evaluate(() => (JSON.parse(localStorage.getItem("pip_ttf_progress_v1") || "{}").handoffs || []).length);
+  const h0 = await handoffs(page);
+  ok(h0 > 0, `handing the device over is recorded (${h0} so far)`);
+  for (let i = 0; i < 3; i++) {
+    await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+    await page.waitForTimeout(150);
+  }
+  await page.waitForTimeout(400);
+  ok(await handoffs(page) === h0, "backgrounding and returning does not log a phantom handoff");
+
   console.log("\n── pronunciation matcher ──");
   const CASES = [
     [["wed"], ["red","blue"], "red"], [["bread"], ["red","blue"], "red"],

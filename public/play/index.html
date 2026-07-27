@@ -1250,6 +1250,7 @@ function updateHudLeafBar(){
 function startSessionIfNeeded(){
   if(!state.sessionStart){
     state.sessionStart = Date.now();
+    pausedSessionStart = null;
     state.sessionCorrectByLevel = { colors:0, counting:0, shapes:0 };
     inviteShown = false; lastInviteAt = 0;
     // Record the handoff. Starts unresolved; goToGoodbye marks it.
@@ -1265,8 +1266,20 @@ function startSessionIfNeeded(){
 }
 function stopSession(){
   if(sessionTimer){ clearInterval(sessionTimer); sessionTimer=null; }
+  pausedSessionStart = state.sessionStart;
   state.sessionStart = null; inviteShown=false; lastInviteAt=0;
   removeInvite();
+}
+
+/* Backgrounding stops the session; coming back should continue the SAME one —
+   same wind-down clock, no second handoff logged. */
+let pausedSessionStart = null;
+function resumeSession(){
+  if(state.screen !== "play" || !pausedSessionStart) return;
+  state.sessionStart = pausedSessionStart;
+  pausedSessionStart = null;
+  if(sessionTimer) clearInterval(sessionTimer);
+  sessionTimer = setInterval(tickSession, 4000);
 }
 function tickSession(){
   if(state.screen!=="play") return;
@@ -1347,7 +1360,11 @@ document.addEventListener("visibilitychange", ()=>{
     if(window.KideVoice){ KideVoice.stop(); KideVoice.mic.stop(); KideVoice.mic.indicator("idle"); }
   }else if(state.screen === "play" || state.screen === "garden"){
     // A toddler who got interrupted has no idea what the question was. Ask again.
-    if(state.screen === "play") startSessionIfNeeded();
+    // Resume the wind-down clock where it left off rather than calling
+    // startSessionIfNeeded() — that logs a handoff, and the child never left,
+    // the tab did. Counting those would inflate the Parent Corner's
+    // "you handed Pip over N times" every time the screen locked.
+    resumeSession();
     speakScreen(true);
   }
 });
