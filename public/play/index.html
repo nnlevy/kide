@@ -281,8 +281,13 @@ const DEFAULT_PROGRESS = {
   counting: { tier: 1, streak: 0, miss: 0, best: 1 },
   shapes:   { tier: 1, streak: 0, miss: 0, best: 1 },
   totalCorrect: 0,
-  goodbyes: 0
+  goodbyes: 0,
+  // Handoff record: one entry per session handed to the child.
+  // { s: startedAtMs, g: 1 if it ended with a goodbye, else 0 }
+  // Never leaves the device. Capped so localStorage cannot grow without bound.
+  handoffs: []
 };
+const HANDOFF_CAP = 60;
 const DEFAULT_SETTINGS = { sessionMinutes: 8, email: "" };
 
 function loadJSON(key, fallback){
@@ -974,12 +979,45 @@ function screenGate(){
   return c;
 }
 
+/* Last-7-day handoff summary, computed on the fly from local storage only. */
+function handoffSummary(){
+  const list = Array.isArray(progress.handoffs) ? progress.handoffs : [];
+  const since = Date.now() - 7*24*60*60*1000;
+  const recent = list.filter(function(h){ return h && typeof h.s === "number" && h.s >= since; });
+  return { total: recent.length, good: recent.filter(function(h){ return h.g; }).length };
+}
+
+function handoffCardHTML(){
+  const s = handoffSummary();
+  if(s.total === 0){
+    return '<div class="settings-card">'+
+      '<h3>Your week with Pip</h3>'+
+      '<p>Once you\'ve handed Pip over a few times, this is where you\'ll see how the goodbyes are going. It stays on this device — we never see it.</p>'+
+    '</div>';
+  }
+  const times = s.total === 1 ? "once" : s.total + " times";
+  let note;
+  if(s.good === s.total){
+    note = "Every one ended with a goodbye. That’s the habit, and it’s holding.";
+  }else if(s.good === 0){
+    note = "None have ended with a goodbye yet. That’s completely normal early on — the ritual usually takes a couple of weeks before a child reaches for it.";
+  }else{
+    note = "Ending on Pip’s terms rather than mid-game is the whole habit. It builds slowly, and a mixed week is a week it’s working.";
+  }
+  return '<div class="settings-card">'+
+    '<h3>Your week with Pip</h3>'+
+    '<p style="font-size:17px;color:var(--ink)"><b>You handed Pip over '+times+'.</b> '+s.good+' ended with a goodbye.</p>'+
+    '<p>'+note+'</p>'+
+  '</div>';
+}
+
 function screenSettings(){
   const c = document.createElement("div");
   c.style.width="100%"; c.style.display="flex"; c.style.flexDirection="column"; c.style.alignItems="center";
   c.innerHTML =
     '<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Back">🏠</button><div class="spacer"></div></div>'+
     '<h2>Parent Corner</h2>'+
+    handoffCardHTML()+
     '<div class="settings-card">'+
       '<h3>Playtime length</h3>'+
       '<p>Pip gently winds down near the end of a session and invites your child to say goodbye. This never locks the app — it builds the habit of noticing, not a hard stop.</p>'+
@@ -1214,6 +1252,13 @@ function startSessionIfNeeded(){
     state.sessionStart = Date.now();
     state.sessionCorrectByLevel = { colors:0, counting:0, shapes:0 };
     inviteShown = false; lastInviteAt = 0;
+    // Record the handoff. Starts unresolved; goToGoodbye marks it.
+    if(!Array.isArray(progress.handoffs)) progress.handoffs = [];
+    progress.handoffs.push({ s: state.sessionStart, g: 0 });
+    if(progress.handoffs.length > HANDOFF_CAP){
+      progress.handoffs = progress.handoffs.slice(-HANDOFF_CAP);
+    }
+    saveJSON(STORE_KEY, progress);
   }
   if(sessionTimer) clearInterval(sessionTimer);
   sessionTimer = setInterval(tickSession, 4000);
@@ -1256,7 +1301,12 @@ function removeInvite(){ const n=document.querySelector(".invite"); if(n) n.remo
 function goToGoodbye(){
   sfxChime();
   stopSession();
-  progress.goodbyes++; saveJSON(STORE_KEY, progress);
+  progress.goodbyes++;
+  // Mark the open handoff as ended with a goodbye.
+  if(Array.isArray(progress.handoffs) && progress.handoffs.length){
+    progress.handoffs[progress.handoffs.length-1].g = 1;
+  }
+  saveJSON(STORE_KEY, progress);
   if(window.KideVoice) KideVoice.mic.stop();
   state.screen = "goodbye";
   render();
