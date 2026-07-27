@@ -7,9 +7,12 @@
 		"check": "npm run build && npx wrangler deploy --dry-run",
 		"deploy": "npm run build && npx wrangler deploy",
 		"dev": "npx wrangler dev",
-		"predeploy": "bash scripts/deploy-guard.sh"
+		"predeploy": "bash scripts/deploy-guard.sh",
+		"test:voice": "npm run build && node test-voice.js",
+		"voice:render": "node tools/voice/generate.js"
 	},
 	"devDependencies": {
+		"playwright": "^1.62.0",
 		"wrangler": "^3.78.0"
 	}
 }

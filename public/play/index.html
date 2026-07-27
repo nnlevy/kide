@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Pip the Sprout — Grow &amp; Learn | Kide</title>
-<meta name="description" content="A joyful, adaptive learning game for toddlers. Pip the Sprout helps little ones learn colors, counting and shapes at their own pace — and grow into an early habit of noticing when screen time is done. No accounts, no ads, nothing ever leaves the device.">
+<meta name="description" content="A joyful, adaptive learning game for toddlers. Pip the Sprout reads every question out loud — and can listen for spoken answers — so little ones learn colors, counting and shapes before they can read. No accounts, no ads, no voice recordings, nothing ever leaves the device.">
 <meta name="robots" content="index, follow">
 <meta name="theme-color" content="#56C6E6">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -222,11 +222,46 @@ p.lead{font-size:19px;color:var(--ink-soft);text-align:center;margin:0 0 18px;ma
   .options.cols2{grid-template-columns:1fr 1fr;max-width:420px;}
   .grid{max-width:460px;}
 }
+/* ---------------- voice: handoff, consent, controls ---------------- */
+.handoff-card,.consent-card{background:var(--card);border-radius:var(--radius-lg);padding:26px 24px;
+  width:100%;max-width:420px;box-shadow:0 14px 40px rgba(0,0,0,.16);text-align:left;}
+.consent-card{max-width:460px;}
+.handoff-card h2,.consent-card h2{margin:0 0 6px;font-size:23px;}
+.handoff-card p,.consent-card p{margin:0 0 14px;color:var(--ink-soft);font-size:15.5px;line-height:1.6;}
+.chips{display:flex;flex-direction:column;gap:8px;margin:16px 0 20px;}
+.chip{display:flex;align-items:center;gap:10px;background:#F4F8F5;border-radius:var(--radius-sm);
+  padding:11px 14px;font-size:14.5px;font-weight:700;color:var(--ink);}
+.chip .ci{font-size:18px;line-height:1;}
+.chip .cs{margin-left:auto;font-weight:800;font-size:13px;letter-spacing:.02em;}
+.chip.on .cs{color:var(--grass-dark);} .chip.off .cs{color:var(--ink-soft);}
+.chip.na{background:#FAF6EE;} .chip.na .cs{color:#B08428;}
+.handoff-actions{display:flex;flex-direction:column;gap:10px;}
+.hello-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;width:100%;}
+.hello-wrap h1{margin:6px 0 4px;}
+.tiny-link{background:none;border:0;color:var(--ink-soft);font:700 14px/1 inherit;text-decoration:underline;
+  padding:8px;cursor:pointer;}
+.toggle-row{display:flex;align-items:center;gap:12px;margin-top:12px;}
+.toggle-row .tl{flex:1;font-size:15px;font-weight:700;}
+.switch{position:relative;width:56px;height:32px;border-radius:999px;border:0;background:#DCE3DE;
+  flex-shrink:0;cursor:pointer;transition:background .18s;}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;
+  background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.2);transition:transform .18s;}
+.switch[aria-checked="true"]{background:var(--grass);}
+.switch[aria-checked="true"]::after{transform:translateX(24px);}
+.switch:disabled{opacity:.45;cursor:default;}
+.mic-state{font-size:13.5px;color:var(--ink-soft);margin-top:8px;line-height:1.55;}
+.prompt-card[data-replay]{cursor:pointer;}
+.replay{display:inline-flex;align-items:center;gap:5px;margin-top:8px;font-size:12.5px;font-weight:700;
+  color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;}
+.voice-pill{position:absolute;top:calc(12px + var(--safe-t));left:12px;z-index:40;border:0;background:rgba(255,255,255,.85);
+  border-radius:999px;width:40px;height:40px;font-size:17px;box-shadow:0 3px 10px rgba(0,0,0,.1);cursor:pointer;}
+@media (prefers-reduced-motion:reduce){.handoff-card,.consent-card{transition:none;}}
 </style>
 </head>
 <body>
 <div id="app"></div>
 
+<script src="/voice.js?v=1"></script>
 <script>
 (function(){
 "use strict";
@@ -303,7 +338,7 @@ const RETRY_WORDS = ["Let's look again!","Almost — try another!","Keep looking
 /* ------------------------------ state ---------------------------------- */
 
 let state = {
-  screen: "home",          // home | garden | play | goodbye | gate | settings
+  screen: "home",          // home | handoff | hello | garden | play | goodbye | gate | settings | consent
   level: null,             // colors | counting | shapes
   question: null,
   sessionStart: null,
@@ -312,8 +347,14 @@ let state = {
   missOnQuestion: 0,
   collected: [],           // for shapes collect-mode
   gateTarget: null,
-  gateFrom: "settings"
+  gateFrom: "settings",
+  qSerial: 0              // increments per question so repeats are not mistaken for re-renders
 };
+
+let micStatus = "unsupported";   // available | downloadable | downloading | unsupported
+let lastSpoken = null;           // guards against re-speaking on a repeat render
+let listenTries = 0;             // attempts spent on the current question
+let levelHintGiven = {};         // "say it out loud" is a once-per-level nudge
 
 let sessionTimer = null;
 let inviteShown = false;
@@ -388,6 +429,180 @@ function sfxTry(){ tone([330], 0.14, "sine"); }
 function sfxCelebrate(){ tone([523,659,784,1046], 0.28, "triangle"); }
 function sfxChime(){ tone([392,494,587], 0.5, "sine"); }
 
+/* ------------------------------- voice -----------------------------------
+   Speaking is pre-rendered neural audio shipped as static files (see
+   /voice.js). Listening is on-device-only speech recognition, off until a
+   grown-up turns it on. Tapping always works and is never gated on either.
+--------------------------------------------------------------------------- */
+
+function voiceOn(){ return window.KideVoice && !KideVoice.muted(); }
+function listenOn(){
+  return !!(window.KideVoice && KideVoice.listenEnabled() && micStatus === "available");
+}
+
+function say(id){
+  if(!window.KideVoice) return Promise.resolve();
+  return KideVoice.speak(id);
+}
+
+function refreshMicStatus(){
+  if(!window.KideVoice) return Promise.resolve("unsupported");
+  return KideVoice.mic.support().then(function(s){ micStatus = s; return s; });
+}
+
+/* Which line belongs to the screen we just drew. */
+function promptClip(){
+  if(state.screen === "hello")   return "handoff-hello";
+  if(state.screen === "home")    return "home-greet";
+  // On the garden, the "say it out loud" nudge IS the prompt — playing both
+  // would mean eight seconds of Pip talking before a two-year-old gets a turn.
+  if(state.screen === "garden")  return listenOn() ? "listen-garden" : "garden-intro";
+  if(state.screen === "goodbye") return "goodbye";
+  if(state.screen !== "play" || !state.question) return null;
+  const q = state.question;
+  if(q.type === "colors")         return "prompt-color-" + q.target;
+  if(q.type === "counting")       return "prompt-count";
+  if(q.type === "shapes-pick")    return "prompt-shape-" + q.target;
+  if(q.type === "shapes-collect") return "prompt-collect-" + q.target;
+  return null;
+}
+
+/* Hints are once per context, not once per question — three-year-olds don't
+   need "say it out loud" before every single item. */
+function hintScope(){
+  return state.screen === "garden" ? "garden" : (state.screen === "play" ? state.level : state.screen);
+}
+
+/* Choosing a game, and answering "should we say goodnight?", are the two
+   moments a child is on their own with no question on screen. Both are voice
+   navigable, or the promise that they can play before they can read is only
+   true for the parts a grown-up already set up for them. */
+function gardenVocab(){
+  return [
+    { key:"colors",   value:"colors" },
+    { key:"counting", value:"counting" },
+    { key:"shapes",   value:"shapes" }
+  ];
+}
+
+function listenHintClip(){
+  if(state.screen === "garden") return null;   // folded into the prompt above
+  if(!state.question) return null;
+  if(state.question.type === "colors")      return "listen-color";
+  if(state.question.type === "counting")    return "listen-count";
+  if(state.question.type === "shapes-pick") return "listen-shape";
+  return null;
+}
+
+/* The vocabulary for a question is exactly the options on screen — which is
+   what makes generous pronunciation matching safe. "people" only ever counts
+   as "purple" in a question that offers purple at all. */
+function questionVocab(){
+  const q = state.question;
+  if(!q) return [];
+  // Collect mode is a tapping game by nature — saying "circle" three times in
+  // a row is worse than tapping three tiles, so Pip doesn't listen for it.
+  if(q.type === "shapes-collect") return [];
+  return (q.options || []).map(function(o){ return { key: String(o), value: String(o) }; });
+}
+
+/* Speak the current screen, then hand the turn to the microphone. */
+function speakScreen(force){
+  if(!window.KideVoice || !KideVoice.isUnlocked()) return;
+  const clip = promptClip();
+  // Keyed on a serial, NOT on the question's content. Colors repeat constantly
+  // in a two-option round, and keying on content meant a repeat looked like a
+  // duplicate render: Pip fell silent and the microphone never reopened.
+  const key = state.screen + ":" + (clip || "") + ":" + state.qSerial;
+  if(!force && key === lastSpoken) return;
+  lastSpoken = key;
+  KideVoice.mic.stop();
+  KideVoice.mic.indicator("idle");
+  if(!clip){ return; }
+  if(!voiceOn()){ maybeListen(); return; }
+  const screenAtStart = state.screen;
+  const hint = listenHintClip();
+  const needHint = listenOn() && hint && !levelHintGiven[hintScope()];
+  if(needHint) levelHintGiven[hintScope()] = true;
+
+  // The nudge comes BEFORE the question, not after. A two-year-old who hears
+  // "Find something red!" and then three seconds of instructions has forgotten
+  // the question by the time the microphone opens. Last thing heard should be
+  // the thing they have to answer.
+  const line = needHint
+    ? say(hint).then(function(ok){ return ok ? say(clip) : false; })
+    : say(clip);
+
+  line.then(function(finished){
+    // false ⇒ a newer line or a screen change cut this one off; its follow-up
+    // would be acting on a screen that no longer exists.
+    if(!finished || state.screen !== screenAtStart) return;
+    maybeListen();
+  });
+}
+
+function maybeListen(){
+  if(!listenOn()) return;
+
+  // Picking a game out loud.
+  if(state.screen === "garden"){
+    KideVoice.mic.listen({
+      vocab: gardenVocab(),
+      onState: function(s){ KideVoice.mic.indicator(s); },
+      onMatch: function(level){
+        KideVoice.mic.indicator("idle");
+        const card = document.querySelector('[data-act="playlevel"][data-level="'+level+'"]');
+        if(card) card.click();
+      },
+      onNoMatch: function(){ KideVoice.mic.indicator("idle"); }   // silent — the garden isn't a quiz
+    });
+    return;
+  }
+
+  // Saying goodnight out loud.
+  if(state.screen === "play" && document.querySelector(".invite")){
+    KideVoice.mic.listen({
+      vocab: [{ key:"yes", value:"yes" }, { key:"no", value:"no" }],
+      onState: function(s){ KideVoice.mic.indicator(s); },
+      onMatch: function(v){
+        KideVoice.mic.indicator("idle");
+        if(v === "yes") goToGoodbye(); else { removeInvite(); maybeListen(); }
+      },
+      onNoMatch: function(){ KideVoice.mic.indicator("idle"); maybeListen(); }
+    });
+    return;
+  }
+
+  if(state.screen !== "play" || state.awaitingNext) return;
+  const vocab = questionVocab();
+  if(!vocab.length) return;
+  KideVoice.mic.listen({
+    vocab: vocab,
+    onState: function(s){ KideVoice.mic.indicator(s); },
+    onMatch: function(value){
+      KideVoice.mic.indicator("idle");
+      const btn = document.querySelector('#optWrap [data-val="' + value + '"]:not(.collected)');
+      if(btn) answerWith(btn);
+      else maybeListen();
+    },
+    onNoMatch: function(){
+      KideVoice.mic.indicator("idle");
+      listenTries++;
+      if(listenTries >= 2) return;  // then it's tap-only, no nagging
+      const at = state.screen;
+      say("listen-again").then(function(ok){ if(ok && state.screen === at) maybeListen(); });
+    },
+    onError: function(err){
+      KideVoice.mic.indicator("idle");
+      // A refused or broken mic is permanent for this session — never re-prompt a child.
+      if(err === "not-allowed" || err === "service-not-allowed" || err === "audio-capture"){
+        micStatus = "unsupported";
+      }
+    }
+  });
+}
+
+
 /* ------------------------------ sparkles --------------------------------- */
 function sparkleBurst(x,y,count){
   const icons = ["✨","⭐","🌟"];
@@ -459,6 +674,7 @@ function render(){
   wrap.appendChild(renderScreen());
   app.appendChild(wrap);
   wireScreen();
+  speakScreen();
 }
 
 function bodyStageClass(){
@@ -478,6 +694,9 @@ function sessionFraction(){
 
 function renderScreen(){
   if(state.screen==="home") return screenHome();
+  if(state.screen==="handoff") return screenHandoff();
+  if(state.screen==="hello") return screenHello();
+  if(state.screen==="consent") return screenConsent();
   if(state.screen==="garden") return screenGarden();
   if(state.screen==="play") return screenPlay();
   if(state.screen==="goodbye") return screenGoodbye();
@@ -495,7 +714,7 @@ function screenHome(){
     '<h1>Grow with Pip!</h1>'+
     '<p class="lead">Colors, counting and shapes — at your own pace. Plus a happy goodbye when playtime is done.</p>'+
     '<div class="home-actions">'+
-      '<button class="btn btn-primary big" data-act="start">Let\'s Play!</button>'+
+      '<button class="btn btn-primary big" data-act="letsplay">Let\'s Play!</button>'+
     '</div>';
   return c;
 }
@@ -529,6 +748,8 @@ function screenGarden(){
 function newQuestion(levelKey){
   const lv = progress[levelKey];
   state.missOnQuestion = 0;
+  state.qSerial++;
+  listenTries = 0;
   if(levelKey==="colors"){
     const tier = COLOR_TIERS[lv.tier];
     const target = pick(tier.pool);
@@ -585,14 +806,14 @@ function screenPlay(){
   let body = "";
   if(q.type==="colors"){
     body =
-      '<div class="prompt-card"><div class="p-eyebrow">Colors</div><div class="p-main">Find something <span style="color:'+COLORS[q.target].hex+'">'+q.target.toUpperCase()+'</span>!</div></div>'+
+      '<div class="prompt-card" data-replay data-act="replay" role="status" aria-live="polite"><div class="p-eyebrow">Colors</div><div class="p-main">Find something <span style="color:'+COLORS[q.target].hex+'">'+q.target.toUpperCase()+'</span>!</div>'+replayHint()+'</div>'+
       '<div class="options '+(q.options.length<=2?"cols2":"cols3")+'" id="optWrap">'+
         q.options.map(c2=>'<button class="opt" data-val="'+c2+'"><span class="oemoji">'+COLORS[c2].emoji+'</span><span class="oword" style="color:'+COLORS[c2].hex+'">'+COLORS[c2].word+'</span></button>').join("")+
       '</div>';
   }else if(q.type==="counting"){
     const cluster = Array(q.target).fill(q.item).join(" ");
     body =
-      '<div class="prompt-card"><div class="p-eyebrow">Counting</div><div class="p-main">How many?</div><div style="margin-top:6px;font-size:38px;line-height:1.3">'+cluster+'</div></div>'+
+      '<div class="prompt-card" data-replay data-act="replay" role="status" aria-live="polite"><div class="p-eyebrow">Counting</div><div class="p-main">How many?</div><div style="margin-top:6px;font-size:38px;line-height:1.3">'+cluster+'</div>'+replayHint()+'</div>'+
       '<div class="options '+(q.options.length<=2?"cols2":"cols3")+'" id="optWrap">'+
         q.options.map(n=>{
           let dots=""; for(let i=0;i<n;i++) dots+='<span></span>';
@@ -601,13 +822,13 @@ function screenPlay(){
       '</div>';
   }else if(q.type==="shapes-pick"){
     body =
-      '<div class="prompt-card"><div class="p-eyebrow">Shapes</div><div class="p-main">Tap the '+SHAPES[q.target].word.toUpperCase()+'!</div></div>'+
+      '<div class="prompt-card" data-replay data-act="replay" role="status" aria-live="polite"><div class="p-eyebrow">Shapes</div><div class="p-main">Find the '+SHAPES[q.target].word.toUpperCase()+'!</div>'+replayHint()+'</div>'+
       '<div class="options '+(q.options.length<=2?"cols2":"cols3")+'" id="optWrap">'+
         q.options.map((s,i)=>'<button class="opt" data-val="'+s+'">'+shapeSvg(s, SHAPE_FILLS[i%SHAPE_FILLS.length])+'</button>').join("")+
       '</div>';
   }else if(q.type==="shapes-collect"){
     body =
-      '<div class="prompt-card"><div class="p-eyebrow">Shapes</div><div class="p-main">Help Pip collect the '+SHAPES[q.target].word.toLowerCase()+'s!</div></div>'+
+      '<div class="prompt-card" data-replay data-act="replay" role="status" aria-live="polite"><div class="p-eyebrow">Shapes</div><div class="p-main">Help Pip collect the '+SHAPES[q.target].word.toLowerCase()+'s!</div>'+replayHint()+'</div>'+
       '<div class="basket"><span class="bx">🧺</span><span id="basketCount">'+q.got+' / '+q.need+' collected</span></div>'+
       '<div class="shape-grid" id="optWrap">'+
         q.tiles.map((s,i)=>'<button class="shape-tile" data-val="'+s+'" data-idx="'+i+'">'+shapeSvg(s, SHAPE_FILLS[i%SHAPE_FILLS.length])+'</button>').join("")+
@@ -621,6 +842,10 @@ function screenPlay(){
     '</div>'+
     body;
   return c;
+}
+
+function replayHint(){
+  return voiceOn() ? '<div class="replay">🔊 Tap to hear again</div>' : '';
 }
 
 function pipGlowIconHTML(){
@@ -642,6 +867,93 @@ function screenGoodbye(){
     '<div class="recap">'+rows+'</div>'+
     '<div class="home-actions" style="margin-top:10px">'+
       '<button class="btn btn-secondary big" data-act="home">See you soon!</button>'+
+    '</div>';
+  return c;
+}
+
+/* The explicit parent -> child handoff.
+
+   Two taps, on purpose. The grown-up sees exactly what is switched on, and
+   their tap ends their turn; the child's tap on the next screen begins
+   theirs. It doubles as the audio-unlock gesture iOS requires, so the
+   privacy moment and the technical moment are the same moment. */
+function screenHandoff(){
+  const c = document.createElement("div");
+  c.style.width="100%"; c.style.display="flex"; c.style.flexDirection="column";
+  c.style.alignItems="center"; c.style.flex="1"; c.style.justifyContent="center";
+
+  const speaking = voiceOn();
+  const hearing  = listenOn();
+  const micChip = hearing
+    ? '<div class="chip on"><span class="ci">🎤</span>Pip listens for answers<span class="cs">ON</span></div>'
+    : (micStatus === "available"
+        ? '<div class="chip off"><span class="ci">🎤</span>Pip listens for answers<span class="cs">OFF</span></div>'
+        : '<div class="chip na"><span class="ci">🎤</span>Listening<span class="cs">NOT ON THIS DEVICE</span></div>');
+
+  c.innerHTML =
+    '<div class="handoff-card">'+
+      '<h2>Passing it over?</h2>'+
+      '<p>Here\'s exactly what\'s switched on before your child takes over.</p>'+
+      '<div class="chips">'+
+        '<div class="chip '+(speaking?"on":"off")+'"><span class="ci">🔊</span>Pip speaks each question<span class="cs">'+(speaking?"ON":"OFF")+'</span></div>'+
+        micChip+
+        '<div class="chip on"><span class="ci">🔒</span>Nothing leaves this device<span class="cs">ALWAYS</span></div>'+
+      '</div>'+
+      '<div class="handoff-actions">'+
+        '<button class="btn btn-primary big" data-act="handover">Hand it over</button>'+
+        '<button class="tiny-link" data-act="parents">Parent Corner</button>'+
+      '</div>'+
+    '</div>';
+  return c;
+}
+
+/* Child-facing. The first thing they ever tap is Pip saying hello to them. */
+function screenHello(){
+  const c = document.createElement("div");
+  c.className = "hello-wrap";
+  c.innerHTML =
+    '<div class="home-pip">'+pipHTML({celebrate:true})+'</div>'+
+    '<h1>Hi! I\'m Pip.</h1>'+
+    '<p class="lead">Ready to play?</p>'+
+    '<div class="home-actions">'+
+      '<button class="btn btn-primary big" data-act="start">Yes!</button>'+
+    '</div>';
+  return c;
+}
+
+/* Grown-ups only (reached through the maths gate). Plain language, and it
+   states what this specific device actually does rather than a generic
+   promise we can't verify. */
+function screenConsent(){
+  const c = document.createElement("div");
+  c.style.width="100%"; c.style.display="flex"; c.style.flexDirection="column";
+  c.style.alignItems="center"; c.style.flex="1"; c.style.justifyContent="center";
+  const granted = !!(window.KideVoice && KideVoice.consent.get());
+
+  let body, actions;
+  if(micStatus === "unsupported"){
+    body = '<p>This browser can\'t recognise speech without sending your child\'s voice to a company\'s servers — so we don\'t offer it here. Pip will keep speaking, and your child keeps answering by tapping.</p>'+
+           '<p class="mic-state">Listening currently works in Chrome on a computer or Android device, where the speech model runs on the device itself. It will switch on here automatically if that ever changes.</p>';
+    actions = '<button class="btn btn-secondary" data-act="parents-back">Back</button>';
+  }else if(granted){
+    body = '<p><b>Pip\'s listening is on.</b> Your child can say an answer out loud instead of tapping.</p>'+
+           '<p class="mic-state">Speech is recognised by the model on this device. No audio is recorded, saved, or sent anywhere — what your child says becomes a word in this browser\'s memory for a fraction of a second, and is then gone.</p>';
+    actions = '<button class="btn btn-ghost" data-act="revoke-listen">Turn listening off</button>'+
+              '<button class="btn btn-secondary" data-act="parents-back" style="margin-top:10px">Back</button>';
+  }else{
+    const dl = (micStatus === "downloadable" || micStatus === "downloading");
+    body = '<p>Pip can listen for spoken answers, so your child can just say <i>"red!"</i> instead of tapping. It\'s optional, and tapping always works.</p>'+
+           '<p class="mic-state"><b>Where your child\'s voice goes:</b> nowhere. On this device the speech model runs locally, so audio is never recorded, stored, or transmitted. Pip only ever compares what was said against the two or three answers on screen, then forgets it.</p>'+
+           (dl ? '<p class="mic-state">Your browser needs to download a one-time offline speech pack first (about 50&nbsp;MB). We won\'t start that without you.</p>' : '');
+    actions = '<button class="btn btn-primary" data-act="grant-listen">'+(dl?"Download &amp; turn on":"Turn on listening")+'</button>'+
+              '<button class="btn btn-ghost" data-act="parents-back" style="margin-top:10px">Not now</button>';
+  }
+
+  c.innerHTML =
+    '<div class="consent-card">'+
+      '<div class="p-eyebrow" style="color:var(--ink-soft);font-weight:700">GROWN-UPS ONLY</div>'+
+      '<h2>Let Pip listen?</h2>'+ body +
+      '<div class="handoff-actions" style="margin-top:18px" id="consentActions">'+actions+'</div>'+
     '</div>';
   return c;
 }
@@ -678,8 +990,24 @@ function screenSettings(){
       '<p>Pip tracks a simple streak per game — a few in a row right and the game nudges up a notch; a few misses and it eases back down. That is the whole "adaptive" system: transparent rules, not a trained model, and it all runs on this device.</p>'+
     '</div>'+
     '<div class="settings-card">'+
+      '<h3>Pip\'s voice</h3>'+
+      '<p>Pip reads every question out loud, so a child who can\'t read yet can play alone. The voice is a set of recordings that ship with the game — no microphone, no internet needed, nothing sent anywhere.</p>'+
+      '<div class="toggle-row"><span class="tl">Pip speaks</span>'+
+        '<button class="switch" id="muteSwitch" role="switch" aria-checked="'+(voiceOn()?"true":"false")+'" aria-label="Pip speaks"></button>'+
+      '</div>'+
+    '</div>'+
+    '<div class="settings-card">'+
+      '<h3>Pip\'s listening</h3>'+
+      (micStatus === "unsupported"
+        ? '<p>Not available on this device. We only turn the microphone on where your browser can understand speech <b>without sending your child\'s voice to a server</b> — that means Chrome on a computer or Android today. Everywhere else, Pip listens not at all and your child taps.</p>'
+        : '<p>Optional. Your child can pick a game and answer out loud instead of tapping — enough that a child who can\'t read yet can play the whole thing alone. Speech is recognised by a model running on this device: no audio is recorded, stored, or transmitted, ever.</p>'+
+          '<div class="toggle-row"><span class="tl">Pip listens for answers</span>'+
+            '<button class="switch" id="listenSwitch" role="switch" aria-checked="'+(listenOn()?"true":"false")+'" aria-label="Pip listens"></button>'+
+          '</div>')+
+    '</div>'+
+    '<div class="settings-card">'+
       '<h3>Your family\'s privacy</h3>'+
-      '<p>No accounts. No ads shown to your child. No analytics, trackers, or third-party scripts of any kind. Progress is stored only in this browser, on this device — we never see it.</p>'+
+      '<p>No accounts. No ads shown to your child. No analytics, trackers, or third-party scripts of any kind. Progress is stored only in this browser, on this device — we never see it. If you switch on Pip\'s listening, that stays true: the microphone is only ever used where speech can be understood on the device itself.</p>'+
     '</div>'+
     '<div class="settings-card">'+
       '<h3>New concept packs</h3>'+
@@ -721,12 +1049,39 @@ function wireScreen(){
     });
     const submit = document.getElementById("leadSubmit");
     if(submit) submit.addEventListener("click", submitLead);
+    const ms = document.getElementById("muteSwitch");
+    if(ms) ms.addEventListener("click", function(){
+      if(window.KideVoice) KideVoice.setMuted(voiceOn());
+      render();
+    });
+    const ls = document.getElementById("listenSwitch");
+    if(ls) ls.addEventListener("click", function(){
+      if(!window.KideVoice) return;
+      if(listenOn()){ KideVoice.setListenEnabled(false); render(); }
+      else { state.screen = "consent"; render(); }   // never switch a mic on without the consent screen
+    });
   }
 }
 
 function onAction(e){
   const act = e.currentTarget.getAttribute("data-act");
-  if(act==="start"){ state.screen="garden"; render(); }
+  // Any deliberate tap ends the current listening turn — the child chose the
+  // other way in, and a mic left open would answer the next screen's question.
+  if(window.KideVoice && act !== "replay"){ KideVoice.mic.stop(); KideVoice.mic.indicator("idle"); }
+  if(act==="letsplay"){ state.screen="handoff"; render(); }
+  else if(act==="handover"){
+    // This tap is the grown-up's last one, and it is also what unlocks audio.
+    if(window.KideVoice){ KideVoice.unlock().then(function(){ state.screen="hello"; render(); }); }
+    else { state.screen="hello"; render(); }
+  }
+  else if(act==="grant-listen"){ grantListening(); }
+  else if(act==="revoke-listen"){
+    if(window.KideVoice) KideVoice.consent.revoke();
+    render();
+  }
+  else if(act==="parents-back"){ state.screen="settings"; render(); }
+  else if(act==="listen-setup"){ state.screen="consent"; render(); }
+  else if(act==="start"){ state.screen="garden"; render(); }
   else if(act==="home"){ stopSession(); state.screen="home"; render(); }
   else if(act==="garden"){ state.screen="garden"; state.question=null; render(); }
   else if(act==="parents"){ state.gateFrom="settings"; state.screen="gate"; render(); }
@@ -738,6 +1093,31 @@ function onAction(e){
     render();
   }
   else if(act==="sleepytap"){ goToGoodbye(); }
+  else if(act==="replay"){ speakScreen(true); }
+  else if(act==="mute"){
+    if(window.KideVoice){ KideVoice.setMuted(!KideVoice.muted()); }
+    render();
+  }
+}
+
+/* Consent, then the browser's own permission prompt — in that order, so a
+   parent has read plain English before a system dialog appears. */
+function grantListening(){
+  const box = document.getElementById("consentActions");
+  const setBusy = function(t){ if(box) box.innerHTML = '<p class="mic-state" style="text-align:center">'+t+'</p>'; };
+  if(!window.KideVoice) return;
+  setBusy("Setting up…");
+  const step = (micStatus === "downloadable" || micStatus === "downloading")
+    ? KideVoice.mic.install().then(function(ok){ return ok ? refreshMicStatus() : "unsupported"; })
+    : Promise.resolve(micStatus);
+  step.then(function(){
+    return KideVoice.mic.permission();
+  }).then(function(ok){
+    if(!ok){ micStatus = "unsupported"; render(); return; }
+    KideVoice.consent.grant("ondevice");
+    KideVoice.setListenEnabled(true);
+    return refreshMicStatus().then(function(){ render(); });
+  }).catch(function(){ render(); });
 }
 
 function onGateTap(e){
@@ -752,6 +1132,15 @@ function onGateTap(e){
 
 function onOptionTap(e){
   const btn = e.target.closest("[data-val]");
+  if(!btn) return;
+  // A tap ends the listening turn — the child chose the other way in.
+  if(window.KideVoice){ KideVoice.mic.stop(); KideVoice.mic.indicator("idle"); }
+  listenTries = 99;
+  answerWith(btn);
+}
+
+/* Single answer path, whether the answer arrived by finger or by voice. */
+function answerWith(btn){
   if(!btn || state.awaitingNext) return;
   const q = state.question;
 
@@ -765,7 +1154,8 @@ function onOptionTap(e){
       if(q.got>=q.need){
         recordAnswer("shapes", true);
         state.awaitingNext = true;
-        showAffirm(pick(AFFIRM_WORDS));
+        const ai = Math.floor(Math.random()*AFFIRM_WORDS.length);
+        showAffirm(AFFIRM_WORDS[ai]); say("affirm-"+(ai+1));
         const pipC = document.getElementById("pipChar"); if(pipC) pipC.classList.add("celebrate");
         setTimeout(()=>{ state.awaitingNext=false; newQuestion("shapes"); render(); }, 900);
       }
@@ -784,7 +1174,11 @@ function onOptionTap(e){
   if(correct){
     btn.classList.add("correct-flash");
     sfxCorrect(); burstFromEl(btn,12);
-    showAffirm(pick(AFFIRM_WORDS));
+    const ai = Math.floor(Math.random()*AFFIRM_WORDS.length);
+    showAffirm(AFFIRM_WORDS[ai]);
+    // Counting is the one case where naming the answer teaches more than
+    // praising it — Pip says "Three!" and the praise stays on screen.
+    say(q.type==="counting" ? ("answer-"+q.target) : ("affirm-"+(ai+1)));
     const pipC = document.getElementById("pipChar"); if(pipC) pipC.classList.add("celebrate");
     recordAnswer(state.level, true);
     updateHudLeafBar();
@@ -799,8 +1193,11 @@ function onOptionTap(e){
     if(state.missOnQuestion>=2){
       const correctBtn = document.querySelector('[data-val="'+targetStr+'"]');
       if(correctBtn) correctBtn.classList.add("hint");
+      say("hint-1");
     }else{
-      showAffirm(pick(RETRY_WORDS));
+      const ri = Math.floor(Math.random()*RETRY_WORDS.length);
+      showAffirm(RETRY_WORDS[ri]);
+      say("retry-"+(ri+1)).then(function(ok){ if(!ok) return; listenTries = 0; maybeListen(); });
     }
   }
 }
@@ -851,6 +1248,8 @@ function showInvite(){
     '<button class="btn btn-primary" id="tuckBtn" style="padding:12px 18px;font-size:16px;white-space:nowrap">Tuck in</button>';
   document.body.appendChild(n);
   document.getElementById("tuckBtn").addEventListener("click", goToGoodbye);
+  if(window.KideVoice) KideVoice.mic.stop();
+  say("sleepy-invite").then(function(ok){ if(ok && document.querySelector(".invite")) maybeListen(); });
 }
 function removeInvite(){ const n=document.querySelector(".invite"); if(n) n.remove(); }
 
@@ -858,6 +1257,7 @@ function goToGoodbye(){
   sfxChime();
   stopSession();
   progress.goodbyes++; saveJSON(STORE_KEY, progress);
+  if(window.KideVoice) KideVoice.mic.stop();
   state.screen = "goodbye";
   render();
 }
@@ -885,8 +1285,22 @@ function submitLead(){
 }
 
 /* --------------------------------- boot ------------------------------------ */
+refreshMicStatus().then(function(){
+  // The handoff card reports the real capability of THIS device, so it has to
+  // be known before that card is ever drawn.
+  if(state.screen === "handoff" || state.screen === "consent" || state.screen === "settings") render();
+});
 render();
-document.addEventListener("visibilitychange", ()=>{ if(document.hidden) stopSession(); });
+document.addEventListener("visibilitychange", ()=>{
+  if(document.hidden){
+    stopSession();
+    if(window.KideVoice){ KideVoice.stop(); KideVoice.mic.stop(); KideVoice.mic.indicator("idle"); }
+  }else if(state.screen === "play" || state.screen === "garden"){
+    // A toddler who got interrupted has no idea what the question was. Ask again.
+    if(state.screen === "play") startSessionIfNeeded();
+    speakScreen(true);
+  }
+});
 
 })();
 </script>
