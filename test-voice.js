@@ -93,7 +93,7 @@ const ok = (c, m) => { if (c) { pass++; console.log("  ✓ " + m); } else { fail
   });
 
   console.log("\n── flow ──");
-  await page.goto("http://localhost:8791/play/", { waitUntil: "networkidle" });
+  await page.goto((process.env.BASE || "http://localhost:8791") + "/play/", { waitUntil: "networkidle" });
   ok(await page.locator("h1", { hasText: "Grow with Pip" }).isVisible(), "home renders");
 
   await page.getByRole("button", { name: "Let's Play!" }).click();
@@ -209,7 +209,7 @@ const ok = (c, m) => { if (c) { pass++; console.log("  ✓ " + m); } else { fail
       window.__tts.push(u.text); try { if (u.onend) setTimeout(u.onend, 30); } catch (e) {}
     };
   });
-  await p3.goto("http://localhost:8791/play/", { waitUntil: "networkidle" });
+  await p3.goto((process.env.BASE || "http://localhost:8791") + "/play/", { waitUntil: "networkidle" });
   await p3.getByRole("button", { name: "Let's Play!" }).click(); await p3.waitForTimeout(250);
   await p3.locator('[data-act="handover"]').click(); await p3.waitForTimeout(500);
   await p3.getByRole("button", { name: "Yes!" }).click(); await p3.waitForTimeout(600);
@@ -224,7 +224,7 @@ const ok = (c, m) => { if (c) { pass++; console.log("  ✓ " + m); } else { fail
   console.log("\n── device with no on-device speech ──");
   const p2 = await ctx.newPage();
   await p2.addInitScript(() => { delete window.SpeechRecognition; delete window.webkitSpeechRecognition; });
-  await p2.goto("http://localhost:8791/play/", { waitUntil: "networkidle" });
+  await p2.goto((process.env.BASE || "http://localhost:8791") + "/play/", { waitUntil: "networkidle" });
   await p2.getByRole("button", { name: "Let's Play!" }).click();
   await p2.waitForTimeout(600);
   const chips2 = await p2.locator(".chip").allInnerTexts();
