@@ -4,7 +4,10 @@
   "main": "./src/worker/index.ts",
   "compatibility_date": "2025-10-08",
   "compatibility_flags": ["nodejs_compat"],
-  "routes": ["kide.us/*", "www.kide.us/*"],
+  "routes": [
+    {"pattern": "kide.us", "custom_domain": true},
+    {"pattern": "www.kide.us", "custom_domain": true}
+  ],
   "observability": {"enabled": true},
   "assets": {"directory": "./dist", "not_found_handling": "single-page-application"},
   "d1_databases": [{"binding": "DB", "database_name": "domains-db", "database_id": "b41e909b-ad01-4fd5-84ca-d8d014706942"}],
