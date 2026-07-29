@@ -12,6 +12,27 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
+    // Pulse 2026-07-29: CTA dual-cover — live /go·/launch·/start·/app HARD404 (branded
+    // worker 404) while product home 200 "Kide — The Screen Time…". True 301 to /.
+    {
+      const raw = url.pathname.replace(/\/$/, "") || "/";
+      const cta: Record<string, string> = {
+        "/go": "/",
+        "/launch": "/",
+        "/start": "/",
+        "/app": "/",
+        "/try": "/",
+        "/get-started": "/",
+        "/getstarted": "/",
+      };
+      if (Object.prototype.hasOwnProperty.call(cta, raw) && (request.method === "GET" || request.method === "HEAD")) {
+        const dest = new URL(request.url);
+        dest.pathname = cta[raw];
+        dest.search = "";
+        return Response.redirect(dest.toString(), 301);
+      }
+    }
+
     if (url.pathname === "/ads.txt") {
       return new Response("google.com, pub-1860356577073395, DIRECT, f08c47fec0942fa0\n", {
         headers: { "Content-Type": "text/plain" },
