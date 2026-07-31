@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Kide · on-device pronunciation scoring benchmark</title>
+<style>
+  :root{
+    --bg:#0b1220; --panel:#141c2e; --panel2:#1b2540; --line:#2a3654;
+    --text:#e7ecf7; --muted:#8fa0c4; --ok:#3ddc84; --warn:#f5a623; --bad:#ff5d5d;
+    --accent:#56c6e6; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Segoe UI,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);padding:24px 16px 80px;line-height:1.45}
+  .wrap{max-width:920px;margin:0 auto}
+  h1{font-size:19px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 20px}
+  .sub a{color:var(--accent)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+  .panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 10px}
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+  select,button{font:inherit;font-size:14px}
+  select{width:100%;padding:8px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px}
+  button{width:100%;padding:10px;margin-top:10px;border-radius:6px;border:1px solid var(--line);
+    background:var(--accent);color:#04202b;font-weight:600;cursor:pointer}
+  button:disabled{opacity:.45;cursor:default}
+  button.secondary{background:var(--panel2);color:var(--text)}
+  .row{display:flex;gap:8px}
+  .row>button{margin-top:10px}
+  .kv{width:100%;border-collapse:collapse;font-size:13px}
+  .kv td{padding:4px 0;border-bottom:1px dashed var(--line)}
+  .kv td:first-child{color:var(--muted);width:60%}
+  .kv td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+  .pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;letter-spacing:.02em}
+  .pill.ok{background:rgba(61,220,132,.15);color:var(--ok)}
+  .pill.warn{background:rgba(245,166,35,.15);color:var(--warn)}
+  .pill.bad{background:rgba(255,93,93,.15);color:var(--bad)}
+  .pill.neutral{background:rgba(143,160,196,.15);color:var(--muted)}
+  #meter{height:6px;border-radius:3px;background:var(--panel2);overflow:hidden;margin-top:8px}
+  #meterBar{height:100%;width:0%;background:var(--accent);transition:width .05s linear}
+  .status{font-size:13px;color:var(--muted);min-height:18px;margin-top:8px}
+  .banner{padding:12px 14px;border-radius:8px;font-size:14px;font-weight:600;margin-bottom:14px;display:none}
+  .banner.show{display:block}
+  .banner.ok{background:rgba(61,220,132,.12);border:1px solid rgba(61,220,132,.4);color:var(--ok)}
+  .banner.bad{background:rgba(255,93,93,.12);border:1px solid rgba(255,93,93,.4);color:var(--bad)}
+  details{margin-top:10px}
+  summary{cursor:pointer;color:var(--accent);font-size:13px}
+  pre{white-space:pre-wrap;word-break:break-all;font-size:11px;background:var(--panel2);
+    border:1px solid var(--line);border-radius:6px;padding:10px;max-height:260px;overflow:auto}
+  .phon{font-size:15px;letter-spacing:.02em}
+  code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>On-device pronunciation scoring — benchmark harness</h1>
+  <p class="sub">
+    Phoneme-level CTC acoustic model, ONNX Runtime Web (WebGPU → WASM fallback), segmentation-free GOP.
+    Built to answer the "Decision required" in <code>kide-us-content-engine-spec.md</code> §0-1: is a
+    ship-our-own-model PWA fast enough on real iPad hardware, or does voice need a native wrapper?
+    Target: <strong>&lt; 300ms end-to-end</strong> per 1–2s clip.
+  </p>
+
+  <div id="banner" class="banner"></div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>1 · Setup</h2>
+      <label for="modelSelect">Model</label>
+      <select id="modelSelect"></select>
+
+      <label for="epSelect">Execution provider</label>
+      <select id="epSelect">
+        <option value="auto">Auto (WebGPU → WASM fallback)</option>
+        <option value="webgpu">Force WebGPU</option>
+        <option value="wasm">Force WASM</option>
+      </select>
+
+      <button id="btnColdStart">Load model &amp; measure cold start</button>
+      <div class="status" id="statusSetup"></div>
+    </div>
+
+    <div class="panel">
+      <h2>2 · Get a clip</h2>
+      <label for="wordSelect">Target word</label>
+      <select id="wordSelect"></select>
+
+      <div class="row">
+        <button id="btnRecord" class="secondary">Record 2s from mic</button>
+        <button id="btnSynthetic" class="secondary">Use synthetic clip (timing only)</button>
+      </div>
+      <div id="meter"><div id="meterBar"></div></div>
+      <div class="status" id="statusClip">No clip yet.</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>3 · Benchmark</h2>
+    <button id="btnLatency" disabled>Run latency benchmark (3 warmup + 20 reps)</button>
+    <div class="status" id="statusBench"></div>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>Cold start</h2>
+      <table class="kv" id="coldStartTable"><tr><td colspan="2">Not run yet.</td></tr></table>
+    </div>
+    <div class="panel">
+      <h2>Per-utterance latency</h2>
+      <table class="kv" id="latencyTable"><tr><td colspan="2">Not run yet.</td></tr></table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Segmentation-free GOP</h2>
+    <table class="kv" id="gopTable"><tr><td colspan="2">Not run yet.</td></tr></table>
+    <p class="status">
+      Greedy CTC decode of the last clip (sanity check, not the GOP score itself):
+      <span class="phon" id="decodedPhones">—</span>
+    </p>
+  </div>
+
+  <div class="panel">
+    <h2>Environment</h2>
+    <table class="kv" id="envTable"></table>
+  </div>
+
+  <details class="panel">
+    <summary>Raw JSON (copy this back if you want it read remotely)</summary>
+    <pre id="rawJson">{}</pre>
+  </details>
+</div>
+
+<script type="module">
+import * as bench from "./gop-bench.js";
+
+const $ = (id) => document.getElementById(id);
+const state = { data: null, session: null, backend: null, coldStart: null, clipPcm: null, clipIsSynthetic: null, latency: null, gop: null };
+window.__gopBenchState = state; // for the headless smoke test / remote inspection
+
+function setStatus(id, text) { $(id).textContent = text; }
+
+function fmtMs(v) { return v == null ? "—" : `${v.toFixed(1)} ms`; }
+function fmtBytes(v) { return v == null ? "—" : `${(v / 1e6).toFixed(1)} MB`; }
+
+function renderKv(tableId, rows) {
+  $(tableId).innerHTML = rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("");
+}
+
+function renderRaw() {
+  $("rawJson").textContent = JSON.stringify(state, (k, v) => {
+    if (k === "session") return undefined;
+    if (v instanceof Float32Array || v instanceof Float64Array) return `Float32Array(${v.length})`;
+    return v;
+  }, 2);
+}
+
+function renderBanner() {
+  const b = $("banner");
+  if (!state.latency) { b.className = "banner"; return; }
+  const total = state.latency.totalPerUtteranceMs.mean;
+  const pass = total < 300;
+  b.className = `banner show ${pass ? "ok" : "bad"}`;
+  b.textContent = pass
+    ? `PASS — mean end-to-end ${total.toFixed(0)}ms is under the 300ms budget (backend: ${state.backend}).`
+    : `OVER BUDGET — mean end-to-end ${total.toFixed(0)}ms exceeds the 300ms target by ${(total - 300).toFixed(0)}ms (backend: ${state.backend}).`;
+}
+
+async function init() {
+  state.data = await bench.loadData();
+
+  const modelSel = $("modelSelect");
+  modelSel.innerHTML = state.data.models
+    .map((m) => `<option value="${m.id}">${m.label} (~${m.approxSizeMB}MB)</option>`)
+    .join("");
+
+  const wordSel = $("wordSelect");
+  wordSel.innerHTML = Object.keys(state.data.lexicon)
+    .map((w) => `<option value="${w}">${w}</option>`)
+    .join("");
+
+  renderKv("envTable", [
+    ["navigator.gpu present", String(!!navigator.gpu)],
+    ["userAgent", navigator.userAgent],
+    ["deviceMemory (GB, if reported)", navigator.deviceMemory ?? "not reported"],
+    ["hardwareConcurrency", navigator.hardwareConcurrency ?? "not reported"],
+    ["Cross-origin isolated (SharedArrayBuffer/WASM threads available)", String(window.crossOriginIsolated)],
+  ]);
+
+  renderRaw();
+}
+
+function currentModel() {
+  const id = $("modelSelect").value;
+  return state.data.models.find((m) => m.id === id) || state.data.models[0];
+}
+
+function epOrder() {
+  const choice = $("epSelect").value;
+  if (choice === "webgpu") return ["webgpu"];
+  if (choice === "wasm") return ["wasm"];
+  return navigator.gpu ? ["webgpu", "wasm"] : ["wasm"];
+}
+
+$("btnColdStart").addEventListener("click", async () => {
+  $("btnColdStart").disabled = true;
+  try {
+    const model = currentModel();
+    const result = await bench.benchmarkColdStart(model.url, epOrder(), (msg) => setStatus("statusSetup", msg));
+    state.session = result.session;
+    state.backend = result.backend;
+    state.coldStart = result;
+    renderKv("coldStartTable", [
+      ["Backend used", `<span class="pill ${result.backend === "webgpu" ? "ok" : "warn"}">${result.backend}</span>`],
+      ["Session create", fmtMs(result.sessionCreateMs)],
+      ["First inference (incl. lazy compile)", fmtMs(result.firstInferenceMs)],
+      ["Total cold start", fmtMs(result.totalColdStartMs)],
+      ["Model bytes over wire", fmtBytes(result.modelTransferBytes)],
+      ["Model bytes decoded", fmtBytes(result.modelDecodedBytes)],
+    ]);
+    setStatus("statusSetup", `Ready on ${result.backend}. You can now get a clip and run the latency benchmark.`);
+    $("btnLatency").disabled = !state.clipPcm;
+  } catch (err) {
+    console.error(err);
+    setStatus("statusSetup", `Failed: ${err.message}`);
+  } finally {
+    $("btnColdStart").disabled = false;
+    renderRaw();
+  }
+});
+
+$("btnRecord").addEventListener("click", async () => {
+  $("btnRecord").disabled = true;
+  setStatus("statusClip", "Recording 2s — say the target word…");
+  try {
+    const audioBuffer = await bench.recordFromMic(2000, (level) => {
+      $("meterBar").style.width = `${Math.round(level * 100)}%`;
+    });
+    state.clipPcm = await bench.resampleTo16kMono(audioBuffer);
+    state.clipIsSynthetic = false;
+    setStatus("statusClip", `Recorded ${(state.clipPcm.length / bench.SAMPLE_RATE).toFixed(2)}s @ 16kHz mono. Ready to benchmark.`);
+    $("btnLatency").disabled = !state.session;
+    $("meterBar").style.width = "0%";
+  } catch (err) {
+    console.error(err);
+    setStatus("statusClip", `Mic failed: ${err.message}. On iPad, this needs a real user tap (this counts) and mic permission.`);
+  } finally {
+    $("btnRecord").disabled = false;
+  }
+});
+
+$("btnSynthetic").addEventListener("click", () => {
+  state.clipPcm = bench.makeSyntheticPcm(1.5);
+  state.clipIsSynthetic = true;
+  setStatus("statusClip", "Using a 1.5s synthetic clip — good for repeatable latency numbers, meaningless for the GOP score.");
+  $("btnLatency").disabled = !state.session;
+});
+
+$("btnLatency").addEventListener("click", async () => {
+  $("btnLatency").disabled = true;
+  try {
+    const latency = await bench.benchmarkLatency(state.session, state.clipPcm, { nWarmup: 3, nReps: 20 }, (msg) =>
+      setStatus("statusBench", msg)
+    );
+    state.latency = latency;
+    renderKv("latencyTable", [
+      ["Preprocess — mean / median / p95", `${fmtMs(latency.preprocess.mean)} / ${fmtMs(latency.preprocess.median)} / ${fmtMs(latency.preprocess.p95)}`],
+      ["Inference — mean / median / p95", `${fmtMs(latency.inference.mean)} / ${fmtMs(latency.inference.median)} / ${fmtMs(latency.inference.p95)}`],
+      ["Total per-utterance — mean / median / p95", `<strong>${fmtMs(latency.totalPerUtteranceMs.mean)}</strong> / ${fmtMs(latency.totalPerUtteranceMs.median)} / ${fmtMs(latency.totalPerUtteranceMs.p95)}`],
+      ["min / max (of 20 reps)", `${fmtMs(latency.totalPerUtteranceMs.min)} / ${fmtMs(latency.totalPerUtteranceMs.max)}`],
+    ]);
+
+    // GOP against the selected target word, timed separately (cheap — see gop-bench.js).
+    const word = $("wordSelect").value;
+    const target = state.data.lexicon[word];
+    const t0 = performance.now();
+    const gop = bench.computeGopSF(latency.lastLogits, latency.lastDims[1], latency.lastDims[2], target.ids, state.data.blankId);
+    const gopMs = performance.now() - t0;
+    state.gop = { word, gopMs, ...gop };
+
+    const decoded = bench.greedyDecode(latency.lastLogits, latency.lastDims[1], latency.lastDims[2], state.data.blankId, state.data.id2sym);
+    $("decodedPhones").textContent = decoded.length ? decoded.join(" ") : "(silence / blank only)";
+
+    renderKv("gopTable", [
+      ["Target word", `${word} — /${target.phonemes.join(" ")}/`],
+      ["Clip source", state.clipIsSynthetic ? '<span class="pill neutral">synthetic — score not meaningful</span>' : '<span class="pill ok">recorded</span>'],
+      ["Total log P(target | audio), all alignments", state.gop.totalLogProb.toFixed(2)],
+      ["Per-phoneme log-prob (GOP-SF core score)", state.gop.perPhonemeLogProb.toFixed(3)],
+      ["Free-decode frame baseline", state.gop.freeDecodeFrameAvg.toFixed(3)],
+      ["Normalized score (perPhoneme − baseline, see caveat in gop-bench.js)", state.gop.normalizedScore.toFixed(3)],
+      ["GOP compute time", fmtMs(gopMs)],
+    ]);
+
+    setStatus("statusBench", "Done.");
+    renderBanner();
+  } catch (err) {
+    console.error(err);
+    setStatus("statusBench", `Failed: ${err.message}`);
+  } finally {
+    $("btnLatency").disabled = false;
+    renderRaw();
+  }
+});
+
+init().catch((err) => {
+  console.error(err);
+  setStatus("statusSetup", `Init failed: ${err.message}`);
+});
+</script>
+</body>
+</html>

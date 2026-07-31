@@ -1,0 +1,13 @@
+{
+  "models": [
+    {
+      "id": "gruut-ctc-v1-int8",
+      "label": "wav2vec2-base phoneme CTC — INT8 (default)",
+      "url": "/models/gruut-ctc-v1-int8.onnx",
+      "approxSizeMB": 122,
+      "default": true,
+      "notes": "wav2vec2-base (94.4M params, bookbot/wav2vec2-ljspeech-gruut) fine-tuned for IPA phoneme CTC output. Dynamic INT8 quantization applied to MatMul/Gemm ops only — the 7-layer conv feature extractor and the positional conv embedding stayed FP32 because their weight-norm reparameterization (a Mul feeding Conv) isn't a quantizer-recognized constant initializer. FP32 source was 377.8MB; this build is 121.9MB (32%)."
+    }
+  ],
+  "readme": "Add more entries here to compare candidates side-by-side (e.g. a further-compressed or smaller-architecture model). The harness reads this file to populate the model picker; nothing else needs to change."
+}

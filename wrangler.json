@@ -36,5 +36,11 @@
       "binding": "KIDE_LEADS",
       "id": "5798aa0569ce449aa818bdc3f6533f63"
     }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MODELS",
+      "bucket_name": "kide-models"
+    }
   ]
 }

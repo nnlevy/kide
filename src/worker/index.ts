@@ -2,6 +2,7 @@ export interface Env {
   DB?: D1Database;
   ASSETS: Fetcher;
   KIDE_LEADS: KVNamespace;
+  MODELS?: R2Bucket;
 }
 
 const SITEMAP = `<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://kide.us/</loc></url><url><loc>https://kide.us/play</loc></url><url><loc>https://kide.us/privacy</loc></url><url><loc>https://kide.us/terms</loc></url></urlset>`;
@@ -51,6 +52,17 @@ export default {
       return handleNotify(request, env);
     }
 
+    // Model weights for the on-device pronunciation-scoring benchmark
+    // (public/bench/). These are too large for git/Workers Assets (the
+    // int8 phoneme-CTC model is ~122MB), so they live in R2 and are proxied
+    // same-origin here — same-origin also sidesteps CORS entirely, which
+    // matters because ONNX Runtime Web fetches this as a plain module asset.
+    // Content is immutable per filename (bump the filename to ship a new
+    // model version, same convention as /voice/v1/ below).
+    if (url.pathname.startsWith("/models/") && (request.method === "GET" || request.method === "HEAD")) {
+      return handleModelAsset(request, env, url.pathname.slice("/models/".length));
+    }
+
     try {
       // Two things about this binding that are easy to get wrong, both learned
       // the hard way on this site:
@@ -72,6 +84,44 @@ export default {
     return new Response(NOT_FOUND_HTML, { status: 404, headers: { "Content-Type": "text/html; charset=utf-8" } });
   },
 };
+
+// Streams a model file out of the MODELS R2 bucket, with Range support (R2
+// serves the range directly, so a stalled fetch on a slow iPad connection can
+// resume) and a year-long immutable cache — safe because each build ships
+// under a versioned filename (gruut-ctc-v1-int8.onnx) rather than overwriting
+// one in place.
+async function handleModelAsset(request: Request, env: Env, key: string): Promise<Response> {
+  if (!env.MODELS) return new Response("models bucket not bound", { status: 500 });
+  if (!key || key.includes("..")) return new Response("Not found", { status: 404 });
+
+  const object = await env.MODELS.get(key, {
+    range: request.headers,
+    onlyIf: request.headers,
+  });
+  if (!object) return new Response("Not found", { status: 404 });
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  if (!headers.get("content-type")) headers.set("content-type", "application/octet-stream");
+  headers.set("etag", object.httpEtag);
+  headers.set("Cache-Control", "public, max-age=31536000, immutable");
+  headers.set("Accept-Ranges", "bytes");
+
+  const hasRange = "range" in object && object.range;
+  let status = 200;
+  if (hasRange && "offset" in object.range! && object.range!.offset !== undefined) {
+    const start = object.range!.offset ?? 0;
+    const length = object.range!.length ?? object.size - start;
+    headers.set("Content-Range", `bytes ${start}-${start + length - 1}/${object.size}`);
+    status = 206;
+  }
+
+  if (request.method === "HEAD") {
+    headers.set("content-length", String(object.size));
+    return new Response(null, { status, headers });
+  }
+  return new Response(object.body, { status, headers });
+}
 
 // Minimal KV-backed waitlist. No accounts, no third-party processor — just an
 // email address a parent chose to give us, stored once per address.

@@ -5,3 +5,4 @@ dist/
 *.log
 # generator scratch — the shipped pack lives in public/voice/v1/
 tools/voice/out/
+r2-upload/
