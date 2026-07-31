@@ -94,8 +94,15 @@ async function handleModelAsset(request: Request, env: Env, key: string): Promis
   if (!env.MODELS) return new Response("models bucket not bound", { status: 500 });
   if (!key || key.includes("..")) return new Response("Not found", { status: 404 });
 
+  // Only ask R2 for a range when the request actually sent a Range header —
+  // passing `request.headers` unconditionally made R2 return 206 (with a
+  // 0..size-1 "partial" range covering the whole file) even for a plain GET,
+  // which is harmless for fetch()-based consumers like ONNX Runtime Web but
+  // wrong per HTTP and risks the edge treating it as non-cacheable. Verified
+  // live on kide.us post-deploy (2026-07-31) and fixed here.
+  const hasRangeHeader = request.headers.has("range");
   const object = await env.MODELS.get(key, {
-    range: request.headers,
+    range: hasRangeHeader ? request.headers : undefined,
     onlyIf: request.headers,
   });
   if (!object) return new Response("Not found", { status: 404 });
