@@ -5,7 +5,7 @@ export interface Env {
   MODELS?: R2Bucket;
 }
 
-const SITEMAP = `<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://kide.us/</loc></url><url><loc>https://kide.us/play</loc></url><url><loc>https://kide.us/privacy</loc></url><url><loc>https://kide.us/terms</loc></url></urlset>`;
+const SITEMAP = `<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://kide.us/</loc></url><url><loc>https://kide.us/play</loc></url><url><loc>https://kide.us/guides</loc></url><url><loc>https://kide.us/guides/potty-training-without-pressure</loc></url><url><loc>https://kide.us/guides/screen-time-that-ends-itself</loc></url><url><loc>https://kide.us/guides/your-childs-voice-stays-on-the-device</loc></url><url><loc>https://kide.us/privacy</loc></url><url><loc>https://kide.us/terms</loc></url></urlset>`;
 
 const NOT_FOUND_HTML = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Page not found · Kide</title><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#56C6E6,#BDEBFF);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;text-align:center;color:#fff;}h1{font-size:22px;}a{color:#fff;font-weight:800;}</style></head><body><div><div style="font-size:64px">🌱</div><h1>Pip couldn't find that page</h1><p><a href="/">Back to Kide</a></p></div></body></html>`;
 
@@ -46,6 +46,24 @@ export default {
 
     if (url.pathname === "/robots.txt") {
       return new Response("User-agent: *\nAllow: /\nSitemap: https://kide.us/sitemap.xml");
+    }
+
+    if (url.pathname === "/api/health") {
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          domain: "kide.us",
+          worker: "kide",
+          ts: new Date().toISOString(),
+          bindings: {
+            assets: !!env.ASSETS,
+            kideLeads: !!env.KIDE_LEADS,
+            db: !!env.DB,
+            models: !!env.MODELS,
+          },
+        }),
+        { headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
+      );
     }
 
     if (url.pathname === "/api/notify" && request.method === "POST") {

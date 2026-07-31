@@ -1,0 +1,43 @@
+/* Shared styles for /guides/* — same tokens as the homepage (docs/BRAND.md),
+   split out because this is the one place on kide.us with >1 HTML page using
+   the same look. Homepage keeps its inline <style> untouched; nothing here
+   is loaded there, so there's no risk of the two drifting into a fight. */
+:root{
+  --sky-top:#56C6E6; --sky-bottom:#BDEBFF;
+  --sun:#FFD166; --sun-deep:#FFC94A;
+  --grass:#6FD08C; --grass-deep:#4FB874; --grass-dark:#3D9C63;
+  --coral:#FF8A73; --coral-deep:#F16E55;
+  --berry:#FF8FA8; --berry-deep:#FF6F9C;
+  --sand:#4EA8DE; --sand-deep:#3B8FC4;
+  --cream:#FFFBF2; --card:#FFFFFF;
+  --ink:#2E3A3F; --ink-soft:#5B6A67; --ink-faint:#9AA6A3;
+  --radius-lg:28px; --radius-md:20px; --radius-sm:14px;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;background:var(--cream);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased;}
+a{color:var(--sand-deep);}
+.wrap{max-width:720px;margin:0 auto;padding:0 22px 60px;}
+
+nav{padding:20px 0;}
+nav .row{display:flex;align-items:center;justify-content:space-between;}
+.wordmark{font-size:24px;font-weight:800;color:var(--grass-dark);letter-spacing:-.02em;text-decoration:none;}
+.nav-links a{font-size:15px;font-weight:700;color:var(--ink-soft);text-decoration:none;margin-left:18px;}
+.nav-links a:hover{color:var(--grass-dark);}
+
+.eyebrow{font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--grass-dark);margin:0 0 10px;}
+h1{font-size:clamp(28px,5vw,40px);font-weight:800;margin:0 0 14px;line-height:1.15;}
+h2{font-size:22px;font-weight:800;margin:36px 0 10px;}
+p{font-size:17px;color:var(--ink);margin:0 0 18px;}
+.lede{font-size:19px;color:var(--ink-soft);}
+.card-list{display:grid;gap:14px;margin-top:28px;}
+.guide-card{display:block;background:var(--card);border-radius:var(--radius-md);padding:22px 24px;text-decoration:none;box-shadow:0 5px 0 rgba(0,0,0,.05);}
+.guide-card b{display:block;font-size:18px;color:var(--ink);margin-bottom:6px;}
+.guide-card span{font-size:14.5px;color:var(--ink-soft);}
+.source-note{background:var(--card);border-left:4px solid var(--sand);border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:14px 18px;margin:22px 0;font-size:15px;color:var(--ink-soft);}
+.source-note b{color:var(--ink);}
+.back-link{display:inline-block;margin-bottom:20px;font-size:14.5px;font-weight:700;color:var(--ink-soft);text-decoration:none;}
+.cta-row{margin-top:36px;padding:26px 24px;background:var(--card);border-radius:var(--radius-lg);text-align:center;box-shadow:0 3px 14px rgba(0,0,0,.05);}
+.cta{display:inline-block;margin-top:10px;border:none;border-radius:999px;padding:14px 28px;font-size:16px;font-weight:800;color:#fff;text-decoration:none;background:linear-gradient(180deg,var(--coral),var(--coral-deep));box-shadow:0 5px 0 rgba(0,0,0,.14);}
+footer{margin-top:56px;padding-top:26px;border-top:1px solid #EFE9DA;text-align:center;color:var(--ink-faint);font-size:13px;}
+footer a{text-decoration:underline;color:var(--ink-faint);}
+footer .links a{margin:0 8px;}

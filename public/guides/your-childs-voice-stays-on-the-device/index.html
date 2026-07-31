@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why we don't send your child's voice anywhere — Kide Guides</title>
+<meta name="description" content="If a browser can't understand speech without sending it to a server, Pip doesn't offer the microphone there at all. No cloud fallback exists to switch on by mistake. Here's exactly how that works today.">
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#56C6E6">
+<link rel="canonical" href="https://kide.us/guides/your-childs-voice-stays-on-the-device">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="stylesheet" href="/guides/shared.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Why we don't send your child's voice anywhere">
+<meta property="og:description" content="No cloud fallback exists to switch on by mistake. Here's exactly how Pip's listening works today, device by device.">
+<meta property="og:url" content="https://kide.us/guides/your-childs-voice-stays-on-the-device">
+</head>
+<body>
+<div class="wrap">
+  <nav><div class="row">
+    <a class="wordmark" href="/">kide</a>
+    <div class="nav-links"><a href="/play">Play</a><a href="/guides">Guides</a></div>
+  </div></nav>
+
+  <a class="back-link" href="/guides">← All guides</a>
+  <p class="eyebrow">Privacy</p>
+  <h1>Why we don't send your child's voice anywhere</h1>
+  <p class="lede">The easy way to build "say the answer out loud" is to record your child's voice and send it to a speech-recognition company's servers. We ruled that out on day one, which meant ruling out the easy way to build this.</p>
+
+  <p>The rule we actually build to is one line: <b>if a browser can't understand speech without sending it to a server, we don't turn the microphone on there at all.</b> Not "we ask before sending" — we simply don't offer listening as an option on that device. There is no setting that enables a cloud fallback, because there is no cloud fallback in the code to enable.</p>
+
+  <h2>What that looks like today</h2>
+  <p>Before Pip ever listens, three things all have to be true: the browser reports an on-device speech model is actually installed and ready; a grown-up has been through the Parent Corner and read the consent screen; and — checked again, separately, because the first check isn't always trustworthy — the on-device-only flag we set is confirmed to have taken effect, not silently ignored.</p>
+  <p>Right now that combination exists on Chrome 139 and newer, on desktop and Android. On an iPad, the microphone doesn't appear in Pip's game at all — tapping to answer works exactly the same either way, so nothing is degraded, it's simply the version of the game every device gets until listening can be offered honestly there too.</p>
+
+  <h2>What "nothing leaves the device" actually means</h2>
+  <p>When listening is on, there's no recording, no upload, and nothing saved. What your child says becomes a word for a few milliseconds — just long enough to compare it against the two to four answers already on the screen — and then it's gone. We'd rather a mumbled answer get a gentle "I didn't quite hear that, try again?" than guess wrong, so ties and low-confidence guesses are always treated as "didn't hear it," never as a coin flip.</p>
+
+  <h2>What we're testing for the devices this doesn't cover yet</h2>
+  <p>iPad is the biggest gap, because Safari's own on-device speech tools aren't reachable from a web page the way Chrome's are — the only browser path today would mean sending audio to a server, which is exactly what we've ruled out. The honest options are to run our own small speech model directly in the browser (genuinely on-device, but unproven for a two-second answer at the speed a toddler expects — we're actively benchmarking this on real hardware before deciding), or a separate, more capable app for iPad specifically. Nothing here has shipped yet. When it does, it will follow the same one-line rule as everything above: it's your child's voice, so it stays on your child's device, or the feature doesn't ship at all.</p>
+
+  <div class="cta-row">
+    <p style="margin-bottom:0">See what's tap-only vs. voice-enabled on your device.</p>
+    <a class="cta" href="/play">Let's Play — it's free</a>
+  </div>
+
+  <footer>
+    kide.us — a Quizbiz LLC product
+    <div class="links"><a href="/">Home</a> · <a href="/guides">Guides</a> · <a href="/privacy">Privacy</a></div>
+  </footer>
+</div>
+</body>
+</html>
