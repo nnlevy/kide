@@ -79,6 +79,16 @@
   </div>
 
   <div class="card">
+    <h2>Listening</h2>
+    <p class="muted" id="micState">—</p>
+    <div class="row"><button id="btnMic">—</button></div>
+    <div class="note">
+      One switch covers every part of Kide. Turning it off stops listening
+      everywhere, straight away.
+    </div>
+  </div>
+
+  <div class="card">
     <h2>Your child's data</h2>
     <p class="muted" id="storageNote">—</p>
     <div class="note">
@@ -98,6 +108,7 @@
 
 <script type="module">
 import * as Journal from '../engine/journal.js';
+import * as Consent from '../engine/consent.js';
 import { buildRecord, narrativeFor, MIN_ATTEMPTS_PER_TARGET } from '../engine/clinical.js';
 import { LEX, keyOf } from '../engine/lexicon.js';
 
@@ -145,6 +156,19 @@ function render() {
       + 'session is shown. Everything else still works.';
 }
 
+function renderMic(){
+  const on = Consent.granted();
+  $('micState').textContent = on
+    ? 'Pip may listen on this device. Nothing is recorded, and nothing is sent.'
+    : 'Listening is off. Your child taps to answer, which works everywhere.';
+  $('btnMic').textContent = on ? 'Turn listening off' : 'Let Pip listen';
+  $('btnMic').className = on ? 'danger' : 'primary';
+}
+$('btnMic').addEventListener('click', () => {
+  if (Consent.granted()) Consent.revoke(); else Consent.grant('ondevice');
+  renderMic();
+});
+
 $('btnShare').addEventListener('click', async () => {
   if (!Journal.count()) { $('linkOut').textContent = 'Nothing to share yet.'; return; }
   const rel = Journal.exportLink('/clinician/', { days: 90 });
@@ -170,6 +194,7 @@ $('btnClear').addEventListener('click', () => {
   render();
 });
 
+renderMic();
 render();
 </script>
 </body>

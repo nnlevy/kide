@@ -72,6 +72,18 @@
     box-shadow:0 1px 5px rgba(0,0,0,.25);transform:translateX(-9px);transition:left .6s ease}
   .quiet{font-size:13px;color:var(--ink-faint);text-align:center;margin-top:16px}
   .hidden{display:none !important}
+  .voice-row{margin-top:18px;text-align:center}
+  .link-btn{font:inherit;font-size:14px;font-weight:700;color:var(--ink-soft);background:none;
+    border:none;text-decoration:underline;cursor:pointer;min-height:44px;padding:10px 14px}
+  .sheet{position:fixed;inset:0;background:rgba(46,32,20,.45);display:flex;align-items:flex-end;
+    justify-content:center;z-index:40;padding:0}
+  .sheet .inner{background:#fff;border-radius:24px 24px 0 0;max-width:560px;width:100%;
+    padding:24px 22px calc(24px + env(safe-area-inset-bottom,0px));max-height:88vh;overflow:auto}
+  .sheet h2{font-size:19px;margin:0 0 10px}
+  .sheet p{font-size:15px;color:var(--ink-soft);margin:0 0 12px}
+  .sheet ul{margin:0 0 14px;padding-left:20px;font-size:15px;color:var(--ink-soft)}
+  .sheet li{margin-bottom:6px}
+  .sheet .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
 </style>
 <link rel="stylesheet" href="../mobile.css">
 </head>
@@ -105,6 +117,14 @@
     <div class="say-row" id="sayRow"></div>
     <div class="daybar"><i id="dayDot" style="left:0%"></i></div>
     <p class="quiet" id="quiet">Tapping always works. Saying it out loud is optional.</p>
+
+    <!-- Grown-ups only. Deliberately small, plain and at the bottom: a
+         two-year-old must not be able to turn on their own microphone, and a
+         child-facing toggle is exactly how that happens. -->
+    <div class="voice-row" id="voiceRow">
+      <button class="link-btn" id="btnVoice">For grown-ups: let Pip listen too</button>
+      <p class="quiet" id="voiceStatus"></p>
+    </div>
   </section>
 </div>
 
@@ -115,6 +135,9 @@ import { actorList, getActor, ASLEEP, portraitSvg } from '../scene/actors.js';
 import { namesFor, nameAsTarget, nameIsScoreable } from '../scene/naming.js';
 import * as Journal from '../engine/journal.js';
 import * as Profile from '../engine/profile.js';
+import * as Consent from '../engine/consent.js';
+import { startScoringInBackground, previewTier, resampleTo16kMono, SAMPLE_RATE }
+  from '../engine/scoring.js';
 
 const $ = (id) => document.getElementById(id);
 const BEATS_PER_DAY = 12;
@@ -123,12 +146,45 @@ let actor = null, chosenName = null, scene = null, engine = null, offer = null, 
 let vocab = null;
 window.__kideWords = () => ({ actor, chosenName, engine, ended, beats: engine?.learner.beat });
 
-/* A tiny stand-in for the scorer until the on-device model is wired into this
-   surface. Every attempt here is a TAP, which the evidence layer correctly
-   counts as adherence and never as speech (see docs/WEDGE.md). Saying the word
-   out loud is still the point of the activity -- we simply cannot yet prove it
-   happened on this surface, and the record says so rather than guessing. */
-const tapOnly = null;
+/* SCORING.
+ *
+ * Off until a grown-up turns it on, and off again the moment they withdraw --
+ * the consent record is shared with the quiz game (see consent.js), so one yes
+ * covers both surfaces and one revoke silences both.
+ *
+ * Loading never blocks play. The child is already playing on the tap tier at
+ * zero bytes while the model downloads in the background; voice simply starts
+ * working part-way through a session, or next session, or never on a bad
+ * connection -- and the game was complete the whole time.
+ *
+ * There is no cloud tier here and no setting that could enable one. */
+let scorer = null;
+let micReady = false;
+
+async function enableVoice(){
+  if (!Consent.granted()) return;
+  const { scorer: s, ready } = startScoringInBackground({
+    allowMic: true,
+    onProgress: (p) => {
+      if (p.phase === 'downloading' && p.total) {
+        setVoiceStatus(`Getting Pip's ears ready — ${Math.round((p.loaded / p.total) * 100)}%. Keep playing.`);
+      } else if (p.phase === 'failed') {
+        setVoiceStatus('Listening is not available on this device. Tapping still works perfectly.');
+      }
+    },
+  });
+  scorer = s;
+  if (engine) engine.scorer = scorer;
+  const info = await ready;
+  micReady = info.tier !== 'tap';
+  if (engine) engine.scorer = scorer;
+  setVoiceStatus(micReady
+    ? `Pip is listening on this device${info.phonemeLevel ? '' : ' (word by word)'}. Nothing is recorded or sent.`
+    : 'This device cannot listen privately, so Pip will not ask to. Tapping works exactly the same.');
+  if (engine && engine.current) showSay(engine.current.word.w);
+}
+
+function setVoiceStatus(t){ const el = $('voiceStatus'); if (el) el.textContent = t; }
 
 async function loadVocab(){
   if (vocab) return vocab;
@@ -196,7 +252,9 @@ async function begin(){
   scene = new Scene($('stage'), actor, $('choices'));
   engine = new LessonEngine({
     companionName: chosenName.name, concern: 'unclear',
-    scorer: tapOnly, journal: Journal.record,
+    // `scorer` is null until a grown-up enables listening; the engine treats a
+    // null scorer as tap-only, which is a complete way to play.
+    scorer, journal: Journal.record,
   });
   ended = false;
 
@@ -220,17 +278,67 @@ async function begin(){
   showSay(first.w);
 }
 
-/** The one action a child ever takes: they said it (or they tapped, which is
-    the same thing as far as the game is concerned -- never a failure). */
+/** The one action a child ever takes.
+ *
+ *  Two buttons only when the microphone is genuinely available: say it, or tap
+ *  it. Tapping is never the lesser option and is never labelled as one -- it
+ *  is how a child in a noisy room, or a shy child, or a child on a device that
+ *  cannot listen privately, plays the same game. */
 function showSay(word){
-  $('sayRow').innerHTML = `<button class="big-btn" id="btnSaid">I said &ldquo;${word}&rdquo;</button>`;
-  $('btnSaid').addEventListener('click', said);
+  const speak = micReady
+    ? `<button class="big-btn" id="btnSpeak">🎤 Say &ldquo;${word}&rdquo;</button>` : '';
+  const tap = `<button class="big-btn${micReady ? ' ghost' : ''}" id="btnSaid">${
+    micReady ? 'Tap instead' : `I said &ldquo;${word}&rdquo;`}</button>`;
+  $('sayRow').innerHTML = speak + tap;
+  $('btnSaid').addEventListener('click', () => resolveAttempt(null));
+  if (micReady) $('btnSpeak').addEventListener('click', listenOnce);
 }
 
-async function said(){
+/** Record a short clip and let the scorer judge it. Any failure at all --
+ *  permission, hardware, decode -- falls through to a tap, because a child
+ *  must never be blocked by the microphone. */
+async function listenOnce(){
+  const btn = $('btnSpeak');
+  if (btn) { btn.disabled = true; btn.textContent = '🎤 Listening…'; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+    });
+    const rec = new MediaRecorder(stream);
+    const chunks = [];
+    rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+    const stopped = new Promise((r) => (rec.onstop = r));
+    rec.start();
+    await wait(1800);                       // long enough for a word, short enough for a toddler
+    rec.stop();
+    await stopped;
+    stream.getTracks().forEach((t) => t.stop());
+
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = await ctx.decodeAudioData(await new Blob(chunks).arrayBuffer());
+    await ctx.close();
+    await resolveAttempt(await resampleTo16kMono(buf));
+  } catch {
+    // Never surface a microphone error to a child. It just becomes a tap.
+    await resolveAttempt(null);
+  }
+}
+
+async function resolveAttempt(pcm){
   if (!engine || !engine.current || ended) return;
   $('sayRow').innerHTML = '';
-  const r = await engine.submitAttempt(null);   // tap tier -- adherence, never speech
+  const r = await engine.submitAttempt(pcm);
+
+  // Not heard clearly, and attempts remain: the companion models the sound and
+  // asks again, warmth unchanged. Never a failure, never a score.
+  if (!r.resolves) {
+    scene.pose('MODEL').say(r.say);
+    await wait(1400);
+    scene.pose('ASK').say(`Let's try together — ${engine.current.word.w}.`);
+    showSay(engine.current.word.w);
+    return;
+  }
+
   if (actor.wakes && scene.asleep) scene.setAsleep(false);
   scene.pose('TRIUMPH').say(r.say);
   await scene.reveal(engine.current.word.w);
@@ -283,8 +391,88 @@ async function goodnight(){
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/* --------------------------------------------------------- consent sheet */
+/* The moment a parent decides. Written to be read by someone who is sceptical,
+   because they should be: they are being asked about a microphone in a room
+   with their child in it. Every claim here is one the code actually keeps --
+   see scoring.js (no cloud tier exists) and journal.js (audio cannot be
+   persisted; the allow-list is enforced on write). */
+function openVoiceSheet(){
+  const already = Consent.granted();
+  const el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = `
+    <div class="inner" role="dialog" aria-modal="true" aria-label="Let Pip listen">
+      <h2>${already ? 'Pip is allowed to listen' : 'Shall Pip listen too?'}</h2>
+      <p>Your child can already play by tapping. Turning this on lets them
+         answer out loud instead — which is the part that actually practises
+         their speech.</p>
+      <ul>
+        <li><b>Nothing is recorded and nothing is sent.</b> The sound becomes a
+            word on this device, for a moment, and is then gone.</li>
+        <li><b>No voice is ever stored.</b> Not a recording, not a voiceprint,
+            nothing that could identify your child by how they sound.</li>
+        <li><b>If a device can't do this privately, we don't ask for the
+            microphone at all.</b> There is no cloud option to switch on.</li>
+        <li>Turning it off again stops it everywhere, immediately.</li>
+      </ul>
+      <p style="font-size:13.5px">Your child is never told they got a word wrong.
+         Pip simply says it again and invites them to have another go.</p>
+      <div class="row">
+        ${already
+          ? '<button class="big-btn ghost" id="voiceOff">Turn listening off</button>'
+          : '<button class="big-btn" id="voiceOn">Yes, let Pip listen</button>'}
+        <button class="big-btn ghost" id="voiceClose">${already ? 'Close' : 'Not now'}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  const close = () => el.remove();
+  el.addEventListener('click', (e) => { if (e.target === el) close(); });
+  el.querySelector('#voiceClose').addEventListener('click', close);
+  el.querySelector('#voiceOn')?.addEventListener('click', async () => {
+    Consent.grant('ondevice');
+    close();
+    renderVoiceRow();
+    setVoiceStatus('Getting Pip\'s ears ready. Keep playing — it works in the background.');
+    enableVoice();
+  });
+  el.querySelector('#voiceOff')?.addEventListener('click', () => {
+    Consent.revoke();
+    scorer = null; micReady = false;
+    if (engine) engine.scorer = null;
+    close();
+    renderVoiceRow();
+    setVoiceStatus('Listening is off. Tapping works exactly as before.');
+    if (engine && engine.current) showSay(engine.current.word.w);
+  });
+}
+
+function renderVoiceRow(){
+  const b = $('btnVoice');
+  if (!b) return;
+  b.textContent = Consent.granted()
+    ? 'For grown-ups: listening settings'
+    : 'For grown-ups: let Pip listen too';
+}
+
 /* ------------------------------------------------------------------ boot */
+$('btnVoice')?.addEventListener('click', openVoiceSheet);
+
 (async () => {
+  renderVoiceRow();
+
+  // Consent already given on a previous visit (possibly in the quiz game --
+  // it is one shared record). Start loading straight away; play is not blocked.
+  if (Consent.granted()) {
+    enableVoice();
+  } else {
+    // Say honestly, before anything is downloaded, what this device could do.
+    const t = await previewTier({ allowMic: true });
+    if (t === 'tap' || t === 'gop-wasm-or-tap') {
+      setVoiceStatus('');
+    }
+  }
+
   const saved = Profile.load();
   if (saved) {
     // They have played before: the same companion is waiting, by name. Being

@@ -239,6 +239,85 @@ console.log('--- the real game records the right thing ---');
 }
 
 // ---------------------------------------------------------------------------
+console.log('--- one microphone, one permission ---');
+// ---------------------------------------------------------------------------
+
+{
+  const C = await import('./public/engine/consent.js');
+  const voiceSrc = fs.readFileSync('./public/voice.js', 'utf8');
+
+  // The record MUST be the one voice.js already owns. Two records would mean a
+  // parent who revoked in one place still had a live microphone in the other,
+  // with no way of knowing.
+  const key = /CONSENT_KEY\s*=\s*"([^"]+)"/.exec(voiceSrc);
+  const ver = /CONSENT_VERSION\s*=\s*(\d+)/.exec(voiceSrc);
+  ok('voice.js declares a consent key', !!key);
+  eq('consent.js shares voice.js\'s key', C.CONSENT_KEY, key ? key[1] : null);
+  eq('and its version', C.CONSENT_VERSION, ver ? Number(ver[1]) : null);
+
+  C.revoke();
+  eq('starts ungranted', C.granted(), false);
+  C.grant('ondevice');
+  ok('grant records on-device mode', C.get().mode === 'ondevice');
+  eq('and reads as granted', C.granted(), true);
+
+  // A stale version must not inherit an old yes -- the policy it agreed to has
+  // changed, so the question has to be asked again.
+  localStorage.setItem(C.CONSENT_KEY, JSON.stringify({ granted: true, version: 999, mode: 'ondevice' }));
+  eq('a stale consent version is not honoured', C.granted(), false);
+
+  C.grant();
+  C.revoke();
+  eq('revoke is total', localStorage.getItem(C.CONSENT_KEY), null);
+  eq('and reads as ungranted', C.granted(), false);
+}
+
+// ---------------------------------------------------------------------------
+console.log('--- /words: listening is off until a grown-up says otherwise ---');
+// ---------------------------------------------------------------------------
+
+{
+  const words = fs.readFileSync('./public/words/index.html', 'utf8');
+
+  ok('scoring is gated on consent', /if \(!Consent\.granted\(\)\) return/.test(words),
+     'a child must not be able to turn on their own microphone');
+  ok('the mic button only exists when listening is genuinely available',
+     /micReady\s*\?/.test(words));
+  ok('tapping is always offered', /id="btnSaid"/.test(words));
+  ok('a microphone failure falls through to a tap, silently',
+     /catch \{[\s\S]{0,160}resolveAttempt\(null\)/.test(words),
+     'a child must never be blocked, or blamed, by the microphone');
+
+  // The promise the consent sheet makes has to be one the code keeps.
+  const scoring = fs.readFileSync('./public/engine/scoring.js', 'utf8');
+  ok('no cloud endpoint exists in the scorer',
+     !/https?:\/\/(?!cdn\.jsdelivr)/.test(scoring.replace(/\/\*[\s\S]*?\*\//g, '')),
+     'the sheet says there is no cloud option to switch on');
+  ok('the sheet claims nothing is recorded', /Nothing is recorded and nothing is sent/.test(words));
+  ok('and the journal cannot persist audio, so that claim holds',
+     J.FORBIDDEN_FIELDS.includes('audio') && J.FORBIDDEN_FIELDS.includes('voiceprint'));
+
+  // Never a failure state, even with a real scorer attached.
+  ok('an unheard attempt re-invites rather than failing',
+     /if \(!r\.resolves\)[\s\S]{0,220}MODEL/.test(words));
+  // Check what is said TO A CHILD, not the whole file. An earlier version of
+  // this assertion scanned everything and flagged two legitimate strings: the
+  // code path name `p.phase === 'failed'`, and the parent-facing promise
+  // "never told they got a word wrong" -- which is the very guarantee under
+  // test. A guard that fires on its own subject matter is a bad guard.
+  ok('the re-invite is warm, not corrective', /Let's try together/.test(words));
+  {
+    const childLines = [...words.matchAll(/\.say\(`([^`]*)`\)/g)].map((m) => m[1])
+      .concat([...words.matchAll(/caption:\s*`([^`]*)`/g)].map((m) => m[1]));
+    ok('the child is never told they were wrong',
+       childLines.length > 0 && !childLines.some((l) => /wrong|incorrect|failed|no,|not quite right/i.test(l)),
+       childLines.filter((l) => /wrong|incorrect|failed/i.test(l)).join(' | '));
+    ok('there are child-facing lines to check at all', childLines.length >= 3,
+       `${childLines.length} found`);
+  }
+}
+
+// ---------------------------------------------------------------------------
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) { console.log('\nFAILURES:'); for (const f of failures) console.log('  x ' + f); process.exit(1); }
 console.log('OK\n');

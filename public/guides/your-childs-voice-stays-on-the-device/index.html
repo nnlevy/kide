@@ -32,13 +32,19 @@
 
   <h2>What that looks like today</h2>
   <p>Before Pip ever listens, three things all have to be true: the browser reports an on-device speech model is actually installed and ready; a grown-up has been through the Parent Corner and read the consent screen; and — checked again, separately, because the first check isn't always trustworthy — the on-device-only flag we set is confirmed to have taken effect, not silently ignored.</p>
-  <p>Right now that combination exists on Chrome 139 and newer, on desktop and Android. On an iPad, the microphone doesn't appear in Pip's game at all — tapping to answer works exactly the same either way, so nothing is degraded, it's simply the version of the game every device gets until listening can be offered honestly there too.</p>
+  <p>In Pip's garden — the colours, counting and shapes games — that combination exists on Chrome 139 and newer, on desktop and Android. On an iPad the microphone doesn't appear there at all.</p>
+
+  <p><b>In <a href="/words">Say it with me</a> it now works on iPad too</b>, by a different route: instead of asking the browser to recognise speech, we ship our own small speech model and run it inside the page. It never contacts a server because there is nothing to contact — the model is on the device, in the tab, and the audio never leaves the function that scores it. We measured it on a real iPad before relying on it: 117 milliseconds to score a word, which is faster than a child notices.</p>
+
+  <p>Tapping to answer works exactly the same on every device, so nothing is ever degraded by a "no" — it is simply the version of the game that device gets.</p>
 
   <h2>What "nothing leaves the device" actually means</h2>
   <p>When listening is on, there's no recording, no upload, and nothing saved. What your child says becomes a word for a few milliseconds — just long enough to compare it against the two to four answers already on the screen — and then it's gone. We'd rather a mumbled answer get a gentle "I didn't quite hear that, try again?" than guess wrong, so ties and low-confidence guesses are always treated as "didn't hear it," never as a coin flip.</p>
 
   <h2>What we're testing for the devices this doesn't cover yet</h2>
-  <p>iPad is the biggest gap, because Safari's own on-device speech tools aren't reachable from a web page the way Chrome's are — the only browser path today would mean sending audio to a server, which is exactly what we've ruled out. The honest options are to run our own small speech model directly in the browser (genuinely on-device, but unproven for a two-second answer at the speed a toddler expects — we're actively benchmarking this on real hardware before deciding), or a separate, more capable app for iPad specifically. Nothing here has shipped yet. When it does, it will follow the same one-line rule as everything above: it's your child's voice, so it stays on your child's device, or the feature doesn't ship at all.</p>
+  <p>The iPad gap is now closed for the word practice, and the honest caveat has moved rather than disappeared. Running our own model tells us how well the sounds in a word match what was expected. That is genuinely useful over weeks, and it is <b>not</b> a judgement about any single attempt — automated scoring of young children's speech misses real mistakes far more often than it invents them, which is exactly why your child is never told they got a word wrong, and why the third try always works out regardless.</p>
+
+  <p>Two things are still true and worth saying plainly. The thresholds behind that scoring were tuned on adult recordings, not children's, so they are a sensible starting point rather than a finished calibration. And Pip's original garden games still use the browser's own recogniser, so on an iPad they remain tap-only. Both will change; neither will change the one-line rule: it's your child's voice, so it stays on your child's device, or the feature doesn't ship at all.</p>
 
   <div class="cta-row">
     <p style="margin-bottom:0">See what's tap-only vs. voice-enabled on your device.</p>
