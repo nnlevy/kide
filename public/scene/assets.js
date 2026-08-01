@@ -43,11 +43,6 @@ export const PARALLAX = { background: 0.15, midground: 0.45, foreground: 1.0 };
  *   - gouache grain baked in; no vector-flat shading, no 3D
  */
 export const SCENE_ART = {
-  // GAP's background is a PLACEHOLDER raster, present so the layered pipeline
-  // is proven end-to-end with a real file rather than only in theory. It is not
-  // commissioned art and should be replaced by the illustrator's gouache. The
-  // other two GAP layers are still unpainted and fall back to SVG, which also
-  // demonstrates per-layer degradation.
   GAP:    { title: 'the broken bridge', art: null, alt: 'A forest stream at golden hour. A small wooden bridge is broken in the middle.' },
   REACH:  { title: 'the tall tree',     art: null, alt: 'A tall tree with something out of reach in its branches.' },
   DARK:   { title: 'the dark hollow',   art: null, alt: 'A dark hollow under a mossy bank, calm and inviting, never frightening.' },
@@ -62,15 +57,26 @@ export const SCENE_ART = {
 export const artPathFor = (sceneId, layer, ext = 'webp') =>
   `/art/${sceneId.toLowerCase()}/${layer}.${ext}`;
 
-/** Probe whether a layer actually exists, so a half-delivered scene degrades
- *  per-layer instead of all-or-nothing. HEAD keeps it cheap. */
-async function layerExists(url) {
+/** The delivered-art manifest, generated at build time by
+ *  tools/art/build-manifest.mjs (runs inside `npm run build`).
+ *
+ *  This replaced per-layer HEAD probing. Probing was genuinely drop-in, but it
+ *  fired three requests per scene -- eighteen console 404s a session before any
+ *  art exists -- which is noise a real deployment should not carry. Dropping
+ *  WebP files into public/art/<scene>/ and deploying normally still needs no
+ *  extra step from anyone, because the build regenerates this.
+ *
+ *  Fetched once, cached, and a missing manifest simply means no art yet. */
+let _manifest = null;
+async function loadManifest() {
+  if (_manifest) return _manifest;
   try {
-    const res = await fetch(url, { method: 'HEAD' });
-    return res.ok;
+    const res = await fetch('/art/manifest.json');
+    _manifest = res.ok ? await res.json() : {};
   } catch {
-    return false;
+    _manifest = {};
   }
+  return _manifest;
 }
 
 /**
@@ -94,15 +100,20 @@ export async function resolveSceneArt(sceneId, { probe = true } = {}) {
   }
 
   if (probe) {
-    const found = await Promise.all(
-      LAYERS.map(async (l) => [l, (await layerExists(artPathFor(sceneId, l))) ? artPathFor(sceneId, l) : null])
-    );
-    for (const [l, url] of found) { layers[l] = url; if (url) hasAny = true; }
+    const m = await loadManifest();
+    const got = m[sceneId] || {};
+    for (const l of LAYERS) { layers[l] = got[l] || null; if (layers[l]) hasAny = true; }
   } else {
     for (const l of LAYERS) layers[l] = null;
   }
 
   return { sceneId, hasArt: hasAny, layers, alt: entry.alt || '' };
+}
+
+/** Whether ANY scene has commissioned art yet. Lets a surface say "authored
+ *  SVG" honestly instead of implying paint that does not exist. */
+export function anyArtDelivered(resolvedList) {
+  return resolvedList.some((r) => r && r.hasArt);
 }
 
 /** Preload so a scene change never shows a half-painted world. Resolves even

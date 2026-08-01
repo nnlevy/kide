@@ -4,78 +4,101 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<title>Kide · scene &amp; actor contract</title>
+<title>Kide · a session</title>
 <style>
   :root{
-    --cream:#FFFBF2; --ink:#2E3A3F; --ink-soft:#5B6A67; --ink-faint:#9AA6A3;
-    /* Brand palette (docs source: kide-us-design-bible.md). Sunstone replaces
-       the old coral: coral sat at hue 10, inside the red band the bible bans
-       outright from the child surface. Label is Deep Slate, not white --
-       white on Sunstone is 2.90:1 and fails AA; Deep Slate is 5.44:1. */
+    /* Brand palette, from kide-us-design-bible.md. Sunstone replaces the coral
+       an earlier cut used: coral sat at hue 10, inside the red band the bible
+       bans outright. Labels on Sunstone are Deep Slate, not white -- white is
+       2.90:1 and fails AA, Deep Slate is 5.44:1. */
+    --alabaster:#F5F2EB; --ink:#2E3A3F; --ink-soft:#5B6A67; --ink-faint:#9AA6A3;
     --sunstone:#E17C5B; --sunstone-ink:#8A3F22; --bloom-gold:#FFB347;
-    --grass:#6FD08C; --grass-dark:#3D9C63; --twilight:#5B6C8A; --card:#fff;
+    --bloom-flash:#FFF4D4; --twilight:#5B6C8A; --card:#fff;
     font-family:-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--cream);color:var(--ink);-webkit-font-smoothing:antialiased;
+  body{margin:0;background:var(--alabaster);color:var(--ink);-webkit-font-smoothing:antialiased;
        padding:14px 14px 40px;line-height:1.45}
-  .wrap{max-width:880px;margin:0 auto}
+  .wrap{max-width:900px;margin:0 auto}
   h1{font-size:17px;margin:0 0 3px}
   .sub{color:var(--ink-soft);font-size:13px;margin:0 0 14px}
-  .stage{position:relative;border-radius:22px;overflow:hidden;box-shadow:0 6px 0 rgba(0,0,0,.06);background:#cfe9f5}
+  .stage{position:relative;border-radius:24px;overflow:hidden;box-shadow:0 8px 0 rgba(0,0,0,.07);background:#F1E6D2}
   .sc-svg{display:block;width:100%;height:auto;aspect-ratio:1200/600}
-  .sc-caption{position:absolute;left:0;right:0;bottom:0;pointer-events:none;padding:16px 18px 18px;
-    background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.42));
-    color:#fff;font-size:19px;font-weight:800;text-shadow:0 2px 4px rgba(0,0,0,.35);
-    min-height:56px;display:flex;align-items:flex-end}
-  .sc-choices{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:14px 10px 4px}
-  .sc-obj{border:none;background:var(--card);border-radius:20px;padding:12px 16px 10px;
-    box-shadow:0 5px 0 rgba(0,0,0,.08);cursor:pointer;font:inherit;min-width:96px;
-    display:flex;flex-direction:column;align-items:center;gap:4px;
-    transition:transform .12s cubic-bezier(.2,.9,.3,1.3)}
-  .sc-obj:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.08)}
-  .sc-obj-art{font-size:34px;line-height:1}
-  .sc-obj-label{font-size:15px;font-weight:800;color:var(--ink)}
+  .sc-layer{will-change:transform}
+  .sc-caption{position:absolute;left:0;right:0;bottom:0;pointer-events:none;padding:18px 20px 20px;
+    background:linear-gradient(180deg,rgba(0,0,0,0),rgba(46,32,20,.5));
+    color:#FFF7E6;font-size:21px;font-weight:800;text-shadow:0 2px 6px rgba(46,32,20,.45);
+    min-height:62px;display:flex;align-items:flex-end}
+  .sc-choices{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;padding:16px 10px 4px;min-height:20px}
+  .sc-obj{border:none;background:var(--card);border-radius:22px;padding:10px 14px 10px;
+    box-shadow:0 6px 0 rgba(138,63,34,.14);cursor:pointer;font:inherit;min-width:104px;
+    display:flex;flex-direction:column;align-items:center;gap:2px;
+    transition:transform .12s cubic-bezier(.2,.9,.3,1.3),box-shadow .12s}
+  .sc-obj:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(138,63,34,.14)}
+  .sc-obj-art{width:62px;height:62px;display:block}
+  .sc-obj-art svg{display:block}
+  .sc-obj-label{font-size:16px;font-weight:800;color:var(--ink)}
   @keyframes sc-bob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-5px) rotate(-1.2deg)}}
   @keyframes sc-wobble{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
-  @keyframes sc-bounce{0%,100%{transform:translateY(0)}45%{transform:translateY(-16px)}}
-  #a-bob{transform-origin:100px 175px}
+  @keyframes sc-bounce{0%,100%{transform:translateY(0)}45%{transform:translateY(-18px)}}
+  #a-bob{transform-origin:102px 176px}
+  @media (prefers-reduced-motion: reduce){
+    #a-bob{animation:none !important}
+  }
   .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
   button.ui{font:inherit;font-size:14px;font-weight:700;padding:11px 18px;border-radius:999px;
     border:2px solid #E6DFCE;background:#fff;color:var(--ink);cursor:pointer}
   button.ui.primary{background:var(--sunstone);color:var(--ink);border:none;
     box-shadow:0 4px 0 rgba(138,63,34,.35)}
   button.ui:disabled{opacity:.4}
-  .panel{background:#fff;border-radius:16px;padding:13px 16px;margin-top:14px;box-shadow:0 3px 0 rgba(0,0,0,.05)}
+  .panel{background:#fff;border-radius:18px;padding:14px 17px;margin-top:14px;box-shadow:0 3px 0 rgba(0,0,0,.05)}
   .panel h2{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);margin:0 0 8px}
   .note{font-size:13px;color:var(--ink-soft);margin:0}
   .pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:800;
-    background:#EFF6F1;color:var(--grass-dark);margin-right:5px}
+    background:#F3EBE2;color:var(--sunstone-ink);margin-right:5px}
   code{background:#F3EEE2;padding:1px 5px;border-radius:4px;font-size:12px}
   .states{display:flex;gap:6px;flex-wrap:wrap}
   .states button{font-size:12px;padding:7px 12px;border-radius:999px;border:2px solid #E6DFCE;
     background:#fff;font-weight:700;cursor:pointer;font-family:inherit}
-  .states button[aria-pressed="true"]{background:var(--grass);border-color:var(--grass);color:#fff}
+  .states button[aria-pressed="true"]{background:var(--sunstone);border-color:var(--sunstone);color:var(--ink)}
+  .picker{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:4px 0 0}
+  .picker button{border:2px solid #E6DFCE;background:#fff;border-radius:20px;padding:10px 14px;
+    cursor:pointer;font:inherit;font-weight:800;font-size:15px;display:flex;flex-direction:column;
+    align-items:center;gap:3px;min-width:112px}
+  .picker button[aria-pressed="true"]{border-color:var(--sunstone);box-shadow:0 0 0 3px rgba(225,124,91,.18)}
+  .picker .who{font-size:11px;font-weight:600;color:var(--ink-faint);max-width:150px;line-height:1.25}
+  .daybar{height:6px;border-radius:3px;margin-top:12px;
+    background:linear-gradient(90deg,var(--bloom-gold),#F5E7CF 45%,var(--twilight));position:relative}
+  .daybar i{position:absolute;top:-4px;width:14px;height:14px;border-radius:50%;background:#fff;
+    box-shadow:0 1px 4px rgba(0,0,0,.25);transform:translateX(-7px);transition:left .6s ease}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Scene &amp; Actor Contract</h1>
+  <h1>A session</h1>
   <p class="sub">
-    Spec §10 step 4. One scene through every companion state, and the same scene with a
-    different body dropped in — <em>without touching scene code</em>.
-    The child chooses where to go; the engine only chooses which sound is being practised,
-    and every option practises it equally.
+    The whole loop, end to end: choose a companion, name it (that name is the first
+    lesson), then play. The child chooses where to go — every option practises the same
+    sound, so there is no wrong door. The camera pans, the day runs into dusk, and the
+    session ends because evening came.
   </p>
+
+  <div class="panel" id="setup">
+    <h2>1 · Who is coming with you?</h2>
+    <div class="picker" id="actorPicker"></div>
+    <h2 style="margin-top:14px">2 · What shall we call them?</h2>
+    <div class="picker" id="namePicker"></div>
+    <div class="row"><button class="ui primary" id="btnBegin" disabled>Begin</button></div>
+  </div>
 
   <div class="stage" id="stage"></div>
   <div class="sc-choices" id="choices"></div>
+  <div class="daybar" id="daybar"><i id="dayDot" style="left:0%"></i></div>
 
   <div class="row">
-    <button class="ui primary" id="btnStart">Start</button>
+    <button class="ui primary" id="btnSay" disabled>Child says it</button>
+    <button class="ui" id="btnQuiet" disabled>Child says nothing</button>
     <button class="ui" id="btnSwap">Swap companion</button>
-    <button class="ui" id="btnSay">Child says it</button>
-    <button class="ui" id="btnQuiet">Child says nothing</button>
   </div>
 
   <div class="panel">
@@ -91,11 +114,11 @@
 
   <div class="panel">
     <h2>Contract check</h2>
-    <p class="note" id="contractNote">—</p>
+    <p class="note" id="contractNote">Swap the companion to test it. scene.js contains no actor name — a test asserts that.</p>
   </div>
 
   <div class="panel">
-    <h2>Artwork status</h2>
+    <h2>Artwork</h2>
     <p class="note" id="artNote">—</p>
     <p class="note" style="margin-top:8px" id="artSpec"></p>
   </div>
@@ -104,177 +127,250 @@
 <script type="module">
 import { LessonEngine } from '../engine/engine.js';
 import { keyOf } from '../engine/lexicon.js';
-import { Scene, iconFor } from './scene.js';
-import { ACTORS, actorList, getActor, STATES } from './actors.js';
-import { DELIVERY_SPEC, SCENE_ART, LAYERS } from './assets.js';
+import { Scene } from './scene.js';
+import { objectSvg } from './objects.js';
+import { actorList, getActor, STATES, ASLEEP } from './actors.js';
+import { DELIVERY_SPEC, LAYERS } from './assets.js';
+import { namesFor, nameAsTarget, nameIsScoreable } from './naming.js';
 
 const $ = (id) => document.getElementById(id);
-const stage = $('stage');
 
-let actorIds = actorList().map(a => a.id);
-let actorIdx = 0;
-let actor = getActor(actorIds[0]);
-let scene = new Scene(stage, actor, $('choices'));
-let engine = null;
-let offer = null;
-window.__kideScene = () => ({ scene, engine, actor, offer });
+/** How many beats a full day lasts. Session ends because evening came, not
+ *  because the app cut anyone off (spec section 6). */
+const BEATS_PER_DAY = 12;
+
+let actor = getActor('goldendoodle');
+let chosenName = null;
+let scene = new Scene($('stage'), actor, $('choices'));
+let engine = null, offer = null, ended = false;
+window.__kideScene = () => ({ scene, engine, actor, offer, chosenName, ended });
 
 const STATE_NOTES = {
-  WAIT:    'Holds indefinitely, and is the WARMEST state — never impatient. Nothing advances until the child chooses.',
+  WAIT:    'Holds indefinitely and is the WARMEST state — never impatient. Nothing advances until the child chooses.',
   STUCK:   'The companion needs something. Never disappointed, in any scene, ever.',
   ASK:     'The invitation. The last thing heard is always the thing to answer.',
   MODEL:   'Always clumsy and endearing, never corrective. This is what a miss looks like.',
-  TRIUMPH: 'Shared WITH the child, never performed AT them — and identical whether they were heard or the attempt cap resolved it.',
+  TRIUMPH: 'Shared WITH the child, never performed AT them — identical whether they were heard or the attempt cap resolved it.',
 };
 
-$('stateBtns').innerHTML = STATES
-  .map(s => `<button data-s="${s}" aria-pressed="false">${s}</button>`).join('');
-$('stateBtns').querySelectorAll('button').forEach(b => {
-  b.addEventListener('click', () => setState(b.dataset.s));
-});
-
-function setState(s) {
-  scene.pose(s);
-  $('stateBtns').querySelectorAll('button')
-    .forEach(b => b.setAttribute('aria-pressed', String(b.dataset.s === s)));
-  $('stateNote').textContent = STATE_NOTES[s] || '';
-}
-
-// A stand-in scorer so "says nothing" is actually a miss.
-//
-// Without one, submitAttempt treats every call as a tap -- correct behaviour
-// (a tap is always a valid way to play) but it means MODEL and the attempt cap
-// are unreachable here, and those are the two behaviours this page most needs
-// to show. `verdict` is set per-button before each attempt.
+// A stand-in scorer so "says nothing" is a real miss. Without one every call is
+// treated as a tap (correct behaviour, but MODEL and the attempt cap would be
+// unreachable, and those are the two things most worth showing).
 let stubVerdict = 'clear';
-const demoScorer = {
-  score: async () => ({ verdict: stubVerdict, tier: 'demo', score: null, confidence: 0.3 }),
-};
+const demoScorer = { score: async () => ({ verdict: stubVerdict, tier: 'demo', score: null, confidence: .3 }) };
 
-function start() {
-  engine = new LessonEngine({
-    companionName: actor.defaultName, concern: 'unclear', scorer: demoScorer,
-  });
-  nextOffer();
+// ---- setup -----------------------------------------------------------------
+function renderActorPicker() {
+  $('actorPicker').innerHTML = actorList().map((a) => `
+    <button data-a="${a.id}" aria-pressed="${a.id === actor.id}">
+      <span>${a.defaultName}</span>
+      <span class="who">${a.whoFor}</span>
+    </button>`).join('');
+  $('actorPicker').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+    actor = getActor(b.dataset.a);
+    scene.setActor(actor);
+    chosenName = null;
+    renderActorPicker(); renderNamePicker();
+    bootScene();
+  }));
 }
 
+function renderNamePicker() {
+  const names = namesFor(actor.id, 4);
+  $('namePicker').innerHTML = names.map((n) => `
+    <button data-n="${n.name}" aria-pressed="${chosenName?.name === n.name}">
+      <span>${n.name}</span>
+      <span class="who">/${n.ph.join(' ')}/</span>
+    </button>`).join('');
+  $('namePicker').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+    chosenName = names.find((n) => n.name === b.dataset.n);
+    renderNamePicker();
+    $('btnBegin').disabled = false;
+  }));
+}
+
+$('btnBegin').addEventListener('click', begin);
+
+async function begin() {
+  ended = false;
+  engine = new LessonEngine({ companionName: chosenName.name, concern: 'unclear', scorer: demoScorer });
+  $('setup').style.display = 'none';
+  $('btnSay').disabled = false; $('btnQuiet').disabled = false;
+
+  // The name IS the first lesson (spec section 2): a name you chose is the most
+  // motivating word in the language. Scored by exactly the same path as any
+  // other word -- no special case in the engine.
+  const vocab = await loadVocab();
+  const entry = nameAsTarget(chosenName, vocab);
+  const scoreable = nameIsScoreable(chosenName, vocab);
+
+  const art = await scene.loadArt('HIDDEN');
+  showArt('HIDDEN', art);
+  scene.render({ affordance: 'HIDDEN', state: actor.wakes ? ASLEEP : 'WAIT', art,
+                 caption: actor.wakes ? actor.stall(chosenName.name) : `Someone's here!` });
+  scene.setTimeOfDay(0);
+
+  $('engineNote').innerHTML =
+    `<span class="pill">first target ${entry.ph}_${entry.pos}</span>` +
+    `The child's chosen name <code>${entry.w}</code> — /${entry.ipa.join(' ')}/ — is the first ` +
+    `practice target${scoreable ? '' : ' <b>(not scoreable with the shipped model — would need a parent recording)</b>'}.`;
+
+  // The toy wakes on the first word rather than on a tap. This is the thesis
+  // made literal: nothing happens until they speak.
+  engine.current = { target: { ph: entry.ph, pos: entry.pos, a:1, b:1, lvl:2, lastBeat:-99, n:0 },
+                     word: entry, affordance: 'HIDDEN', station: null, beat: 0 };
+  engine.attempt = 0;
+  scene.say(actor.wakes
+    ? `Can you say ${entry.w}? That's how ${entry.w} wakes up.`
+    : `Can you say ${entry.w}?`);
+  setState(actor.wakes ? ASLEEP : 'ASK', /*silent*/ true);
+}
+
+// ---- the loop ---------------------------------------------------------------
 async function nextOffer() {
+  if (ended) return;
+  if (engine.learner.beat >= BEATS_PER_DAY) return goodnight();
+
   offer = engine.offerBeat({ count: 3 });
   const first = offer.choices[0];
   const art = await scene.loadArt(first.affordance);
-  showArtStatus(first.affordance, art);
-  scene.render({
-    affordance: first.affordance,
-    state: 'WAIT',
-    caption: `Where shall we go?`,
-    art,
-    objects: offer.choices.map(c => ({ label: c.word.w, icon: iconFor(c.word.w) })),
-    onPick: (i) => pick(i),
-  });
+  showArt(first.affordance, art);
+  scene.render({ affordance: first.affordance, state: 'WAIT', art,
+    caption: 'Where shall we go?',
+    objects: offer.choices.map((c) => ({ label: c.word.w })),
+    onPick: pick });
+  scene.setTimeOfDay(engine.learner.beat / BEATS_PER_DAY);
+  $('dayDot').style.left = `${(engine.learner.beat / BEATS_PER_DAY) * 100}%`;
   setState('WAIT');
   $('engineNote').innerHTML =
     `<span class="pill">target ${keyOf(offer.target)}</span>` +
     `all ${offer.choices.length} choices practise the same sound — ` +
-    offer.choices.map(c => `<code>${c.word.w}</code> at ${c.affordance}`).join(', ') +
+    offer.choices.map((c) => `<code>${c.word.w}</code> at ${c.affordance}`).join(', ') +
     `. Whichever the child picks, the lesson is served.`;
 }
 
 async function pick(i) {
+  const prev = engine.current?.affordance;
   const beat = engine.chooseBeat(i);
   const art = await scene.loadArt(beat.affordance);
-  showArtStatus(beat.affordance, art);
-  scene.render({
-    affordance: beat.affordance,
-    state: 'STUCK',
-    caption: actor.stall(engine.companionName),
-    art,
-    objects: [],
-  });
+  showArt(beat.affordance, art);
+  if (prev && prev !== beat.affordance) await scene.panTo(beat.affordance, { art });
+  else scene.render({ affordance: beat.affordance, state: 'WAIT', art });
+  scene.setTimeOfDay(engine.learner.beat / BEATS_PER_DAY);
+  scene.pose('STUCK').say(actor.stall(engine.companionName));
   setState('STUCK');
-  await wait(900);
+  await wait(850);
   scene.pose('ASK').say(beat.invitation);
   setState('ASK');
 }
 
 async function attempt(heard) {
-  if (!engine || !engine.current) return;
+  if (!engine || !engine.current || ended) return;
   stubVerdict = heard ? 'clear' : 'unsure';
   const r = await engine.submitAttempt(new Float32Array(16000));
-  if (!heard && !r.resolves) {
+
+  if (!r.resolves) {
     scene.pose('MODEL').say(r.say);
     setState('MODEL');
     return;
   }
+  // The toy wakes here, on the word -- not on a tap, and not before.
+  if (actor.wakes && scene.asleep) scene.setAsleep(false);
   scene.pose('TRIUMPH').say(r.say);
   setState('TRIUMPH');
-  // The signature moment: the word arrives and the WORLD gets brighter
-  // because of it (bible). Rim-light lands on the companion's coat via
-  // scene.rimLight, so reveal.js never has to know what a coat is.
   await scene.reveal(engine.current.word.w);
-  $('engineNote').innerHTML += r.forced
-    ? `<br><b>Resolved on the attempt cap</b> — celebrated identically, and not recorded as mastery.`
-    : '';
-  await wait(1400);
+  await wait(200);
   nextOffer();
 }
 
-const wait = (ms) => new Promise(r => setTimeout(r, ms));
-
-/** Makes the production gap visible instead of implicit: which layers of this
- *  scene are painted, and what an illustrator has to deliver for the rest. */
-function showArtStatus(affordance, art) {
-  const painted = LAYERS.filter(l => art.layers && art.layers[l]);
-  $('artNote').innerHTML = painted.length
-    ? `<b>${affordance}</b>: ${painted.length}/${LAYERS.length} layers painted (${painted.join(', ')}). ` +
-      `Unpainted layers fall back to the SVG rig, so a scene can go live one layer at a time.`
-    : `<b>${affordance}</b>: no commissioned artwork yet — rendering the painterly SVG fallback. ` +
-      `Drop WebP files at <code>/art/${affordance.toLowerCase()}/&lt;layer&gt;.webp</code> and they take over with no code change.`;
-  $('artSpec').innerHTML =
-    `<b>Delivery spec:</b> ${DELIVERY_SPEC.format}, ${DELIVERY_SPEC.size}. ` +
-    `Layers: ${DELIVERY_SPEC.layers.join(' / ')} (${DELIVERY_SPEC.transparency}). ` +
-    `Light: ${DELIVERY_SPEC.light}. Style: ${DELIVERY_SPEC.style} <b>${DELIVERY_SPEC.forbidden}.</b>`;
+async function goodnight() {
+  ended = true;
+  $('btnSay').disabled = true; $('btnQuiet').disabled = true;
+  scene.setTimeOfDay(1);
+  $('dayDot').style.left = '100%';
+  scene.clearChoices();
+  scene.pose('WAIT').say(`The light is going down. ${engine.companionName} is getting sleepy…`);
+  setState('WAIT');
+  $('engineNote').innerHTML +=
+    `<br><b>Session ended because evening came</b> — not a paywall, not a "come back tomorrow" nag. ` +
+    `That is the guilt-free ending in spec §6.`;
 }
 
-$('btnStart').addEventListener('click', start);
+// ---- state buttons ----------------------------------------------------------
+$('stateBtns').innerHTML = [...STATES, ASLEEP]
+  .map((s) => `<button data-s="${s}" aria-pressed="false">${s}</button>`).join('');
+$('stateBtns').querySelectorAll('button').forEach((b) =>
+  b.addEventListener('click', () => setState(b.dataset.s)));
+
+function setState(s, silent) {
+  if (!silent) scene.pose(s);
+  $('stateBtns').querySelectorAll('button')
+    .forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.s === s)));
+  $('stateNote').textContent = s === ASLEEP
+    ? "Only the toy implements ASLEEP. It sits desaturated and slumped until the child speaks — then colour floods back. Nothing happens until they speak."
+    : (STATE_NOTES[s] || '');
+}
+
 $('btnSay').addEventListener('click', () => attempt(true));
 $('btnQuiet').addEventListener('click', () => attempt(false));
 
 $('btnSwap').addEventListener('click', async () => {
-  actorIdx = (actorIdx + 1) % actorIds.length;
-  actor = getActor(actorIds[actorIdx]);
-  // THE CONTRACT: one line. No scene code is touched, no scene is re-authored,
-  // and the current state is preserved across a different body plan.
+  const ids = actorList().map((a) => a.id);
+  actor = getActor(ids[(ids.indexOf(actor.id) + 1) % ids.length]);
+  // THE CONTRACT: one call. No scene code touched, no scene re-authored.
   scene.setActor(actor);
-  const s = scene.state || 'WAIT';
-  const aff = engine?.current?.affordance || offer?.choices[0]?.affordance || 'GAP';
+  if (engine) engine.companionName = chosenName?.name || actor.defaultName;
+  const aff = engine?.current?.affordance || 'GAP';
   const art = await scene.loadArt(aff);
-  scene.render({
-    affordance: aff,
-    art,
-    state: s,
-    caption: engine ? actor.stall(actor.defaultName) : 'Tap Start',
-    objects: (!engine || !engine.current) && offer
-      ? offer.choices.map(c => ({ label: c.word.w, icon: iconFor(c.word.w) }))
-      : [],
-    onPick: (i) => pick(i),
-  });
-  setState(s);
-  if (engine) engine.companionName = actor.defaultName;
+  scene.render({ affordance: aff, state: scene.state || 'WAIT', art,
+                 caption: engine ? actor.stall(engine.companionName) : 'Choose and begin' });
+  setState(scene.state || 'WAIT');
+  renderActorPicker();
   $('contractNote').innerHTML =
-    `Swapped to <b>${actor.defaultName}</b> (${actor.species}) with one call to ` +
-    `<code>scene.setActor()</code>. Different body plan, different stall grammar ` +
-    `(&ldquo;${actor.stall(actor.defaultName)}&rdquo;) — same scene code, same states, ` +
-    `same engine. <b>If this had required editing scene.js, the contract would be wrong.</b>`;
+    `Swapped to <b>${actor.defaultName}</b> (${actor.species}) with one call to <code>scene.setActor()</code>. ` +
+    `Different body plan, different stall grammar (&ldquo;${actor.stall(actor.defaultName)}&rdquo;) — ` +
+    `same scene code, same states, same engine. ` +
+    (actor.wakes ? `<b>This one also implements ASLEEP.</b>` : '');
 });
 
-// Boot into WAIT so the page is never blank.
-scene.loadArt('GAP').then(art => {
-  showArtStatus('GAP', art);
-  scene.render({ affordance: 'GAP', state: 'WAIT', caption: 'Tap Start', objects: [], art });
-  setState('WAIT');
-});
-$('contractNote').textContent =
-  'Swap the companion to test it. scene.js contains no actor name — a test asserts that.';
+function showArt(affordance, art) {
+  const painted = LAYERS.filter((l) => art.layers && art.layers[l]);
+  $('artNote').innerHTML = painted.length
+    ? `<b>${affordance}</b>: ${painted.length}/${LAYERS.length} layers painted (${painted.join(', ')}). Unpainted layers fall back to authored SVG, so a scene can go live one layer at a time.`
+    : `<b>${affordance}</b>: rendering authored SVG — composed layers, gouache grain, one warm key light. Commissioned gouache drops in at <code>/art/${affordance.toLowerCase()}/&lt;layer&gt;.webp</code> with no code change.`;
+  $('artSpec').innerHTML =
+    `<b>Delivery spec:</b> ${DELIVERY_SPEC.format}, ${DELIVERY_SPEC.size}. Layers: ${DELIVERY_SPEC.layers.join(' / ')} (${DELIVERY_SPEC.transparency}). ` +
+    `Light: ${DELIVERY_SPEC.light}. Style: ${DELIVERY_SPEC.style} <b>${DELIVERY_SPEC.forbidden}.</b>`;
+}
+
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Phoneme vocab, fetched once. Needed to turn a chosen name into real
+ *  scoreable ids so the name goes through the same scoring path as any other
+ *  word rather than a special case. */
+let _vocab = null;
+async function loadVocab() {
+  if (_vocab) return _vocab;
+  try {
+    _vocab = await (await fetch('../bench/data/vocab.json')).json();
+  } catch {
+    _vocab = {};   // scoring simply reports the name unscoreable; nothing breaks
+  }
+  return _vocab;
+}
+
+async function bootScene() {
+  const art = await scene.loadArt('GAP');
+  showArt('GAP', art);
+  scene.render({ affordance: 'GAP', state: actor.wakes ? ASLEEP : 'WAIT', art,
+                 caption: 'Choose a companion and a name' });
+  setState(actor.wakes ? ASLEEP : 'WAIT', true);
+  if (actor.wakes) scene.setAsleep(true);
+}
+
+renderActorPicker();
+renderNamePicker();
+bootScene();
 </script>
 </body>
 </html>

@@ -13,7 +13,7 @@
 import fs from 'node:fs';
 import { ACTORS, actorList, getActor, STATES, REQUIRED_ANCHORS, MOUTHS } from './public/scene/actors.js';
 import { LessonEngine } from './public/engine/engine.js';
-import { keyOf } from './public/engine/lexicon.js';
+import { keyOf, LEX } from './public/engine/lexicon.js';
 import { offerChoices, createLearner } from './public/engine/policy.js';
 
 let pass = 0, fail = 0;
@@ -153,8 +153,12 @@ console.log('--- the swap itself ---');
   const anchorsOf = (x) => REQUIRED_ANCHORS.filter((n) => x.svg.includes(`id="a-${n}"`)).sort().join(',');
   eq('both expose an identical anchor set', anchorsOf(a), anchorsOf(b));
 
-  const statesOf = (x) => Object.keys(x.poses).sort().join(',');
-  eq('both implement an identical state set', statesOf(a), statesOf(b));
+  const statesOf = (x) => STATES.filter((st) => x.poses[st]).sort().join(',');
+  eq('both implement an identical CONTRACT state set', statesOf(a), statesOf(b));
+  eq('every actor implements the full contract state set',
+     actorList().filter((x) => statesOf(x) === STATES.slice().sort().join(',')).length,
+     actorList().length,
+     'extra states (the toy\'s ASLEEP) are additive and must not be required of others');
 
   // A body missing an anchor must fail loudly at swap time rather than pose
   // nothing and look "fine".
@@ -255,10 +259,23 @@ console.log('--- the artwork pipeline ---');
   ok('unpainted scene still returns every layer key',
      LAYERS.every((l) => l in dry.layers));
 
-  // The placeholder proving the pipeline should actually be on disk.
-  ok('the sample painted layer exists',
-     fs.existsSync('./public/art/gap/background.webp'),
-     'proves a real raster file is consumed, not just the theory');
+  // No placeholder art ships. The pipeline is proven by the manifest
+  // mechanism instead: the build scans for delivered layers and writes it, so
+  // dropping files in needs no code change and no hand-maintained JSON.
+  ok('the build generates an art manifest', fs.existsSync('./public/art/manifest.json'),
+     'run `npm run build`');
+  {
+    const m = JSON.parse(fs.readFileSync('./public/art/manifest.json', 'utf8'));
+    ok('the manifest is valid JSON shaped by scene', typeof m === 'object' && !Array.isArray(m));
+    for (const [scene, layers] of Object.entries(m)) {
+      ok(`manifest scene ${scene} is a known affordance`, !!SCENE_ART[scene]);
+      for (const l of Object.keys(layers)) {
+        ok(`manifest layer ${scene}.${l} is a known layer`, LAYERS.includes(l));
+      }
+    }
+  }
+  ok('no placeholder raster ships', !fs.existsSync('./public/art/gap/background.webp'),
+     'a machine-generated gradient standing in for gouache is a placeholder, and none ship');
 }
 
 // ---------------------------------------------------------------------------
@@ -291,6 +308,111 @@ console.log('--- the word reveal (the product visual signature) ---');
   ok('the reveal never touches actor anchors directly',
      !/#a-|a-root|coat/i.test(revealSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')),
      'it hands the scene a number instead');
+}
+
+// ---------------------------------------------------------------------------
+console.log('--- all four actors, and the toy that wakes ---');
+// ---------------------------------------------------------------------------
+
+{
+  const { ASLEEP, WAKE_STYLE, MOUTHS } = await import('./public/scene/actors.js');
+
+  // Spec section 2 lists four actors and each must earn its place.
+  eq('all four actors exist', actorList().length, 4);
+  const ids = actorList().map((a) => a.id).sort().join(',');
+  eq('the four are the four specified', ids, 'cat,friend,goldendoodle,toy');
+  for (const a of actorList()) {
+    ok(`${a.id} says who it is for`, !!a.whoFor && a.whoFor.length > 10);
+  }
+
+  // The toy: "the first word does not solve a problem -- it wakes the toy up."
+  const toy = getActor('toy');
+  ok('exactly one actor wakes', actorList().filter((a) => a.wakes).length === 1);
+  ok('the toy is the one that wakes', toy.wakes === true);
+  ok('the toy implements ASLEEP', !!toy.poses[ASLEEP]);
+  ok('no other actor has to implement ASLEEP',
+     actorList().filter((a) => !a.wakes).every((a) => !a.poses[ASLEEP]),
+     'an actor that was never asleep should not have to implement waking');
+  ok('asleep is desaturated', /grayscale/.test(WAKE_STYLE.asleep));
+  ok('colour floods back rather than snapping', WAKE_STYLE.transitionMs >= 800,
+     `${WAKE_STYLE.transitionMs}ms`);
+  ok('the sleeping mouth is a rest line, not a frown', !!MOUTHS[toy.poses[ASLEEP].mouth]);
+  ok("the toy's stall is about waking, not an obstacle",
+     /woken|wake|asleep|sleep/i.test(toy.stall('N')), toy.stall('N'));
+}
+
+// ---------------------------------------------------------------------------
+console.log('--- object art: drawn, never emoji ---');
+// ---------------------------------------------------------------------------
+
+{
+  const { objectSvg, hasObjectArt } = await import('./public/scene/objects.js');
+  const words = [...new Set(LEX.map((x) => x.w))];
+  const missing = words.filter((w) => !hasObjectArt(w));
+  eq('every lexicon word has drawn art', missing.length, 0, missing.join(','));
+
+  for (const w of words.slice(0, 12)) {
+    const svg = objectSvg(w);
+    ok(`${w} renders real SVG`, svg.startsWith('<svg') && svg.length > 180);
+    ok(`${w} is labelled for screen readers`, svg.includes(`aria-label="${w}"`));
+  }
+
+  // Emoji must not come back: they render differently per platform, carry
+  // someone else's colour, and ignore the scene's key light entirely.
+  const src = fs.readFileSync('./public/scene/objects.js', 'utf8');
+  const emoji = src.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu) || [];
+  eq('no emoji remain in object art', emoji.length, 0, emoji.slice(0, 8).join(' '));
+  const sceneSrcNow = fs.readFileSync('./public/scene/scene.js', 'utf8');
+  const sceneEmoji = sceneSrcNow.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu) || [];
+  eq('no emoji remain in the scene', sceneEmoji.length, 0, sceneEmoji.slice(0, 8).join(' '));
+}
+
+// ---------------------------------------------------------------------------
+console.log('--- world motion ---');
+// ---------------------------------------------------------------------------
+
+{
+  const { Scene } = await import('./public/scene/scene.js');
+  const { PARALLAX } = await import('./public/scene/assets.js');
+  for (const m of ['setCamera', 'panTo', 'setTimeOfDay', 'setAsleep', 'reveal', 'rimLight']) {
+    ok(`Scene implements ${m}`, typeof Scene.prototype[m] === 'function');
+  }
+  // Parallax must actually differ per layer or the layering is decorative.
+  const vals = Object.values(PARALLAX);
+  eq('parallax strengths are distinct', new Set(vals).size, vals.length);
+}
+
+// ---------------------------------------------------------------------------
+console.log('--- the naming flow ---');
+// ---------------------------------------------------------------------------
+
+{
+  const { NAME_BANK, namesFor, nameAsTarget, nameIsScoreable, CUSTOM_NAME_POLICY, targetExistsInLexicon }
+    = await import('./public/scene/naming.js');
+  const vocab = JSON.parse(fs.readFileSync('./public/bench/data/vocab.json', 'utf8'));
+
+  ok('the name bank is non-trivial', NAME_BANK.length >= 8);
+  for (const n of NAME_BANK) {
+    ok(`${n.name} is scoreable with the shipped model`, nameIsScoreable(n, vocab),
+       'a name we cannot score must not be the first target -- the first attempt has to be a win');
+    ok(`${n.name} maps to a target the lexicon already carries`, targetExistsInLexicon(n.target),
+       `${n.target} -- otherwise the name is an orphan outside the ladder`);
+  }
+  for (const a of actorList()) {
+    ok(`${a.id} is offered names`, namesFor(a.id, 4).length === 4);
+    eq(`${a.id}'s own name is offered first`, namesFor(a.id, 4)[0].for, a.id);
+  }
+
+  // The name becomes a real lexicon-shaped target so it scores through exactly
+  // the same path as any other word -- no second code path to keep correct.
+  const t = nameAsTarget(NAME_BANK[0], vocab);
+  ok('a name becomes a lexicon-shaped entry',
+     !!t.w && !!t.ph && !!t.pos && Array.isArray(t.ids) && t.ids.length === t.ipa.length);
+  ok('the name is flagged as a name', t.isName === true);
+
+  ok('custom names are never synthesised', CUSTOM_NAME_POLICY.neverSynthesise === true,
+     'a robot mispronouncing a child\'s chosen name back at them is worse than not saying it');
+  ok('custom names require a parent recording', CUSTOM_NAME_POLICY.requiresParentRecording === true);
 }
 
 // ---------------------------------------------------------------------------

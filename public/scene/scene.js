@@ -19,10 +19,13 @@
 // the same paper grain, so swapping a fallback for real art changes the
 // drawing without changing the time of day.
 
-import { MOUTHS, REQUIRED_ANCHORS } from './actors.js';
-import { ENV, KEY_LIGHT, BLOOM_GOLD, SUNSTONE } from './palette.js';
+import { MOUTHS, REQUIRED_ANCHORS, WAKE_STYLE, ASLEEP } from './actors.js';
+import { ENV, KEY_LIGHT, BLOOM_GOLD, SUNSTONE, TWILIGHT } from './palette.js';
 import { LAYERS, PARALLAX, resolveSceneArt } from './assets.js';
+import { objectSvg } from './objects.js';
 import { revealDefs, revealLayerMarkup, playReveal } from './reveal.js';
+
+const TWILIGHT_HI = ENV.duskHi, TWILIGHT_LO = TWILIGHT;
 
 const W = 1200, H = 600;
 
@@ -128,6 +131,11 @@ function textureDefs() {
     <stop offset="100%" stop-color="${KEY_LIGHT.warm}" stop-opacity="0"/>
   </linearGradient>
 
+  <linearGradient id="sc-dusk" x1="0" y1="0" x2="0.25" y2="1">
+    <stop offset="0%"   stop-color="${TWILIGHT_HI}"/>
+    <stop offset="100%" stop-color="${TWILIGHT_LO}"/>
+  </linearGradient>
+
   <radialGradient id="sc-vignette" cx="50%" cy="46%" r="72%">
     <stop offset="60%"  stop-color="#000" stop-opacity="0"/>
     <stop offset="100%" stop-color="#3A2E22" stop-opacity=".26"/>
@@ -215,6 +223,8 @@ export class Scene {
              and commissioned art are lit identically -->
         <rect class="sc-keylight" width="${W}" height="${H}" fill="url(#sc-key)"
               style="mix-blend-mode:screen" pointer-events="none"/>
+        <rect class="sc-dusk" width="${W}" height="${H}" fill="url(#sc-dusk)"
+              opacity="0" pointer-events="none" style="mix-blend-mode:multiply"/>
         <rect width="${W}" height="${H}" fill="url(#sc-vignette)" pointer-events="none"/>
 
         ${revealLayerMarkup()}
@@ -236,6 +246,8 @@ export class Scene {
   /** Pose by anchor id. The scene has no idea what body plan it is posing. */
   pose(state) {
     const p = this.actor.poses[state] || this.actor.poses.WAIT;
+    if (state === ASLEEP) this.setAsleep(true);
+    else if (this.asleep) this.setAsleep(false);
     const q = (id) => this.root.querySelector(`#a-${id}`);
     const bob = this.root.querySelector('#a-bob');
     if (bob) bob.style.animation = BOB[p.bob] || BOB.gentle;
@@ -246,6 +258,46 @@ export class Scene {
     const mouth = q('mouth');
     if (mouth) mouth.setAttribute('d', MOUTHS[p.mouth] || MOUTHS.smile);
     this.state = state;
+    return this;
+  }
+
+  /** Put the actor to sleep, or wake it.
+   *
+   *  Only the toy participates (`actor.wakes`), and this is the whole reason
+   *  it exists: for the toy the first word does not solve a problem, it brings
+   *  something to life. Colour floods back over WAKE_STYLE.transitionMs rather
+   *  than snapping, because the flooding IS the reward -- a child needs to see
+   *  it happen, and to see that they caused it.
+   *
+   *  Implemented as a filter on the actor root plus closed eyelids, so no
+   *  actor needs a second set of artwork and nothing about the scene changes.
+   */
+  setAsleep(asleep) {
+    const root = this.root.querySelector('#a-root');
+    if (!root || !this.actor.wakes) return this;
+    root.style.transition = `filter ${WAKE_STYLE.transitionMs}ms ease-out`;
+    root.style.filter = asleep ? WAKE_STYLE.asleep : WAKE_STYLE.awake;
+    for (const id of ['eyeL', 'eyeR']) {
+      const e = this.root.querySelector(`#a-${id}`);
+      if (e) {
+        e.style.transition = `opacity 320ms ease-out`;
+        e.style.opacity = asleep ? '0' : '1';
+      }
+    }
+    let lids = this.root.querySelector('.sc-lids');
+    if (asleep && !lids) {
+      const head = this.root.querySelector('#a-head');
+      if (head) {
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('class', 'sc-lids');
+        g.innerHTML = `<path d="M80 68 q9 7 18 0" stroke="#5C4A3A" stroke-width="3" fill="none" stroke-linecap="round"/>
+                       <path d="M108 68 q9 7 18 0" stroke="#5C4A3A" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+        head.appendChild(g);
+      }
+    } else if (!asleep && lids) {
+      lids.remove();
+    }
+    this.asleep = asleep;
     return this;
   }
 
@@ -279,13 +331,71 @@ export class Scene {
     if (!objects.length) { wrap.innerHTML = ''; return; }
     wrap.innerHTML = objects
       .map((o, i) => `<button class="sc-obj" data-i="${i}" aria-label="${o.label}">
-          <span class="sc-obj-art">${o.icon || '✦'}</span>
+          <span class="sc-obj-art">${objectSvg(o.label)}</span>
           <span class="sc-obj-label">${o.label}</span>
         </button>`)
       .join('');
     wrap.querySelectorAll('.sc-obj').forEach((b) => {
       b.addEventListener('click', () => onPick?.(Number(b.dataset.i)));
     });
+  }
+
+  /** Parallax. Layers were already tagged with a strength; this is what makes
+   *  them actually move, which is the only reason to have layers at all. */
+  setCamera(x) {
+    this.root.querySelectorAll('.sc-layer').forEach((g) => {
+      const p = Number(g.dataset.parallax || 1);
+      g.style.transform = `translateX(${(-x * p).toFixed(2)}px)`;
+    });
+    const actor = this.root.querySelector('.sc-actor');
+    if (actor) actor.style.transform = `translate(${190 - x}px, 250px) scale(1.15)`;
+    this.cameraX = x;
+    return this;
+  }
+
+  /** Pan across the world to the next station, walking the companion there.
+   *
+   *  Spec section 6: the lesson never announces itself -- there is no level
+   *  select, no menu, no "next lesson" card. The camera simply pans and the
+   *  next thing happens. The walk is why the companion has a WAIT bob during
+   *  it: standing frozen while the world slides past reads as a cutscene, and
+   *  this is meant to feel like an afternoon, not a chapter break. */
+  async panTo(nextAffordance, { art = null, durationMs = 1100 } = {}) {
+    const svg = this.root.querySelector('.sc-svg');
+    if (!svg) { return this; }
+    const soft = typeof matchMedia === 'function'
+      && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (soft) { this.render({ affordance: nextAffordance, state: 'WAIT', art }); return this; }
+
+    this.root.querySelectorAll('.sc-layer').forEach((g) => {
+      g.style.transition = `transform ${durationMs}ms cubic-bezier(.4,.0,.2,1)`;
+    });
+    const actor = this.root.querySelector('.sc-actor');
+    if (actor) actor.style.transition = `transform ${durationMs}ms cubic-bezier(.4,.0,.2,1)`;
+    this.pose('WAIT');
+    this.setCamera(W * 0.55);
+    await new Promise((r) => setTimeout(r, durationMs));
+    this.render({ affordance: nextAffordance, state: 'WAIT', art });
+    return this;
+  }
+
+  /** Time of day.
+   *
+   *  Spec section 6: the world runs west-to-east from golden hour into dusk,
+   *  which gives a natural, guilt-free session end -- the light goes down and
+   *  the companion settles, instead of a paywall or a "come back tomorrow"
+   *  nag. A session ends because evening came, not because the app cut you off.
+   *
+   *  @param {number} t 0 = golden hour, 1 = dusk
+   */
+  setTimeOfDay(t) {
+    const clamp = Math.max(0, Math.min(1, t));
+    const dusk = this.root.querySelector('.sc-dusk');
+    if (dusk) dusk.setAttribute('opacity', (clamp * 0.62).toFixed(3));
+    const key = this.root.querySelector('.sc-keylight');
+    if (key) key.setAttribute('opacity', (1 - clamp * 0.55).toFixed(3));
+    this.timeOfDay = clamp;
+    return this;
   }
 
   say(text) {
@@ -300,21 +410,6 @@ export class Scene {
   }
 }
 
-/** Emoji stand-ins so choices read as objects rather than words to a
- *  pre-reader. Replaced by the illustrator's spot art; nothing else changes. */
-export const OBJECT_ICONS = {
-  rope: '🪢', rock: '🪨', log: '🪵', board: '🪵', stone: '🪨', boat: '⛵', net: '🕸️',
-  door: '🚪', mat: '🧶', path: '🛤️', wood: '🪵', bridge: '🌉', plank: '🪵', stick: '🪵',
-  ball: '⚽', basket: '🧺', ribbon: '🎀', ladder: '🪜', kite: '🪁', hat: '🎩', pole: '🎣',
-  bell: '🔔', nest: '🪹', moth: '🦋', apple: '🍏',
-  lamp: '🪔', light: '💡', moon: '🌙', match: '🔥', sun: '☀️', candle: '🕯️', torch: '🔦',
-  window: '🪟', fire: '🔥', lantern: '🏮', shine: '✨', star: '⭐', glow: '✨',
-  bunny: '🐰', bird: '🐦', mouse: '🐭', duck: '🦆', frog: '🐸', fox: '🦊', deer: '🦌',
-  hill: '⛰️', bug: '🐛', cat: '🐈', dog: '🐕', goose: '🪿', sheep: '🐑', fish: '🐟',
-  chick: '🐤', whistle: '📣',
-  key: '🗝️', knob: '🎛️', handle: '🚪', button: '🔘', hook: '🪝', ring: '💍', latch: '🔒',
-  chain: '⛓️', gate: '🚧', lock: '🔒', magnet: '🧲', push: '👐',
-  wagon: '🛒', cart: '🛒', wheel: '🛞', sled: '🛷', bag: '👜', box: '📦', tray: '🍽️',
-  pillow: '🛏️', melon: '🍈', puppy: '🐶', lemon: '🍋',
-};
-export const iconFor = (word) => OBJECT_ICONS[word] || '✦';
+/** Kept as a re-export so callers have one import for scene concerns. The
+ *  drawings themselves live in objects.js. */
+export { objectSvg, hasObjectArt } from './objects.js';
