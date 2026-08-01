@@ -23,7 +23,7 @@ import {
   ZPD_LO, ZPD_HI, DECAY, PROMOTE_AT, PROMOTE_N, ZPD_FLOOR, MAX_LEVEL,
 } from './public/engine/policy.js';
 import { LessonEngine, MAX_ATTEMPTS } from './public/engine/engine.js';
-import { computeGop, BLANK_ID } from './public/engine/scoring.js';
+import { computeGop, BLANK_ID, SEPARATOR_ID, CLEAR_ABOVE, UNSURE_BELOW } from './public/engine/scoring.js';
 
 let pass = 0, fail = 0;
 const failures = [];
@@ -362,6 +362,41 @@ console.log('--- GOP scorer maths ---');
 
   const tooShort = computeGop(new Float32Array(2 * V).fill(-1), 2, V, [1, 2, 3, 4, 5, 6, 7], BLANK_ID);
   ok('a clip too short for the target is flagged, not scored', tooShort.tooShort);
+}
+
+{
+  // SEPARATOR REGRESSION PIN.
+  // This checkpoint emits `|` between nearly every phoneme. Standard CTC
+  // forward only allows blank between labels, so without treating `|` as a
+  // second skippable symbol the CORRECT target has no legal path and scores
+  // catastrophically. Measured on the repo's voice pack: AUC 0.681 without,
+  // 1.000 with. If this test goes red, scoring is back to near-chance.
+  const V = 45, T = 18;
+  const target = [3, 24, 18];
+  // Audio that says b|ae|t -- the separator interleaved, as this model does.
+  const seq = [3, SEPARATOR_ID, 24, SEPARATOR_ID, 18];
+  const a = new Float32Array(T * V).fill(-9);
+  for (let t = 0; t < T; t++) a[t * V + seq[Math.floor((t / T) * seq.length)]] = 7;
+
+  const withSep = computeGop(a, T, V, target, BLANK_ID, true);
+  const withoutSep = computeGop(a, T, V, target, BLANK_ID, false);
+  ok('separator-aware scoring beats separator-blind on separator-laden audio',
+     withSep.normalizedScore > withoutSep.normalizedScore,
+     `with=${withSep.normalizedScore.toFixed(2)} without=${withoutSep.normalizedScore.toFixed(2)}`);
+  ok('separator-aware scoring clears the calibrated threshold on true audio',
+     withSep.normalizedScore >= CLEAR_ABOVE,
+     `score=${withSep.normalizedScore.toFixed(3)} vs clearAbove=${CLEAR_ABOVE}`);
+  ok('separator-blind scoring would have MISSED it',
+     withoutSep.normalizedScore < CLEAR_ABOVE,
+     'this is what the bug looked like: correct speech scored as not-clear');
+}
+
+{
+  // Thresholds must stay ordered and generous, whatever recalibration says.
+  ok('clearAbove sits above unsureBelow', CLEAR_ABOVE > UNSURE_BELOW,
+     `${CLEAR_ABOVE} vs ${UNSURE_BELOW}`);
+  ok('thresholds are calibrated values, not the original guesses',
+     CLEAR_ABOVE !== -0.55 && UNSURE_BELOW !== -1.2);
 }
 
 // ---------------------------------------------------------------------------

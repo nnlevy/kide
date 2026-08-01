@@ -278,7 +278,7 @@ function logSumExp(a, b) {
 /** Standard CTC forward (alpha) recursion in log space over the extended
  *  label sequence [blank, l1, blank, l2, ..., lL, blank]. Returns natural-log
  *  P(labelIds | audio) marginalized over all alignments. O(T * 2L). */
-function ctcForwardLogProb(logProbs, T, V, labelIds, blankId) {
+function ctcForwardLogProb(logProbs, T, V, labelIds, blankId, skipSeparator = true) {
   const ext = [];
   for (let i = 0; i < labelIds.length; i++) { ext.push(blankId); ext.push(labelIds[i]); }
   ext.push(blankId);
@@ -287,7 +287,10 @@ function ctcForwardLogProb(logProbs, T, V, labelIds, blankId) {
 
   let prev = new Float64Array(S).fill(-Infinity);
   let curr = new Float64Array(S).fill(-Infinity);
-  prev[0] = logProbs[ext[0]];
+  const blankEmit = (base) =>
+    skipSeparator ? logSumExp(logProbs[base + blankId], logProbs[base + SEPARATOR_ID])
+                  : logProbs[base + blankId];
+  prev[0] = blankEmit(0);
   if (S > 1) prev[1] = logProbs[ext[1]];
 
   for (let t = 1; t < T; t++) {
@@ -297,7 +300,7 @@ function ctcForwardLogProb(logProbs, T, V, labelIds, blankId) {
       let a = prev[s];
       if (s > 0) a = logSumExp(a, prev[s - 1]);
       if (s > 1 && ext[s] !== blankId && ext[s] !== ext[s - 2]) a = logSumExp(a, prev[s - 2]);
-      curr[s] = a + logProbs[base + ext[s]];
+      curr[s] = a + (ext[s] === blankId ? blankEmit(base) : logProbs[base + ext[s]]);
     }
     const tmp = prev; prev = curr; curr = tmp;
   }
@@ -307,9 +310,17 @@ function ctcForwardLogProb(logProbs, T, V, labelIds, blankId) {
   return total;
 }
 
-function computeGopSF(logitsFlat, T, V, labelIds, blankId) {
+/** The word-separator symbol. This checkpoint emits `|` between nearly every
+ *  phoneme, not just between words, and standard CTC forward only allows blank
+ *  between labels -- so without treating `|` as a second skippable symbol the
+ *  CORRECT target has no legal path through the model's preferred output.
+ *  Measured on the repo's voice pack: AUC 0.681 without, 1.000 with.
+ *  See tools/calibrate/calibrate.py and public/engine/scoring.js. */
+const SEPARATOR_ID = 0;
+
+function computeGopSF(logitsFlat, T, V, labelIds, blankId, skipSeparator = true) {
   const logProbs = computeLogSoftmax(logitsFlat, T, V);
-  const totalLogProb = ctcForwardLogProb(logProbs, T, V, labelIds, blankId);
+  const totalLogProb = ctcForwardLogProb(logProbs, T, V, labelIds, blankId, skipSeparator);
   const perPhonemeLogProb = totalLogProb / labelIds.length;
 
   let maxSum = 0;

@@ -199,14 +199,61 @@ Chromium running.
 *(The iPad numbers that superseded all of the above are in the verdict at the
 top of this file.)*
 
+## The payload problem, and how it was actually solved
+
+Two things were tried and measured before settling.
+
+**Wire compression: dead end.** FP16 weights compress at 1.085x (8%). Not
+worth the CPU, and Cloudflare correctly isn't doing it.
+
+**Encoder layer truncation: measured, and it fails.** wav2vec2-base holds ~85M
+of its 94M parameters in 12 transformer layers, so truncating looked like the
+obvious lever. It is not — the CTC head is tightly coupled to layer-12 output
+and chopping layers destroys the model. Measured on 38 real clips with known
+transcripts (this repo's own voice pack), phoneme error rate against gruut's
+phonemization of the true text:
+
+| Encoder depth | PER | Params | FP16 size |
+|---|---|---|---|
+| **12 (full)** | **6.3%** | 94.4M | 188.8MB |
+| 10 | 239.5% | 80.2M | 160.5MB |
+| 8 | 313.4% | 66.1M | 132.1MB |
+| 6 | 337.7% | 51.9M | 103.8MB |
+| 4 | 403.6% | 37.7M | 75.4MB |
+
+Removing even two layers is catastrophic. **Do not retry this without
+fine-tuning the CTC head on the truncated encoder.**
+
+*(Getting an honest PER out of this took two harness fixes. The first run
+reported 91.6% at full depth, which is impossible for a model that decodes
+"yes" and "one" correctly — the tell that the harness was broken, not the
+weights. This checkpoint emits `|` between nearly every phoneme, and the
+reference transcription didn't, so every one counted as an error.)*
+
+**So the payload was solved as a product problem instead.** The model can't
+shrink, but it doesn't have to be in the way:
+
+- the child starts on the **tap tier immediately, at zero bytes**, and the tap
+  tier is a complete experience rather than a crippled one;
+- the model downloads **in the background** while they play
+  (`startScoringInBackground` in `public/engine/scoring.js`);
+- voice lights up mid-session, next session, or never on a bad connection —
+  and in all three cases the game was already working;
+- weights are cached in **Cache Storage**, not just the HTTP cache, so a family
+  downloads them once ever rather than once per eviction. 189MB is exactly the
+  size a browser is happy to evict.
+
+A two-year-old will not wait through a progress bar and neither will a parent
+evaluating a free trial. Verified in a headless browser: beats advance while
+the model is still downloading, and a *failed* download degrades to tap-only
+rather than to a broken game.
+
 ## Open levers, in priority order
 
-1. **Shrink the 189MB payload.** This is now the binding constraint, not
-   speed — we have 183ms of latency headroom and none of it buys download
-   size back. Given INT8 measured 4.9x slower on WebGPU, *lower precision is
-   the wrong lever*; a smaller or distilled architecture is the right one.
-   Worth checking whether a distilled wav2vec2 (or a purpose-built small
-   phoneme CTC model) holds PER well enough at a fraction of the size.
+1. **A genuinely smaller phoneme CTC model**, if one exists — truncation is
+   ruled out, and lower precision is the wrong lever (INT8 measured 4.9x
+   *slower* on WebGPU). Any candidate must be re-measured on-device rather
+   than assumed.
 2. **Hide or shrink the ~7.3s cold start.** Session creation dominates. The
    naming/intro flow in §2 is a natural cover for it; measure whether Safari
    persists compiled WebGPU pipelines across page loads, since that would make
@@ -218,10 +265,50 @@ top of this file.)*
    `Cross-Origin-Embedder-Policy` on `/bench/*` yet, which is what unlocks
    `SharedArrayBuffer` and multi-threaded WASM. Only worth doing if the
    fallback path turns out to matter.
-5. **Calibrate GOP thresholds against labeled child speech.** Untouched by
-   this exercise, and the harder problem — see §1 of the spec. Also note
-   `gop-bench.js`'s `normalizedScore` is our stand-in, not the paper's exact
-   normalization (see Scoring above).
+5. **Re-calibrate against labelled CHILD speech.** Thresholds are now measured
+   rather than invented (`npm run calibrate`, see below), but the calibration
+   set is adult rendered speech and the negatives are wrong-words rather than
+   mispronunciations. That is the remaining gap, and it is the harder problem —
+   see §1 of the spec.
+
+## Scoring calibration (2026-08-01)
+
+`tools/calibrate/calibrate.py` · `npm run calibrate`
+
+Thresholds in `public/engine/scoring.js` were invented; they're now measured.
+Positives are real clips scored against the sequence they contain; negatives
+are the same audio scored against a different word's sequence.
+
+**This surfaced a genuine scoring bug, not just a number.** This checkpoint
+emits `|` between nearly every phoneme, and standard CTC forward only permits
+the *blank* symbol between labels — so the correct target had no legal path
+through the model's own preferred output, and correct speech scored around
+−90 instead of −0.3:
+
+| CTC forward | AUC | TPR | TNR |
+|---|---|---|---|
+| blank only (what shipped) | 0.681 | 73% | 57% |
+| **blank + `|` skippable** | **1.000** | **100%** | **100%** |
+
+0.681 is barely better than a coin flip. Fixed in both `public/engine/scoring.js`
+and `public/bench/gop-bench.js`, and regression-pinned in `test-engine.mjs`.
+
+Thresholds sit in the **centre of the empty gap** between the distributions
+(−1.65 worst positive, −3.12 99th-pct negative → `clearAbove = -2.385`, margin
+±0.73). An earlier cut used the 10th percentile of positives, which by
+construction mis-flags 10% of correct speech — and testing the shipping JS
+against real audio duly produced a false "unsure" for a clean clip, by 0.007.
+Maximum margin is also the right call given children will spread both
+distributions wider than this adult calibration set does.
+
+**What this does not establish**, stated plainly because AUC 1.000 is easy to
+over-read: the eval audio is adult rendered speech, not children (4–6 year-olds
+are markedly harder), and *wrong word* is not *right word, mispronounced* —
+the actual clinical case. A mispronounced /r/ lands somewhere between these two
+distributions and this harness cannot see where. These are a defensible
+starting point and a repeatable harness, not a validated calibration. The
+product is deliberately built so being wrong here costs little: an `unsure` is
+a warm re-invite, and the third attempt resolves the scene regardless.
 
 ## Deploy notes
 

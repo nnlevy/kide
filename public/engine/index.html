@@ -87,8 +87,9 @@
         complete way to play.
       </p>
       <button id="btnDetect" class="secondary">Check what this device can do</button>
-      <button id="btnEnable" class="secondary" disabled>Enable mic scoring (downloads model)</button>
+      <button id="btnEnable" class="secondary" disabled>Enable voice (loads in background — play meanwhile)</button>
       <div class="status" id="statusTier">Not checked.</div>
+      <div class="bar" id="dlBar" style="display:none;margin-top:8px"><i id="dlFill" style="width:0%"></i></div>
     </div>
   </div>
 
@@ -124,7 +125,8 @@
 import { LessonEngine, MAX_ATTEMPTS } from './engine.js';
 import { pHat, ZPD_LO, ZPD_HI, POOL_SIZE, activeTargets } from './policy.js';
 import { keyOf } from './lexicon.js';
-import { Scorer, previewTier, SAMPLE_RATE, resampleTo16kMono } from './scoring.js';
+import { Scorer, previewTier, SAMPLE_RATE, resampleTo16kMono,
+         startScoringInBackground, modelIsCached } from './scoring.js';
 
 const $ = (id) => document.getElementById(id);
 let engine = null, scorer = null, beat = null;
@@ -280,8 +282,34 @@ $('btnDetect').addEventListener('click', async () => {
 
 $('btnEnable').addEventListener('click', async () => {
   $('btnEnable').disabled = true;
-  scorer = new Scorer();
-  const info = await scorer.init({ allowMic: true, onProgress: (s) => { $('statusTier').textContent = s; } });
+  const cached = await modelIsCached('webgpu');
+  $('dlBar').style.display = cached ? 'none' : 'block';
+
+  // Nothing blocks. The game is already playable on the tap tier; voice
+  // upgrades in place whenever it finishes.
+  const { scorer: s, ready } = startScoringInBackground({
+    allowMic: true,
+    onProgress: (p) => {
+      if (p.phase === 'downloading' && p.total) {
+        const pct = (p.loaded / p.total) * 100;
+        $('dlFill').style.width = pct.toFixed(1) + '%';
+        $('statusTier').textContent =
+          `Downloading in the background — keep playing. ${(p.loaded / 1e6).toFixed(0)}/${(p.total / 1e6).toFixed(0)}MB`;
+      } else if (p.phase === 'status') {
+        $('statusTier').textContent = p.message;
+      } else if (p.phase === 'failed') {
+        $('statusTier').textContent = `Voice unavailable (${p.message}) — tap still works perfectly.`;
+      }
+    },
+  });
+  scorer = s;
+  if (engine) engine.scorer = scorer;
+  $('statusTier').textContent = cached
+    ? 'Already on this device — activating...'
+    : 'Loading in the background. Play now; voice will switch on when it is ready.';
+
+  const info = await ready;
+  $('dlBar').style.display = 'none';
   $('statusTier').textContent =
     `Tier: ${info.tier}${info.model ? ' (' + info.model + ' on ' + info.backend + ')' : ''}` +
     `${info.probeMs ? ', probe ' + Math.round(info.probeMs) + 'ms' : ''}. ` +

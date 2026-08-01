@@ -1,0 +1,9 @@
+{
+ "clearAbove": -2.385,
+ "unsureBelow": -12.834,
+ "auc": 1.0,
+ "margin": 0.733,
+ "useSeparatorAsSkippable": true,
+ "n_pos": 22,
+ "n_neg": 176
+}

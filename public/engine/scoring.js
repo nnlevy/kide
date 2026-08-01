@@ -51,12 +51,121 @@ export const MODELS = {
  *  against this. A tier that can't clear it doesn't get used. */
 export const LATENCY_BUDGET_MS = 300;
 
+/** Scoring thresholds. MEASURED, not invented -- tools/calibrate/calibrate.py,
+ *  re-run with `npm run calibrate`.
+ *
+ *  Positives: real speech scored against the sequence it contains.
+ *  Negatives: the same audio scored against a different word's sequence.
+ *  On the repo's voice pack these separate at AUC 1.000 with an empty gap
+ *  between roughly -1.7 and -3.1, so `clearAbove` sits in the CENTRE of that
+ *  gap: 0 of 22 true positives missed, 0 of 176 negatives admitted, margin
+ *  +/-0.73 on both sides.
+ *
+ *  An earlier cut put it at the 10th percentile of positives, which by
+ *  construction mis-flags 10% of correct speech -- and testing the shipping
+ *  JS against real audio promptly produced a false 'unsure' for a clean clip,
+ *  missing by 0.007. Giving up true positives bought nothing when the
+ *  distributions were this far apart. Maximum margin is also the right call
+ *  given the real population (children) is known to be harder than the
+ *  calibration set (adult rendered speech) and will spread both sides wider.
+ *
+ *  HONEST LIMITS, because it would be easy to over-read AUC 1.000:
+ *    * the eval audio is adult rendered speech, not children, and children
+ *      4-6 are markedly harder;
+ *    * "wrong word" is not "right word, mispronounced" -- the actual clinical
+ *      case. A mispronounced /r/ lands somewhere BETWEEN these distributions
+ *      and this harness cannot see where.
+ *  These are a defensible starting point, not a validated calibration. The
+ *  product is built so that being wrong here costs little (see engine.js). */
+export const CLEAR_ABOVE = -2.385;
+export const UNSURE_BELOW = -12.834;
+
 /** How far over budget a self-benchmark may land before the tier is rejected.
  *  Slightly loose because the probe runs once, cold-ish, on an unknown device
  *  and we'd rather not reject a workable tier on one noisy sample. */
 export const BUDGET_TOLERANCE = 1.15;
 
 export const BLANK_ID = 42;
+
+/** The word-separator symbol `|`.
+ *
+ *  Treating this as a second skippable symbol in the CTC forward recursion is
+ *  not cosmetic -- it is the difference between a scorer that works and one
+ *  that does not.
+ *
+ *  This checkpoint emits `|` between nearly EVERY phoneme, not just between
+ *  words: "Wonderful" decodes as `w | ʌ | n | d | ɚ | f | ə | l`. Standard CTC
+ *  forward only permits the blank symbol between labels, so a target sequence
+ *  written as `w ʌ n d ɚ f ə l` had no legal path through the model's own
+ *  preferred output, and correct speech scored around -90 instead of -0.3.
+ *
+ *  Measured over the repo's voice pack (tools/calibrate/calibrate.py):
+ *      without `|` skippable   AUC 0.681   (73% TPR / 57% TNR -- near chance)
+ *      with    `|` skippable   AUC 1.000   (perfect separation on that set)
+ *
+ *  Allowing it costs one logSumExp per blank slot per frame. */
+export const SEPARATOR_ID = 0;
+
+/** Cache Storage bucket for model weights.
+ *
+ *  The model is ~189MB and the HTTP cache will happily evict something that
+ *  large. Cache Storage is explicit and durable, so a family downloads the
+ *  model once ever rather than once per eviction -- which matters much more
+ *  on the metered connections where a re-download actually hurts. Versioned
+ *  by filename, same convention as /voice/v1/. */
+const MODEL_CACHE = 'kide-models-v1';
+
+/** Fetch a model, preferring the durable cache, reporting progress.
+ *  Progress matters: a silent 189MB download is indistinguishable from a
+ *  hung app. */
+async function fetchModelBytes(url, onProgress) {
+  if (typeof caches !== 'undefined') {
+    try {
+      const cache = await caches.open(MODEL_CACHE);
+      const hit = await cache.match(url);
+      if (hit) {
+        onProgress?.({ phase: 'cached', loaded: 1, total: 1 });
+        return await hit.arrayBuffer();
+      }
+    } catch { /* cache unavailable -- fall through to network */ }
+  }
+
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`model fetch failed: ${res.status}`);
+
+  const total = Number(res.headers.get('content-length')) || 0;
+  if (!res.body || !total) {
+    const buf = await res.arrayBuffer();
+    await putInCache(url, buf);
+    return buf;
+  }
+
+  const reader = res.body.getReader();
+  const chunks = [];
+  let loaded = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    loaded += value.length;
+    onProgress?.({ phase: 'downloading', loaded, total });
+  }
+  const buf = new Uint8Array(loaded);
+  let off = 0;
+  for (const c of chunks) { buf.set(c, off); off += c.length; }
+  await putInCache(url, buf.buffer);
+  return buf.buffer;
+}
+
+async function putInCache(url, buf) {
+  if (typeof caches === 'undefined') return;
+  try {
+    const cache = await caches.open(MODEL_CACHE);
+    await cache.put(url, new Response(buf, {
+      headers: { 'Content-Type': 'application/octet-stream', 'Content-Length': String(buf.byteLength) },
+    }));
+  } catch { /* quota or private mode -- not fatal, just slower next time */ }
+}
 
 let ort = null;
 async function loadOrt() {
@@ -149,7 +258,7 @@ function logSumExp(a, b) {
   return m + Math.log(Math.exp(a - m) + Math.exp(b - m));
 }
 
-export function computeGop(logitsFlat, T, V, labelIds, blankId = BLANK_ID) {
+export function computeGop(logitsFlat, T, V, labelIds, blankId = BLANK_ID, skipSeparator = true) {
   const lp = new Float32Array(T * V);
   const row = new Float32Array(V);
   let freeSum = 0;
@@ -170,7 +279,11 @@ export function computeGop(logitsFlat, T, V, labelIds, blankId = BLANK_ID) {
 
   let prev = new Float64Array(S).fill(-Infinity);
   let curr = new Float64Array(S).fill(-Infinity);
-  prev[0] = lp[ext[0]];
+  // A blank slot may be satisfied by the blank symbol OR by the separator --
+  // see SEPARATOR_ID above for why this is load-bearing.
+  const blankEmit = (base) =>
+    skipSeparator ? logSumExp(lp[base + blankId], lp[base + SEPARATOR_ID]) : lp[base + blankId];
+  prev[0] = blankEmit(0);
   if (S > 1) prev[1] = lp[ext[1]];
   for (let t = 1; t < T; t++) {
     curr.fill(-Infinity);
@@ -179,7 +292,7 @@ export function computeGop(logitsFlat, T, V, labelIds, blankId = BLANK_ID) {
       let a = prev[s];
       if (s > 0) a = logSumExp(a, prev[s - 1]);
       if (s > 1 && ext[s] !== blankId && ext[s] !== ext[s - 2]) a = logSumExp(a, prev[s - 2]);
-      curr[s] = a + lp[base + ext[s]];
+      curr[s] = a + (ext[s] === blankId ? blankEmit(base) : lp[base + ext[s]]);
     }
     const tmp = prev; prev = curr; curr = tmp;
   }
@@ -270,13 +383,22 @@ export class Scorer {
     return this.describe();
   }
 
-  async _trySession(backend, note) {
+  async _trySession(backend, note, onProgress = null) {
     const model = MODELS[backend];
     try {
       const ortMod = await loadOrt();
       note(`Loading ${model.label} model (~${model.approxMB}MB) for ${backend}...`);
       const t0 = performance.now();
-      this.session = await ortMod.InferenceSession.create(model.url, {
+      const bytes = await fetchModelBytes(model.url, (p) => {
+        if (onProgress) onProgress(p);
+        else if (p.phase === 'downloading' && p.total) {
+          const pct = Math.round((p.loaded / p.total) * 100);
+          if (pct % 20 === 0) note(`downloading ${model.label}: ${pct}%`);
+        }
+      });
+      // Hand ORT the bytes we already have rather than a URL, so the download
+      // goes through the cache path above exactly once.
+      this.session = await ortMod.InferenceSession.create(new Uint8Array(bytes), {
         executionProviders: [backend],
       });
       this.backend = backend;
@@ -328,7 +450,7 @@ export class Scorer {
    *  deliberately built so that being wrong about them costs little: an
    *  'unsure' is a warm re-invite, and the third attempt resolves the scene
    *  regardless of any score. */
-  async score(pcm, entry, { unsureBelow = -1.2, clearAbove = -0.55 } = {}) {
+  async score(pcm, entry, { unsureBelow = UNSURE_BELOW, clearAbove = CLEAR_ABOVE } = {}) {
     const t0 = performance.now();
     if (this.tier === 'tap') {
       return outcome('no-input', { tier: this.tier, detail: 'tap-only device' });
@@ -355,6 +477,54 @@ export class Scorer {
     // system has two states, and neither of them is "wrong".
     const confidence = Math.max(0, Math.min(1, (s - unsureBelow) / (clearAbove - unsureBelow)));
     return outcome(verdict, { tier: this.tier, score: s, confidence, ms, detail: entry.w });
+  }
+}
+
+/** Start playing NOW; let voice arrive when it arrives.
+ *
+ *  This is the answer to the payload problem, and it is a product answer
+ *  rather than a compression one. The model is ~189MB and could not be shrunk
+ *  without wrecking it (encoder truncation was measured and is catastrophic --
+ *  see docs/BENCH.md), so instead it stops being in the way:
+ *
+ *    * the child starts on the tap tier immediately, at zero bytes, and the
+ *      tap tier is a COMPLETE experience, not a crippled one;
+ *    * the model downloads in the background while they play;
+ *    * voice lights up mid-session, or next session, or never on a bad
+ *      connection -- and in all three cases the game was already working.
+ *
+ *  A two-year-old will not wait through a progress bar, and a parent
+ *  evaluating a free trial will not either. Nothing should ever block on this
+ *  download.
+ *
+ *  @returns {{scorer: Scorer, ready: Promise}} -- `scorer` is usable
+ *  immediately (tap tier); `ready` resolves with the upgraded tier info.
+ */
+export function startScoringInBackground({ allowMic = false, onProgress = null, onReady = null } = {}) {
+  const scorer = new Scorer();
+  if (!allowMic) {
+    return { scorer, ready: Promise.resolve(scorer.describe()) };
+  }
+  const ready = scorer
+    .init({ allowMic: true, onProgress: (s) => onProgress?.({ phase: 'status', message: s }) })
+    .then((info) => { onReady?.(info); return info; })
+    .catch((err) => {
+      // A failed background download must never surface as a broken game.
+      onProgress?.({ phase: 'failed', message: String(err?.message || err) });
+      return scorer.describe();
+    });
+  return { scorer, ready };
+}
+
+/** Has this device already got the model on disk? Lets the UI say "voice is
+ *  ready" instantly on a return visit instead of implying a fresh download. */
+export async function modelIsCached(backend = 'webgpu') {
+  if (typeof caches === 'undefined') return false;
+  try {
+    const cache = await caches.open(MODEL_CACHE);
+    return !!(await cache.match(MODELS[backend].url));
+  } catch {
+    return false;
   }
 }
 
