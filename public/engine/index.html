@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Kide · lesson engine inspector</title>
+<style>
+  :root{
+    --bg:#0b1220; --panel:#141c2e; --panel2:#1b2540; --line:#2a3654;
+    --text:#e7ecf7; --muted:#8fa0c4; --ok:#3ddc84; --warn:#f5a623; --bad:#ff5d5d;
+    --accent:#56c6e6; --grass:#6FD08C;
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Segoe UI,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);padding:22px 16px 70px;line-height:1.45}
+  .wrap{max-width:900px;margin:0 auto}
+  h1{font-size:19px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 18px}
+  code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:12px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:13px}
+  .panel h2{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 10px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+  button{font:inherit;font-size:14px;width:100%;padding:10px;margin-top:8px;border-radius:6px;
+    border:1px solid var(--line);background:var(--accent);color:#04202b;font-weight:600;cursor:pointer}
+  button.secondary{background:var(--panel2);color:var(--text)}
+  button:disabled{opacity:.45;cursor:default}
+  select{width:100%;padding:8px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px;font:inherit;font-size:14px}
+  label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
+  .row{display:flex;gap:8px}
+  .beat{background:var(--panel2);border-radius:8px;padding:14px 16px;margin-bottom:10px}
+  .beat .station{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--accent)}
+  .beat .say{font-size:16px;margin:6px 0 2px}
+  .beat .meta{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  td,th{padding:4px 6px;border-bottom:1px dashed var(--line);text-align:left}
+  th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.03em}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .bar{height:5px;border-radius:3px;background:var(--panel);position:relative;overflow:hidden;min-width:60px}
+  .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--grass)}
+  .bar u{position:absolute;top:-2px;bottom:-2px;width:1px;background:var(--muted);opacity:.6}
+  .pill{display:inline-block;padding:1px 7px;border-radius:99px;font-size:10.5px;font-weight:700}
+  .pill.ok{background:rgba(61,220,132,.15);color:var(--ok)}
+  .pill.warn{background:rgba(245,166,35,.15);color:var(--warn)}
+  .pill.neutral{background:rgba(143,160,196,.15);color:var(--muted)}
+  .status{font-size:12.5px;color:var(--muted);min-height:16px;margin-top:6px}
+  pre{white-space:pre-wrap;font-size:11px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:6px;padding:9px;max-height:230px;overflow:auto}
+  summary{cursor:pointer;color:var(--accent);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Lesson engine inspector</h1>
+  <p class="sub">
+    The headless engine from spec §3–§7, driving live. Pick a target, pick a word,
+    pick the scene that word can act inside — the child sees a companion who needs
+    a rope, never a drill on /r/. Everything here is what the engine decided;
+    none of it is ever shown to a child.
+    <code>tap</code> works on every device — the mic is optional and on-device only.
+  </p>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>1 · Session</h2>
+      <label for="concern">What brought you here</label>
+      <select id="concern">
+        <option value="unclear">Hard to understand</option>
+        <option value="late">Late talker</option>
+        <option value="reading">Getting ready to read</option>
+      </select>
+      <label for="companion">Companion name</label>
+      <select id="companion">
+        <option>Butterbean</option><option>Marmalade</option>
+        <option>Rosie</option><option>Pip</option>
+      </select>
+      <button id="btnStart">Start a session</button>
+      <div class="status" id="statusSession"></div>
+    </div>
+
+    <div class="panel">
+      <h2>2 · Voice (optional)</h2>
+      <p class="status" style="margin-top:0">
+        Detects the best <em>private</em> scoring this device supports. There is no
+        cloud tier — a device that can't do it on-device gets tap-only, which is a
+        complete way to play.
+      </p>
+      <button id="btnDetect" class="secondary">Check what this device can do</button>
+      <button id="btnEnable" class="secondary" disabled>Enable mic scoring (downloads model)</button>
+      <div class="status" id="statusTier">Not checked.</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>3 · The beat</h2>
+    <div id="beatBox"><p class="status">Start a session to see the first invitation.</p></div>
+    <div class="row">
+      <button id="btnSay" disabled>Child says it (tap = always works)</button>
+      <button id="btnSpeak" class="secondary" disabled>Speak it into the mic</button>
+    </div>
+    <button id="btnAuto" class="secondary" disabled>Auto-play 40 beats</button>
+    <div class="status" id="statusBeat"></div>
+  </div>
+
+  <div class="panel">
+    <h2>What the engine believes · active pool</h2>
+    <table id="mastery"><tr><td class="status">—</td></tr></table>
+    <p class="status" id="poolNote"></p>
+  </div>
+
+  <div class="panel">
+    <h2>Parent report (trends only — never per-attempt scores)</h2>
+    <div id="report"><p class="status">—</p></div>
+  </div>
+
+  <details class="panel">
+    <summary>Beat log</summary>
+    <pre id="log">—</pre>
+  </details>
+</div>
+
+<script type="module">
+import { LessonEngine, MAX_ATTEMPTS } from './engine.js';
+import { pHat, ZPD_LO, ZPD_HI, POOL_SIZE, activeTargets } from './policy.js';
+import { keyOf } from './lexicon.js';
+import { Scorer, previewTier, SAMPLE_RATE, resampleTo16kMono } from './scoring.js';
+
+const $ = (id) => document.getElementById(id);
+let engine = null, scorer = null, beat = null;
+window.__kideEngine = () => engine; // for the headless smoke test
+
+function startSession() {
+  engine = new LessonEngine({
+    companionName: $('companion').value,
+    concern: $('concern').value,
+    scorer,
+  });
+  $('statusSession').textContent =
+    `Session started. ${POOL_SIZE} targets in rotation out of ${Object.keys(engine.learner.M).length} in the lexicon.`;
+  $('btnSay').disabled = false;
+  $('btnAuto').disabled = false;
+  $('btnSpeak').disabled = !(scorer && scorer.tier !== 'tap');
+  nextBeat();
+}
+
+function nextBeat() {
+  beat = engine.nextBeat();
+  const pc = beat.poolChange;
+  const changed = pc && (pc.graduated.length || pc.admitted.length)
+    ? `<div class="meta" style="color:var(--ok);margin-top:6px">pool: ${pc.graduated.length ? 'graduated ' + pc.graduated.join(', ') : ''}${pc.graduated.length && pc.admitted.length ? ' · ' : ''}${pc.admitted.length ? 'admitted ' + pc.admitted.join(', ') : ''}</div>`
+    : '';
+  $('beatBox').innerHTML = `
+    <div class="beat">
+      <div class="station">${beat.station.name} · ${beat.affordance}</div>
+      <div class="say">${beat.invitation}</div>
+      <div class="meta">
+        target <b>${keyOf(beat.target)}</b> · word <b>${beat.word.w}</b>
+        (L${beat.word.lvl}, /${beat.word.ipa.join(' ')}/) · beat ${beat.beat + 1}
+      </div>
+      ${changed}
+    </div>`;
+  render();
+}
+
+async function attempt(pcm) {
+  const r = await engine.submitAttempt(pcm);
+  const tone = r.resolves ? 'ok' : 'warn';
+  $('beatBox').insertAdjacentHTML('beforeend', `
+    <div class="beat">
+      <div class="station"><span class="pill ${tone}">${r.state}</span>
+        attempt ${r.attempt}/${MAX_ATTEMPTS} · heard: ${r.verdict} · via ${r.tier}</div>
+      <div class="say">${r.say}</div>
+      <div class="meta">${r.forced
+        ? 'resolved on the attempt cap — celebrated identically, and deliberately NOT recorded as mastery'
+        : r.resolves ? 'resolved' : `${r.attemptsLeft} more, then it resolves regardless`}</div>
+    </div>`);
+  $('statusBeat').textContent = r.resolves ? 'Beat resolved — tap for the next one.' : '';
+  if (r.resolves) setTimeout(nextBeat, 650);
+  render();
+}
+
+function render() {
+  const rows = activeTargets(engine.learner)
+    .sort((a, b) => pHat(a) - pHat(b))
+    .map((m) => {
+      const p = pHat(m);
+      const band = p > ZPD_HI ? 'strong' : p < ZPD_LO ? 'emerging' : 'developing';
+      const cls = p > ZPD_HI ? 'neutral' : p < ZPD_LO ? 'warn' : 'ok';
+      return `<tr>
+        <td>${keyOf(m)}</td>
+        <td class="num">L${m.lvl}</td>
+        <td class="num">${m.n}</td>
+        <td style="width:38%"><div class="bar">
+          <i style="width:${(p * 100).toFixed(0)}%"></i>
+          <u style="left:${ZPD_LO * 100}%"></u><u style="left:${ZPD_HI * 100}%"></u>
+        </div></td>
+        <td class="num">${p.toFixed(2)}</td>
+        <td><span class="pill ${cls}">${band}</span></td>
+      </tr>`;
+    }).join('');
+  $('mastery').innerHTML =
+    `<tr><th>target</th><th>lvl</th><th>tries</th><th>belief (marks = ZPD band)</th><th>p̂</th><th></th></tr>${rows}`;
+
+  const grad = Object.values(engine.learner.M).filter((m) => m.graduated).map(keyOf);
+  $('poolNote').textContent =
+    `Weakest first — the ones the family came for. ${grad.length ? 'Graduated: ' + grad.join(', ') + '.' : 'None graduated yet.'}`;
+
+  const rep = engine.parentReport();
+  $('report').innerHTML = `
+    <table>
+      <tr><td>Beats this session</td><td class="num">${rep.sessionBeats}</td></tr>
+      <tr><td>Confidence in the trend</td><td class="num"><span class="pill ${rep.confidence === 'good' ? 'ok' : 'neutral'}">${rep.confidence}</span></td></tr>
+      <tr><td>Distinct words met</td><td class="num">${rep.distinctWords}</td></tr>
+      <tr><td>Promotions up the ladder</td><td class="num">${rep.promotions}</td></tr>
+      <tr><td>Resolved on the attempt cap</td><td class="num">${rep.forcedResolutions}</td></tr>
+    </table>
+    <p class="status" style="margin-top:8px"><b>Try in the car:</b> ${
+      rep.carList.length
+        ? rep.carList.map((c) => c.words.join(', ')).join(' · ')
+        : 'nothing below the band right now'
+    }</p>`;
+
+  $('log').textContent = engine.log.slice(-40).map((r) =>
+    `beat ${String(r.beat).padStart(2)} ${r.target.padEnd(10)} ${r.word.padEnd(12)} ${r.affordance.padEnd(7)} ` +
+    `try${r.attempt} ${r.verdict.padEnd(8)} ${r.resolves ? 'resolved' : '...'}${r.forced ? ' (cap)' : ''}${r.promoted ? ' PROMOTED' : ''}`
+  ).join('\n') || '—';
+}
+
+$('btnStart').addEventListener('click', startSession);
+$('btnSay').addEventListener('click', () => attempt(null));
+
+$('btnAuto').addEventListener('click', async () => {
+  $('btnAuto').disabled = true;
+  // A simulated child: weak on /r/ and /s/, which is the case the product
+  // exists for. Watch those two collect the MOST practice, not the least.
+  const ability = { r: 0.25, s: 0.33, l: 0.5, th: 0.4, sh: 0.5, ch: 0.5 };
+
+  // A stub scorer, swapped in for the duration. Without one, submitAttempt
+  // treats every call as a tap -- which is correct behaviour (a tap is always
+  // a valid way to play) but means a simulated miss would land as a success
+  // and the whole point of the simulation would be lost.
+  const realScorer = engine.scorer;
+  let nextVerdict = 'clear';
+  engine.scorer = { score: async () => ({ verdict: nextVerdict, tier: 'sim', score: null, confidence: 0.3 }) };
+
+  // 40 BEATS, not 40 attempts -- a missed beat costs up to MAX_ATTEMPTS tries,
+  // so counting attempts would silently simulate a much shorter session than
+  // the spec's forty. The attempt cap bounds the inner loop.
+  const TARGET_BEATS = 40;
+  try {
+    const startBeat = engine.learner.beat;
+    let guard = TARGET_BEATS * MAX_ATTEMPTS + 10;
+    while (engine.learner.beat - startBeat < TARGET_BEATS && guard-- > 0) {
+      const p = ability[beat.target.ph] ?? 0.85;
+      nextVerdict = Math.random() < p ? 'clear' : 'unsure';
+      const r = await engine.submitAttempt(new Float32Array(SAMPLE_RATE));
+      if (r.resolves) beat = engine.nextBeat();
+    }
+  } finally {
+    engine.scorer = realScorer;
+  }
+  render();
+  $('statusBeat').textContent =
+    '40 beats simulated with a child weak on /r/ and /s/. Check the table: the weakest sounds should have the MOST tries.';
+  $('btnAuto').disabled = false;
+});
+
+$('btnDetect').addEventListener('click', async () => {
+  const t = await previewTier({ allowMic: true });
+  const human = {
+    'gop-webgpu': 'WebGPU available — phoneme-level scoring, fully on-device. (117ms measured on iPad.)',
+    'native': 'This browser can recognise speech on-device — word-level scoring, no download.',
+    'gop-wasm-or-tap': 'No WebGPU and no on-device recogniser. We can try WASM, but it has to prove it is fast enough before we use it.',
+    'tap': 'Tap-only.',
+  }[t] || t;
+  $('statusTier').textContent = human;
+  $('btnEnable').disabled = false;
+});
+
+$('btnEnable').addEventListener('click', async () => {
+  $('btnEnable').disabled = true;
+  scorer = new Scorer();
+  const info = await scorer.init({ allowMic: true, onProgress: (s) => { $('statusTier').textContent = s; } });
+  $('statusTier').textContent =
+    `Tier: ${info.tier}${info.model ? ' (' + info.model + ' on ' + info.backend + ')' : ''}` +
+    `${info.probeMs ? ', probe ' + Math.round(info.probeMs) + 'ms' : ''}. ` +
+    (info.phonemeLevel ? 'Phoneme-level scoring active.' : 'Word-level or tap.');
+  if (engine) { engine.scorer = scorer; $('btnSpeak').disabled = scorer.tier === 'tap'; }
+});
+
+$('btnSpeak').addEventListener('click', async () => {
+  $('btnSpeak').disabled = true;
+  $('statusBeat').textContent = 'Listening for 2s...';
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const rec = new MediaRecorder(stream);
+    const chunks = [];
+    rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+    const done = new Promise((r) => (rec.onstop = r));
+    rec.start();
+    await new Promise((r) => setTimeout(r, 2000));
+    rec.stop();
+    await done;
+    stream.getTracks().forEach((t) => t.stop());
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = await ctx.decodeAudioData(await new Blob(chunks).arrayBuffer());
+    await ctx.close();
+    await attempt(await resampleTo16kMono(buf));
+  } catch (err) {
+    $('statusBeat').textContent = `Mic unavailable: ${err.message}. Tap still works.`;
+  } finally {
+    $('btnSpeak').disabled = false;
+  }
+});
+</script>
+</body>
+</html>

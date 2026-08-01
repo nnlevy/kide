@@ -1,0 +1,199 @@
+// engine.js -- the orchestrator. Turns the policy and the scorer into a
+// sequence of beats a scene layer can render. Still no DOM, no audio: this
+// file decides WHAT happens, never how it looks or sounds.
+//
+// The attempt flow here is the product's whole safety argument, so it is worth
+// stating plainly rather than leaving it implicit in the code:
+//
+//   Automated scoring of 3-7 year-old speech is unreliable. The best available
+//   evidence (spec section 1) has models missing real misarticulations about
+//   three times more often than they false-flag correct speech, even after
+//   fine-tuning on domain data. We cannot fix that, so the design refuses to
+//   depend on it:
+//
+//     * There is no failure state. Ever. A low score produces a warm re-invite
+//       in which the companion models the sound, never a "wrong".
+//     * MAX_ATTEMPTS resolves the scene REGARDLESS of score. A child who tried
+//       three times has earned the magic, and a stuck child is a churned child.
+//     * Per-attempt scores are surfaced to nobody -- not the child, not the
+//       parent. Only aggregate movement over many attempts reaches the weekly
+//       report, and even then as a trend with confidence, never a verdict.
+//
+//   The result is a product that is robust exactly where the technology is
+//   weak. That alignment is the strongest argument for the design, and it is
+//   the reason a 5x scorer improvement would change the numbers in a report
+//   but not change a single thing a child experiences.
+
+import { LEX, STATIONS, keyOf } from './lexicon.js';
+import {
+  createLearner, selectNext, record, carList, pHat, refreshPool, activeTargets,
+  ZPD_LO, ZPD_HI,
+} from './policy.js';
+
+export const MAX_ATTEMPTS = 3;
+
+export const STATE = {
+  STUCK: 'STUCK',
+  ASK: 'ASK',
+  MODEL: 'MODEL',
+  TRIUMPH: 'TRIUMPH',
+  WAIT: 'WAIT',
+};
+
+export class LessonEngine {
+  /**
+   * @param {object}  opts
+   * @param {string}  opts.companionName  what the child named their companion
+   * @param {string}  opts.concern        parent-stated starting concern
+   * @param {object}  opts.scorer         a Scorer from scoring.js (optional --
+   *                                      without one the engine runs tap-only,
+   *                                      which is a complete experience)
+   * @param {Function} opts.rng           injectable for deterministic tests
+   */
+  constructor({ companionName = 'Butterbean', concern = 'unclear', scorer = null, rng = Math.random } = {}) {
+    this.companionName = companionName;
+    this.scorer = scorer;
+    this.learner = createLearner({ concern, rng });
+    this.current = null;
+    this.attempt = 0;
+    this.log = [];
+  }
+
+  /** Advance to the next beat: pick a target, a word, and the scene that word
+   *  can act inside. The lesson chooses the word; the word chooses the scene. */
+  nextBeat() {
+    // Retire mastered targets and admit new ones before choosing, so a child
+    // who has finished a sound meets the next one immediately rather than at
+    // some later arbitrary boundary.
+    const poolChange = refreshPool(this.learner);
+    const pick = selectNext(this.learner);
+    this.current = {
+      target: pick.target.m,
+      word: pick.word,
+      affordance: pick.affordance,
+      station: STATIONS[pick.affordance],
+      beat: this.learner.beat,
+    };
+    this.attempt = 0;
+    this.learner.lastKey = keyOf(pick.target.m);
+    this.learner.lastStation = pick.affordance;
+    return {
+      ...this.current,
+      state: STATE.ASK,
+      invitation: STATIONS[pick.affordance].ask(this.companionName, pick.word.w),
+      poolChange,
+    };
+  }
+
+  /** Submit one attempt.
+   *
+   *  `pcm` may be null -- that is a tap, which is always a valid way to play
+   *  and is treated as a success. A child who taps has still engaged with the
+   *  word; we are not going to punish a two-year-old for a quiet room, a
+   *  broken microphone, or a device that can't listen privately.
+   */
+  async submitAttempt(pcm = null) {
+    if (!this.current) throw new Error('no active beat -- call nextBeat() first');
+    this.attempt++;
+
+    let result;
+    if (pcm === null || !this.scorer) {
+      result = { verdict: 'clear', tier: 'tap', score: null, confidence: 1, detail: 'tap' };
+    } else {
+      result = await this.scorer.score(pcm, this.current.word);
+    }
+
+    const forced = this.attempt >= MAX_ATTEMPTS;
+    const heardClearly = result.verdict === 'clear';
+    // Generosity on uncertainty: 'unsure' and 'no-input' both re-invite rather
+    // than fail -- until the attempt cap, which resolves regardless of score.
+    const resolves = heardClearly || forced;
+
+    // Mastery only moves on evidence. A forced resolution after three tries is
+    // a gift to the child, not a data point about their /r/ -- recording it as
+    // a success would corrupt the very trend the parent report is built on.
+    let promoted = false;
+    if (heardClearly) {
+      promoted = record(this.learner, this.current.target, true);
+    } else if (result.verdict === 'unsure' && !forced) {
+      promoted = record(this.learner, this.current.target, false);
+    }
+
+    const beatRecord = {
+      beat: this.learner.beat,
+      target: keyOf(this.current.target),
+      word: this.current.word.w,
+      affordance: this.current.affordance,
+      attempt: this.attempt,
+      verdict: result.verdict,
+      tier: result.tier,
+      resolves,
+      forced: forced && !heardClearly,
+      promoted,
+      pHat: pHat(this.current.target),
+    };
+    this.log.push(beatRecord);
+
+    if (resolves) {
+      this.learner.beat++;
+      return {
+        ...beatRecord,
+        state: STATE.TRIUMPH,
+        // The companion celebrates WITH the child, never AT them -- and a
+        // forced resolution is celebrated identically. The child must not be
+        // able to tell the difference; that is the entire point.
+        say: `${this.companionName} did it! You said ${this.current.word.w}!`,
+      };
+    }
+
+    return {
+      ...beatRecord,
+      state: STATE.MODEL,
+      // MODEL is always clumsy and endearing, never corrective.
+      say: `${this.companionName} tries... ${this.current.word.w}... let's say it together!`,
+      attemptsLeft: MAX_ATTEMPTS - this.attempt,
+    };
+  }
+
+  /** Everything the weekly parent report needs. No separate analytics pipeline
+   *  -- the engine already holds it (spec section 7).
+   *
+   *  Note what is NOT here: any per-attempt score, and any claim of assessment.
+   *  Aggregate severity tracks clinicians well (ICC ~0.98) even where
+   *  per-phoneme judgements do not, so this reports movement, with confidence,
+   *  and never a verdict. */
+  parentReport() {
+    const targets = Object.values(this.learner.M)
+      .filter((m) => m.n > 0 || m.graduated)
+      .map((m) => ({
+        target: keyOf(m),
+        phoneme: m.ph,
+        position: m.pos,
+        attempts: m.n,
+        level: m.lvl,
+        pHat: pHat(m),
+        band: pHat(m) > ZPD_HI ? 'strong' : pHat(m) < ZPD_LO ? 'emerging' : 'developing',
+      }))
+      .sort((a, b) => b.attempts - a.attempts);
+
+    const attempts = this.log.length;
+    const heard = this.log.filter((r) => r.verdict === 'clear').length;
+    return {
+      sessionBeats: this.learner.beat,
+      attempts,
+      // Confidence is deliberately coarse. With few attempts we say so rather
+      // than implying precision we do not have.
+      confidence: attempts >= 40 ? 'good' : attempts >= 15 ? 'early' : 'too-soon',
+      clearRate: attempts ? heard / attempts : null,
+      targets,
+      carList: carList(this.learner),
+      distinctWords: new Set(this.log.map((r) => r.word)).size,
+      promotions: this.log.filter((r) => r.promoted).length,
+      forcedResolutions: this.log.filter((r) => r.forced).length,
+      activeTargets: activeTargets(this.learner).map((m) => keyOf(m)),
+      graduated: Object.values(this.learner.M).filter((m) => m.graduated).map((m) => keyOf(m)),
+    };
+  }
+}
+
+export { LEX, STATIONS, keyOf, pHat };

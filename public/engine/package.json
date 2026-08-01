@@ -1,0 +1,4 @@
+{
+  "type": "module",
+  "//": "Scopes ES-module semantics to public/engine/ only. The repo root stays CommonJS because test-voice.js, test-routines.js and tools/*.js all use require() -- adding \"type\":\"module\" at the root would break every one of them. Browsers ignore this file entirely; it exists so `node test-engine.mjs` can import these modules without a warning."
+}

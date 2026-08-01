@@ -11,8 +11,10 @@
 		"test:voice": "npm run build && node test-voice.js",
 		"voice:render": "node tools/voice/generate.js",
 		"test:routines": "npm run build && node test-routines.js",
+		"test:engine": "node test-engine.mjs",
+		"lexicon:build": "python3 tools/lexicon/build_lexicon.py",
 		"share:render": "node tools/share/card.js",
-		"test": "npm run test:voice && node test-routines.js",
+		"test": "npm run test:engine && npm run test:voice && node test-routines.js",
 		"demo:render": "npm run build && node tools/share/demo.js"
 	},
 	"devDependencies": {
