@@ -26,8 +26,8 @@
 
 import { LEX, STATIONS, keyOf } from './lexicon.js';
 import {
-  createLearner, selectNext, record, carList, pHat, refreshPool, activeTargets,
-  ZPD_LO, ZPD_HI,
+  createLearner, selectNext, offerChoices, record, carList, pHat, refreshPool,
+  activeTargets, ZPD_LO, ZPD_HI,
 } from './policy.js';
 
 export const MAX_ATTEMPTS = 3;
@@ -56,6 +56,7 @@ export class LessonEngine {
     this.learner = createLearner({ concern, rng });
     this.current = null;
     this.attempt = 0;
+    this.pendingOffer = null;
     this.log = [];
   }
 
@@ -82,6 +83,62 @@ export class LessonEngine {
       state: STATE.ASK,
       invitation: STATIONS[pick.affordance].ask(this.companionName, pick.word.w),
       poolChange,
+    };
+  }
+
+  /** Offer the child several places they could go next, all practising the
+   *  same sound. The child picks; nothing happens until they do.
+   *
+   *  Prefer this over nextBeat() for child-facing surfaces. nextBeat() decides
+   *  FOR the child and pans the world there, which makes the companion the
+   *  protagonist; this makes the child the protagonist while keeping the
+   *  pedagogy identical and still invisible. See offerChoices() in policy.js.
+   */
+  offerBeat({ count = 3 } = {}) {
+    const poolChange = refreshPool(this.learner);
+    const offer = offerChoices(this.learner, { count });
+    this.pendingOffer = offer;
+    return {
+      state: STATE.WAIT, // the world waits, indefinitely and warmly
+      target: offer.target.m,
+      poolChange,
+      choices: offer.choices.map((c) => ({
+        word: c.word,
+        affordance: c.affordance,
+        station: STATIONS[c.affordance],
+        // What the child sees offered. Deliberately an invitation to go and
+        // do something, not a question with a right answer.
+        label: c.word.w,
+        invitation: STATIONS[c.affordance].ask(this.companionName, c.word.w),
+      })),
+    };
+  }
+
+  /** The child chose one of the offered routes. THIS is what starts the beat.
+   *  @param {number} index into the offered choices */
+  chooseBeat(index) {
+    if (!this.pendingOffer) throw new Error('no offer outstanding -- call offerBeat() first');
+    const choice = this.pendingOffer.choices[index];
+    if (!choice) throw new Error(`no choice at index ${index}`);
+    const target = this.pendingOffer.target.m;
+
+    this.current = {
+      target,
+      word: choice.word,
+      affordance: choice.affordance,
+      station: STATIONS[choice.affordance],
+      beat: this.learner.beat,
+      chosenByChild: true,
+    };
+    this.attempt = 0;
+    this.learner.lastKey = keyOf(target);
+    this.learner.lastStation = choice.affordance;
+    this.pendingOffer = null;
+
+    return {
+      ...this.current,
+      state: STATE.ASK,
+      invitation: STATIONS[choice.affordance].ask(this.companionName, choice.word.w),
     };
   }
 

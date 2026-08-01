@@ -1,0 +1,4 @@
+{
+  "type": "module",
+  "//": "ES-module semantics scoped to public/scene/ only -- the repo root stays CommonJS (test-voice.js, test-routines.js, tools/*.js all use require()). Browsers ignore this file."
+}

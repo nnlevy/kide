@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Kide · scene &amp; actor contract</title>
+<style>
+  :root{
+    --cream:#FFFBF2; --ink:#2E3A3F; --ink-soft:#5B6A67; --ink-faint:#9AA6A3;
+    --coral:#FF8A73; --coral-deep:#F16E55; --grass:#6FD08C; --grass-dark:#3D9C63;
+    --sand:#4EA8DE; --card:#fff;
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--cream);color:var(--ink);-webkit-font-smoothing:antialiased;
+       padding:14px 14px 40px;line-height:1.45}
+  .wrap{max-width:880px;margin:0 auto}
+  h1{font-size:17px;margin:0 0 3px}
+  .sub{color:var(--ink-soft);font-size:13px;margin:0 0 14px}
+  .stage{position:relative;border-radius:22px;overflow:hidden;box-shadow:0 6px 0 rgba(0,0,0,.06);background:#cfe9f5}
+  .sc-svg{display:block;width:100%;height:auto;aspect-ratio:820/420}
+  .sc-caption{position:absolute;left:0;right:0;bottom:0;pointer-events:none;padding:16px 18px 18px;
+    background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.42));
+    color:#fff;font-size:19px;font-weight:800;text-shadow:0 2px 4px rgba(0,0,0,.35);
+    min-height:56px;display:flex;align-items:flex-end}
+  .sc-choices{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:14px 10px 4px}
+  .sc-obj{border:none;background:var(--card);border-radius:20px;padding:12px 16px 10px;
+    box-shadow:0 5px 0 rgba(0,0,0,.08);cursor:pointer;font:inherit;min-width:96px;
+    display:flex;flex-direction:column;align-items:center;gap:4px;
+    transition:transform .12s cubic-bezier(.2,.9,.3,1.3)}
+  .sc-obj:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.08)}
+  .sc-obj-art{font-size:34px;line-height:1}
+  .sc-obj-label{font-size:15px;font-weight:800;color:var(--ink)}
+  @keyframes sc-bob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-5px) rotate(-1.2deg)}}
+  @keyframes sc-wobble{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+  @keyframes sc-bounce{0%,100%{transform:translateY(0)}45%{transform:translateY(-16px)}}
+  #a-bob{transform-origin:100px 166px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
+  button.ui{font:inherit;font-size:14px;font-weight:700;padding:11px 18px;border-radius:999px;
+    border:2px solid #E6DFCE;background:#fff;color:var(--ink);cursor:pointer}
+  button.ui.primary{background:linear-gradient(180deg,var(--coral),var(--coral-deep));color:#fff;border:none;
+    box-shadow:0 4px 0 rgba(0,0,0,.14)}
+  button.ui:disabled{opacity:.4}
+  .panel{background:#fff;border-radius:16px;padding:13px 16px;margin-top:14px;box-shadow:0 3px 0 rgba(0,0,0,.05)}
+  .panel h2{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);margin:0 0 8px}
+  .note{font-size:13px;color:var(--ink-soft);margin:0}
+  .pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:800;
+    background:#EFF6F1;color:var(--grass-dark);margin-right:5px}
+  code{background:#F3EEE2;padding:1px 5px;border-radius:4px;font-size:12px}
+  .states{display:flex;gap:6px;flex-wrap:wrap}
+  .states button{font-size:12px;padding:7px 12px;border-radius:999px;border:2px solid #E6DFCE;
+    background:#fff;font-weight:700;cursor:pointer;font-family:inherit}
+  .states button[aria-pressed="true"]{background:var(--grass);border-color:var(--grass);color:#fff}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Scene &amp; Actor Contract</h1>
+  <p class="sub">
+    Spec §10 step 4. One scene through every companion state, and the same scene with a
+    different body dropped in — <em>without touching scene code</em>.
+    The child chooses where to go; the engine only chooses which sound is being practised,
+    and every option practises it equally.
+  </p>
+
+  <div class="stage" id="stage"></div>
+  <div class="sc-choices" id="choices"></div>
+
+  <div class="row">
+    <button class="ui primary" id="btnStart">Start</button>
+    <button class="ui" id="btnSwap">Swap companion</button>
+    <button class="ui" id="btnSay">Child says it</button>
+    <button class="ui" id="btnQuiet">Child says nothing</button>
+  </div>
+
+  <div class="panel">
+    <h2>Companion states (contract)</h2>
+    <div class="states" id="stateBtns"></div>
+    <p class="note" style="margin-top:9px" id="stateNote"></p>
+  </div>
+
+  <div class="panel">
+    <h2>What the engine decided (never shown to a child)</h2>
+    <p class="note" id="engineNote">—</p>
+  </div>
+
+  <div class="panel">
+    <h2>Contract check</h2>
+    <p class="note" id="contractNote">—</p>
+  </div>
+</div>
+
+<script type="module">
+import { LessonEngine } from '../engine/engine.js';
+import { keyOf } from '../engine/lexicon.js';
+import { Scene, iconFor } from './scene.js';
+import { ACTORS, actorList, getActor, STATES } from './actors.js';
+
+const $ = (id) => document.getElementById(id);
+const stage = $('stage');
+
+let actorIds = actorList().map(a => a.id);
+let actorIdx = 0;
+let actor = getActor(actorIds[0]);
+let scene = new Scene(stage, actor, $('choices'));
+let engine = null;
+let offer = null;
+window.__kideScene = () => ({ scene, engine, actor, offer });
+
+const STATE_NOTES = {
+  WAIT:    'Holds indefinitely, and is the WARMEST state — never impatient. Nothing advances until the child chooses.',
+  STUCK:   'The companion needs something. Never disappointed, in any scene, ever.',
+  ASK:     'The invitation. The last thing heard is always the thing to answer.',
+  MODEL:   'Always clumsy and endearing, never corrective. This is what a miss looks like.',
+  TRIUMPH: 'Shared WITH the child, never performed AT them — and identical whether they were heard or the attempt cap resolved it.',
+};
+
+$('stateBtns').innerHTML = STATES
+  .map(s => `<button data-s="${s}" aria-pressed="false">${s}</button>`).join('');
+$('stateBtns').querySelectorAll('button').forEach(b => {
+  b.addEventListener('click', () => setState(b.dataset.s));
+});
+
+function setState(s) {
+  scene.pose(s);
+  $('stateBtns').querySelectorAll('button')
+    .forEach(b => b.setAttribute('aria-pressed', String(b.dataset.s === s)));
+  $('stateNote').textContent = STATE_NOTES[s] || '';
+}
+
+// A stand-in scorer so "says nothing" is actually a miss.
+//
+// Without one, submitAttempt treats every call as a tap -- correct behaviour
+// (a tap is always a valid way to play) but it means MODEL and the attempt cap
+// are unreachable here, and those are the two behaviours this page most needs
+// to show. `verdict` is set per-button before each attempt.
+let stubVerdict = 'clear';
+const demoScorer = {
+  score: async () => ({ verdict: stubVerdict, tier: 'demo', score: null, confidence: 0.3 }),
+};
+
+function start() {
+  engine = new LessonEngine({
+    companionName: actor.defaultName, concern: 'unclear', scorer: demoScorer,
+  });
+  nextOffer();
+}
+
+function nextOffer() {
+  offer = engine.offerBeat({ count: 3 });
+  const first = offer.choices[0];
+  scene.render({
+    affordance: first.affordance,
+    state: 'WAIT',
+    caption: `Where shall we go?`,
+    objects: offer.choices.map(c => ({ label: c.word.w, icon: iconFor(c.word.w) })),
+    onPick: (i) => pick(i),
+  });
+  setState('WAIT');
+  $('engineNote').innerHTML =
+    `<span class="pill">target ${keyOf(offer.target)}</span>` +
+    `all ${offer.choices.length} choices practise the same sound — ` +
+    offer.choices.map(c => `<code>${c.word.w}</code> at ${c.affordance}`).join(', ') +
+    `. Whichever the child picks, the lesson is served.`;
+}
+
+async function pick(i) {
+  const beat = engine.chooseBeat(i);
+  scene.render({
+    affordance: beat.affordance,
+    state: 'STUCK',
+    caption: actor.stall(engine.companionName),
+    objects: [],
+  });
+  setState('STUCK');
+  await wait(900);
+  scene.pose('ASK').say(beat.invitation);
+  setState('ASK');
+}
+
+async function attempt(heard) {
+  if (!engine || !engine.current) return;
+  stubVerdict = heard ? 'clear' : 'unsure';
+  const r = await engine.submitAttempt(new Float32Array(16000));
+  if (!heard && !r.resolves) {
+    scene.pose('MODEL').say(r.say);
+    setState('MODEL');
+    return;
+  }
+  scene.pose('TRIUMPH').say(r.say);
+  setState('TRIUMPH');
+  $('engineNote').innerHTML += r.forced
+    ? `<br><b>Resolved on the attempt cap</b> — celebrated identically, and not recorded as mastery.`
+    : '';
+  await wait(1400);
+  nextOffer();
+}
+
+const wait = (ms) => new Promise(r => setTimeout(r, ms));
+
+$('btnStart').addEventListener('click', start);
+$('btnSay').addEventListener('click', () => attempt(true));
+$('btnQuiet').addEventListener('click', () => attempt(false));
+
+$('btnSwap').addEventListener('click', () => {
+  actorIdx = (actorIdx + 1) % actorIds.length;
+  actor = getActor(actorIds[actorIdx]);
+  // THE CONTRACT: one line. No scene code is touched, no scene is re-authored,
+  // and the current state is preserved across a different body plan.
+  scene.setActor(actor);
+  const s = scene.state || 'WAIT';
+  scene.render({
+    affordance: engine?.current?.affordance || offer?.choices[0]?.affordance || 'GAP',
+    state: s,
+    caption: engine ? actor.stall(actor.defaultName) : 'Tap Start',
+    objects: (!engine || !engine.current) && offer
+      ? offer.choices.map(c => ({ label: c.word.w, icon: iconFor(c.word.w) }))
+      : [],
+    onPick: (i) => pick(i),
+  });
+  setState(s);
+  if (engine) engine.companionName = actor.defaultName;
+  $('contractNote').innerHTML =
+    `Swapped to <b>${actor.defaultName}</b> (${actor.species}) with one call to ` +
+    `<code>scene.setActor()</code>. Different body plan, different stall grammar ` +
+    `(&ldquo;${actor.stall(actor.defaultName)}&rdquo;) — same scene code, same states, ` +
+    `same engine. <b>If this had required editing scene.js, the contract would be wrong.</b>`;
+});
+
+// Boot into WAIT so the page is never blank.
+scene.render({
+  affordance: 'GAP', state: 'WAIT',
+  caption: 'Tap Start',
+  objects: [],
+});
+setState('WAIT');
+$('contractNote').textContent =
+  'Swap the companion to test it. scene.js contains no actor name — a test asserts that.';
+</script>
+</body>
+</html>

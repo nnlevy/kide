@@ -236,6 +236,69 @@ export function record(learner, m, success) {
   return promoted;
 }
 
+/** Offer the child several DIFFERENT things they could go and do, all of which
+ *  serve the same phoneme target.
+ *
+ *  This is the child-driven variant of selectNext, and the difference is not
+ *  cosmetic. `selectNext` picks one word at one station and the world pans
+ *  there: the engine decides, the companion needs something, and the child
+ *  supplies it. That makes the COMPANION the protagonist and the child the
+ *  assistant.
+ *
+ *  Here the engine still chooses the target -- the pedagogy stays invisible
+ *  and stays correct -- but the child chooses which of several equally valid
+ *  routes to take. Every option practises the same sound, so their choice
+ *  genuinely drives the world without ever derailing the lesson. The agency
+ *  is real rather than an illusion, and it is the same mechanism that already
+ *  makes Pip's Turn work: the child is the one doing, not the one being
+ *  tested (docs/HABITS.md).
+ *
+ *  Falls back gracefully: if a target can only reach one word, one choice is
+ *  offered rather than none. A single option is still the child's to take.
+ */
+export function offerChoices(learner, { count = 3, avoidStationRepeat = true } = {}) {
+  const { beat, lastKey, lastStation, rng } = learner;
+  const pool = activeTargets(learner);
+  const scored = (pool.length ? pool : Object.values(learner.M))
+    .map((m) => {
+      const s = scoreTarget(m, { beat, lastKey });
+      return { ...s, score: s.base + rng() * JITTER };
+    })
+    .sort((x, y) => y.score - x.score);
+
+  for (const c of scored) {
+    const k = keyOf(c.m);
+    const words = LEX.filter((x) => keyOf(x) === k && x.lvl <= c.m.lvl);
+    let opts = [];
+    for (const x of words) {
+      for (const a of x.aff) {
+        if (!avoidStationRepeat || a !== lastStation) opts.push({ word: x, affordance: a });
+      }
+    }
+    if (!opts.length) continue;
+
+    // Prefer visibly different choices -- distinct words at distinct places.
+    // Two routes to the same object is not a choice a child can feel.
+    const seenWord = new Set(), seenAff = new Set(), spread = [], rest = [];
+    for (let i = opts.length - 1; i > 0; i--) { // shuffle first, so it varies
+      const j = Math.floor(rng() * (i + 1));
+      [opts[i], opts[j]] = [opts[j], opts[i]];
+    }
+    for (const o of opts) {
+      if (!seenWord.has(o.word.w) && !seenAff.has(o.affordance)) {
+        spread.push(o); seenWord.add(o.word.w); seenAff.add(o.affordance);
+      } else rest.push(o);
+    }
+    const chosen = [...spread, ...rest].slice(0, count);
+    if (chosen.length) return { target: c, choices: chosen, scored };
+  }
+
+  if (avoidStationRepeat) return offerChoices(learner, { count, avoidStationRepeat: false });
+  const f = scored[0];
+  const w = LEX.find((x) => keyOf(x) === keyOf(f.m)) || LEX[0];
+  return { target: f, choices: [{ word: w, affordance: w.aff[0] }], scored };
+}
+
 /** The three highest-dueness targets sitting just below the band -- literally
  *  the words most likely to come up next. This is what makes the parent
  *  report's "try these in the car" list a true statement about tomorrow's
