@@ -128,6 +128,12 @@
     <table class="kv" id="envTable"></table>
   </div>
 
+  <details class="panel" id="diagPanel">
+    <summary>Diagnostic log from cold start (verbose ORT logging — select all, copy, paste back if asked)</summary>
+    <p class="status" style="margin-top:8px">Captured only during "Load model &amp; measure cold start" (session create + first inference), then verbose logging switches back off before the latency loop so it doesn't skew the timing. Look here for anything mentioning a kernel/op falling back off the active backend.</p>
+    <pre id="diagLog">(run "Load model &amp; measure cold start" to populate this)</pre>
+  </details>
+
   <details class="panel">
     <summary>Raw JSON (copy this back if you want it read remotely)</summary>
     <pre id="rawJson">{}</pre>
@@ -136,6 +142,7 @@
 
 <script type="module">
 import * as bench from "./gop-bench.js";
+bench.installConsoleCapture(); // before anything else logs
 
 const $ = (id) => document.getElementById(id);
 const state = { data: null, session: null, backend: null, coldStart: null, clipPcm: null, clipIsSynthetic: null, latency: null, gop: null };
@@ -228,6 +235,9 @@ $("btnColdStart").addEventListener("click", async () => {
     setStatus("statusSetup", `Failed: ${err.message}`);
   } finally {
     $("btnColdStart").disabled = false;
+    const log = bench.getConsoleLog();
+    state.consoleLogLineCount = log.length;
+    $("diagLog").textContent = log.length ? log.join("\n") : "(nothing logged — either very quiet on this backend, or logging didn't attach in time)";
     renderRaw();
   }
 });

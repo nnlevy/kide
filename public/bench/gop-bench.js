@@ -44,6 +44,70 @@ async function loadOrt() {
 }
 
 // ---------------------------------------------------------------------------
+// Console capture — an iPad has no easy devtools, so anything ORT logs needs
+// to end up in the page itself, not just the console, or it's unreadable on
+// the one device that actually matters here.
+//
+// `SessionOptions.enableProfiling` looked like the right tool for "which EP
+// actually ran each op" but onnxruntime-common's own .d.ts documents it as
+// "a placeholder for a future use" as of 1.27.0 — it does nothing. The
+// env-level `debug`/`logLevel` flags below are the ones that actually print
+// kernel/EP diagnostics (e.g. an op falling back off WebGPU), so that's what
+// this captures instead.
+// ---------------------------------------------------------------------------
+
+const consoleLog = [];
+const MAX_LOG_LINES = 1500;
+let captureInstalled = false;
+
+function installConsoleCapture() {
+  if (captureInstalled) return;
+  captureInstalled = true;
+  for (const level of ["log", "info", "warn", "error", "debug"]) {
+    const orig = console[level] ? console[level].bind(console) : () => {};
+    console[level] = (...args) => {
+      try {
+        const line = `[${new Date().toISOString().slice(11, 23)}] [${level}] ${args
+          .map((a) => (typeof a === "string" ? a : safeStringify(a)))
+          .join(" ")}`;
+        consoleLog.push(line);
+        if (consoleLog.length > MAX_LOG_LINES) consoleLog.shift();
+      } catch {
+        /* capture must never break the page */
+      }
+      orig(...args);
+    };
+  }
+}
+
+function safeStringify(v) {
+  try {
+    return JSON.stringify(v);
+  } catch {
+    return String(v);
+  }
+}
+
+function getConsoleLog() {
+  return consoleLog.slice();
+}
+
+function clearConsoleLog() {
+  consoleLog.length = 0;
+}
+
+/** Verbose ORT logging is expensive and, past session-creation + the first
+ *  inference, unlikely to reveal anything new (kernel/EP placement is
+ *  decided once, not per-run) — so it's only switched on for cold start and
+ *  switched back to the default before the 20-rep timing loop, to avoid
+ *  logging overhead contaminating the latency numbers. */
+function setVerboseOrtLogging(on) {
+  if (!ort) return;
+  ort.env.debug = on;
+  ort.env.logLevel = on ? "verbose" : "warning";
+}
+
+// ---------------------------------------------------------------------------
 // Data (vocab / lexicon / model registry) — fetched once at page load
 // ---------------------------------------------------------------------------
 
@@ -321,6 +385,8 @@ function summarizeMs(arr) {
  *  visible instead of hidden inside "session create"). */
 async function benchmarkColdStart(modelUrl, epOrder, onProgress) {
   performance.clearResourceTimings();
+  clearConsoleLog();
+  setVerboseOrtLogging(true);
   const t0 = performance.now();
   onProgress?.("creating session / negotiating execution provider…");
   const { session, backend } = await createSession(modelUrl, epOrder);
@@ -330,6 +396,7 @@ async function benchmarkColdStart(modelUrl, epOrder, onProgress) {
   const warmupPcm = makeSyntheticPcm(1.5);
   const first = await runInference(session, warmupPcm);
   const t2 = performance.now();
+  setVerboseOrtLogging(false); // back to quiet before the timing loop
 
   const entries = performance.getEntriesByName(modelUrl);
   const modelEntry = entries[entries.length - 1];
@@ -378,4 +445,5 @@ export {
   loadOrt, loadData, recordFromMic, resampleTo16kMono, makeSyntheticPcm, normalizePcm,
   computeGopSF, greedyDecode, createSession, runInference, benchmarkColdStart,
   benchmarkLatency, summarizeMs, SAMPLE_RATE,
+  installConsoleCapture, getConsoleLog, clearConsoleLog,
 };
