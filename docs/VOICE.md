@@ -73,24 +73,72 @@ off-by-one shipped once already.
 ## Rendering the pack
 
 ```
-npm run voice:words                          # write tools/voice/words-script.json
-OPENAI_API_KEY=... npm run voice:words -- --render
+npm run voice:words          # write the script (tools/voice/words-script.json)
+npm run voice:words:render   # render it -- reads the key from ~/.openclaw/credentials
+npm run test:voice-pack      # measure what nobody will listen for
 ```
 
-The script carries its own voice direction. It is resumable — an existing mp3
-is skipped — and it rewrites `index.json` from what is actually on disk, so the
-player can never claim a clip that isn't there.
+**Rendered with ElevenLabs, not OpenAI**, and the reason is the splice.
+ElevenLabs takes `previous_text` and `next_text` — context the model conditions
+its prosody on but does not speak. So an invitation is rendered *knowing* a
+word follows it, and keeps its rise; a word is rendered *knowing* it completes
+a question, and lands rather than starts. That is exactly the hard part of
+splicing, handed to the API. OpenAI's TTS takes a style instruction but has no
+cross-clip continuity, so every clip would be voiced in ignorance of its
+neighbours.
 
-**The script is generated from the same module that plays the lines.** A
-hand-kept manifest drifts, and the failure mode is silent: half a pack that
-never plays. A test asserts every id the player can ask for exists in the
-script.
+Settings are identical for every clip and stability is high. 116 clips
+recombine in roughly 500 orders; a voice that performs each line beautifully
+but *differently* would betray the splice instantly.
+
+The pack records the voice and model that produced it. Two tools write
+`index.json`, and the id-list refresh used to erase that stamp — which meant
+the deployed pack carried no record of what was in it, and "which voice was
+this rendered with" is the first question when a clip sounds wrong.
+
+### Resuming is fingerprinted, not file-based
+
+Each clip stores a hash of the voice, model, settings, text and prosodic
+context that produced it. Change any of them and exactly the affected clips
+re-render.
+
+This is not tidiness. Resuming on "the file exists" left the pack half at one
+speaking rate and half at another when a re-render was interrupted — invisible
+on disk, obvious the moment a child hears it.
+
+## The pace was wrong, and measured
+
+The first render came out at **5.5 syllables/sec**. That is adult-directed
+speech: a stranger talking over a child's head, and a flat failure of the brand
+direction. Adults speaking to toddlers slow to roughly 3–4 syll/sec.
+
+Fixed at the source (`speed: 0.85`) rather than by post-processing, which
+degrades the audio. Now **4.10 syll/sec**.
+
+The unit matters. The first threshold was in *words* per second, which flatters
+lines like "Can you say" where every word is one syllable — and it failed by
+0.02. Moving a threshold to make a test pass is a failure mode this project has
+already had once, so the unit was corrected and the band taken from the
+child-directed speech literature instead.
+
+## What the pack tests measure
+
+Nobody will listen to 116 clips before a deploy, so:
+
+- **the join** — trailing silence on a phrase plus leading silence on a word is
+  a hole in the middle of a sentence. Budget: 250ms.
+- **the pace** — both bounds. Rushing talks over a child; dragging is
+  patronising and loses them just as fast.
+- **the manifest** — the index may never claim a clip that is not on disk, or a
+  child hears silence mid-sentence.
+- **the weight** — 1.7 MB for 116 clips, under a 3 MB budget.
 
 ## What is not done
 
-- The pack is **not rendered**. No TTS credentials were available.
-- The recorded voice should be a **person**, not a model. The script is written
-  for a human reader — the direction, the unfinished endings and the name
-  splice all assume one.
-- `/play` still has its own separate voice pack. Two systems is one too many;
-  they should converge on this one.
+- The voice is a good model, not a person. The script is written for a human
+  reader — the direction, the unfinished endings and the name splice all assume
+  one — and a real actor is the version worth paying for.
+- Only the names in the bank are recorded. A child who wants a name we do not
+  hold gets the name-free take, which is correct but plainer.
+- `/play` still has a separate voice pack. Two systems is one too many; they
+  should converge on this one.
