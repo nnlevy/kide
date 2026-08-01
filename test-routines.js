@@ -1,10 +1,16 @@
 /* End-to-end check of Pip's Turn — the pretend-play routine screens.
    The assertions here are as much about what must NOT be present (scores,
    streaks, fail states) as about what must: see docs/HABITS.md. */
-const { chromium } = require("playwright");
+
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+
+// A browser test that cannot launch a browser is a SKIP, never a pass and never
+// a crash. It used to throw, which took down `npm test` entirely -- so the suite
+// could not be run end to end and a green single file was mistaken for a green
+// suite. The skip is loud on purpose: silent skips are how coverage evaporates.
+
 
 const ROOT = path.join(__dirname, "dist");
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".mp3": "audio/mpeg", ".json": "application/json", ".png": "image/png", ".txt": "text/plain" };
@@ -41,6 +47,9 @@ async function playThrough(pg, cap) {
 
 (async () => {
   await new Promise((r) => server.listen(8792, r));
+  // One shared guard decides if a browser test can run at all. See test-browser.mjs.
+  const { browserOrSkip } = await import('./test-browser.mjs');
+  const chromium = await browserOrSkip('test-routines');
   const browser = await chromium.launch({
     ...(process.env.PW_CHROME ? { executablePath: process.env.PW_CHROME } : {}),
     args: ["--autoplay-policy=no-user-gesture-required"]

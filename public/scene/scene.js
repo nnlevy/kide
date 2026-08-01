@@ -182,7 +182,8 @@ export class Scene {
     return resolved;
   }
 
-  render({ affordance, state = 'WAIT', objects = [], onPick = null, caption = '', art = null }) {
+  render({ affordance, state = 'WAIT', objects = [], onPick = null, caption = '',
+           art = null, voice = null }) {
     const fb = FALLBACK[affordance] || FALLBACK.GAP;
     const painted = art && art.hasArt ? art.layers : {};
 
@@ -230,6 +231,15 @@ export class Scene {
         ${revealLayerMarkup()}
       </svg>
       <div class="sc-caption">${caption}</div>`;
+
+    // render() paints the caption itself rather than going through say(), so
+    // it has to speak it too. A caption that reaches the screen without
+    // reaching the speaker does not exist for a child who cannot read.
+    if (caption) {
+      this.spoken = this.voiceHook
+        ? Promise.resolve(this.voiceHook(voice || [{ text: caption }])).catch(() => false)
+        : Promise.resolve(false);
+    }
 
     this._mountActor();
     this.pose(state);
@@ -398,9 +408,37 @@ export class Scene {
     return this;
   }
 
-  say(text) {
+  /**
+   * Put a line in the caption -- and speak it, if a voice has been attached.
+   *
+   * The caption is the ONLY place this surface talks to a child, so routing
+   * speech through here rather than through each call site is what guarantees
+   * nothing is ever shown silently. A pre-reader cannot read the caption; if a
+   * line reaches the caption without reaching the speaker, that line does not
+   * exist for the child the product is for.
+   *
+   * @param {string} text   what the caption shows.
+   * @param {Array<{id?:string,text:string}>} [voice]  how to SAY it, when that
+   *   differs from how it reads -- typically a station phrase plus a word,
+   *   played as two clips. Defaults to speaking the caption verbatim.
+   *
+   * Returns `this` so `pose(...).say(...)` still chains. To wait for the line
+   * to finish, await `scene.spoken` -- never a fixed timer, which is precisely
+   * what truncated speech in the garden games.
+   */
+  say(text, voice) {
     const c = this.root.querySelector('.sc-caption');
     if (c) c.textContent = text;
+    this.spoken = this.voiceHook
+      ? Promise.resolve(this.voiceHook(voice || [{ text }])).catch(() => false)
+      : Promise.resolve(false);
+    return this;
+  }
+
+  /** Attach a speaker. Without one the scene is captions-only, which is a
+   *  complete way to play for a reader and an incomplete one for a child. */
+  withVoice(hook) {
+    this.voiceHook = hook;
     return this;
   }
 

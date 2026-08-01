@@ -1,8 +1,17 @@
 /* End-to-end check of the voice layer against the real built site. */
-const { chromium } = require("playwright");
+// Skip cleanly when the browser is not installed, exactly as test-mobile does.
+// This crashed `npm test` outright, which meant the whole suite could not be
+// run end to end -- so a green run of one file was being mistaken for a green
+// suite. A missing browser is a skip; it is never a pass and never a crash.
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+
+// A browser test that cannot launch a browser is a SKIP, never a pass and never
+// a crash. It used to throw, which took down `npm test` entirely -- so the suite
+// could not be run end to end and a green single file was mistaken for a green
+// suite. The skip is loud on purpose: silent skips are how coverage evaporates.
+
 
 const ROOT = path.join(__dirname, "dist");
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".mp3": "audio/mpeg", ".json": "application/json", ".png": "image/png", ".txt": "text/plain" };
@@ -66,6 +75,9 @@ const ok = (c, m) => { if (c) { pass++; console.log("  ✓ " + m); } else { fail
   await new Promise((r) => server.listen(8791, r));
   // PW_CHROME lets a sandbox point at a preinstalled binary; everywhere else
   // Playwright finds its own (npx playwright install chromium).
+  // One shared guard decides if a browser test can run at all. See test-browser.mjs.
+  const { browserOrSkip } = await import('./test-browser.mjs');
+  const chromium = await browserOrSkip('test-voice');
   const browser = await chromium.launch({
     ...(process.env.PW_CHROME ? { executablePath: process.env.PW_CHROME } : {}),
     args: ["--autoplay-policy=no-user-gesture-required", "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"]

@@ -79,6 +79,15 @@
   </div>
 
   <div class="card">
+    <h2>Pip's voice</h2>
+    <p class="muted" id="voiceState">—</p>
+    <div class="note" id="voiceNote">
+      Every line your child sees is also spoken, so a child who can't read a
+      word can play without you having to read it out.
+    </div>
+  </div>
+
+  <div class="card">
     <h2>Listening</h2>
     <p class="muted" id="micState">—</p>
     <div class="row"><button id="btnMic">—</button></div>
@@ -109,6 +118,7 @@
 <script type="module">
 import * as Journal from '../engine/journal.js';
 import * as Consent from '../engine/consent.js';
+import * as Speech from '../engine/speech.js';
 import { buildRecord, narrativeFor, MIN_ATTEMPTS_PER_TARGET } from '../engine/clinical.js';
 import { LEX, keyOf } from '../engine/lexicon.js';
 
@@ -193,6 +203,24 @@ $('btnClear').addEventListener('click', () => {
   $('btnOpen').style.display = 'none';
   render();
 });
+
+// Say out loud which of the three voice routes is actually in use. A parent
+// who is told "spoken aloud" and hears nothing has been misled, so the answer
+// is measured on their device rather than claimed.
+(async () => {
+  const route = await Speech.routeFor({ id: 'chrome-where', text: 'Where shall we go?' });
+  const copy = {
+    recorded: ["Pip's own recorded voice.", null],
+    device: ['Your device\'s built-in voice, which reads the lines out on the device itself. '
+           + 'Pip\'s recorded voice is being made now and will replace it.',
+             'Nothing is sent anywhere to make this speech. If your browser only offered '
+           + 'an online voice, we decline it and stay quiet rather than send the words to a server.'],
+    silent: ['This browser has no built-in voice available, so the lines are shown as text only. '
+           + 'Everything still works — you may need to read them out.', null],
+  }[route];
+  document.getElementById('voiceState').textContent = copy[0];
+  if (copy[1]) document.getElementById('voiceNote').textContent = copy[1];
+})();
 
 renderMic();
 render();

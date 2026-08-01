@@ -33,14 +33,11 @@ const PAGES = [
 ];
 const MIN_TAP = 44, MIN_FORM_FONT = 16;
 
-let chromium;
-for (const mod of ['playwright', 'playwright-core']) {
-  try { ({ chromium } = await import(mod)); break; } catch { /* try the next */ }
-}
-if (!chromium) {
-  console.log('\n(skipped: playwright not installed -- `npx playwright install chromium`)\n');
-  process.exit(0);
-}
+// One shared guard decides if a browser test can run at all. Checking that the
+// module imports is not enough: the package installs fine on a machine whose
+// system libraries are missing, and the launch is what actually fails.
+import { browserOrSkip } from './test-browser.mjs';
+const chromium = await browserOrSkip('test-mobile');
 if (!existsSync('dist/index.html')) {
   console.log('\n(skipped: run `npm run build` first)\n');
   process.exit(0);

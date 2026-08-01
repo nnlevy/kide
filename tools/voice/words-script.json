@@ -1,0 +1,588 @@
+{
+  "packVersion": "v1",
+  "voice": "coral",
+  "direction": "Warm, unhurried, kneeling down to talk to a three-year-old. Never bright or performative, never hurried. The invitation lines END UNFINISHED, on a slight rise, because a word is spoken immediately after them -- do not let the pitch fall at the end. Word clips are said plainly and clearly on their own, as if naming the thing while pointing at it.",
+  "count": 116,
+  "lines": [
+    {
+      "id": "ask-gap",
+      "text": "There's a gap here. Can you say",
+      "note": "the broken bridge -- whole line. ENDS UNFINISHED, slight rise: a word follows immediately."
+    },
+    {
+      "id": "ask-gap-after",
+      "text": "needs a way across. Can you say",
+      "note": "the broken bridge -- follows a spoken NAME, so START mid-sentence as if continuing. Also ends unfinished."
+    },
+    {
+      "id": "ask-reach",
+      "text": "That's too high up. Can you say",
+      "note": "the apple tree -- whole line. ENDS UNFINISHED, slight rise: a word follows immediately."
+    },
+    {
+      "id": "ask-reach-after",
+      "text": "can't reach it. Can you say",
+      "note": "the apple tree -- follows a spoken NAME, so START mid-sentence as if continuing. Also ends unfinished."
+    },
+    {
+      "id": "ask-dark",
+      "text": "It's dark in there. We need",
+      "note": "the dark hollow -- whole line. ENDS UNFINISHED, slight rise: a word follows immediately."
+    },
+    {
+      "id": "ask-dark-after",
+      "text": "needs a light. Can you say",
+      "note": "the dark hollow -- follows a spoken NAME, so START mid-sentence as if continuing. Also ends unfinished."
+    },
+    {
+      "id": "ask-hidden",
+      "text": "Someone's hiding! Is it a",
+      "note": "the little hill -- whole line. ENDS UNFINISHED, slight rise: a word follows immediately."
+    },
+    {
+      "id": "ask-hidden-after",
+      "text": "found something. Is it a",
+      "note": "the little hill -- follows a spoken NAME, so START mid-sentence as if continuing. Also ends unfinished."
+    },
+    {
+      "id": "ask-closed",
+      "text": "This door won't open. We need",
+      "note": "the door -- whole line. ENDS UNFINISHED, slight rise: a word follows immediately."
+    },
+    {
+      "id": "ask-closed-after",
+      "text": "needs to get through. Can you say",
+      "note": "the door -- follows a spoken NAME, so START mid-sentence as if continuing. Also ends unfinished."
+    },
+    {
+      "id": "ask-carry",
+      "text": "It's too heavy to lift. Can you say",
+      "note": "the heavy stone -- whole line. ENDS UNFINISHED, slight rise: a word follows immediately."
+    },
+    {
+      "id": "ask-carry-after",
+      "text": "can't carry it. Can you say",
+      "note": "the heavy stone -- follows a spoken NAME, so START mid-sentence as if continuing. Also ends unfinished."
+    },
+    {
+      "id": "w-apple",
+      "text": "apple",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-bag",
+      "text": "bag",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-ball",
+      "text": "ball",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-basket",
+      "text": "basket",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-basket-up",
+      "text": "basket up",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-bell",
+      "text": "bell",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-big-log",
+      "text": "big log",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-bird",
+      "text": "bird",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-board",
+      "text": "board",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-boat",
+      "text": "boat",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-box",
+      "text": "box",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-bridge",
+      "text": "bridge",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-bright-light",
+      "text": "bright light",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-bug",
+      "text": "bug",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-bunny",
+      "text": "bunny",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-button",
+      "text": "button",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-candle",
+      "text": "candle",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-cart",
+      "text": "cart",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-cat",
+      "text": "cat",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-chain",
+      "text": "chain",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-chick",
+      "text": "chick",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-deer",
+      "text": "deer",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-dog",
+      "text": "dog",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-door",
+      "text": "door",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-duck",
+      "text": "duck",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-fire",
+      "text": "fire",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-fish",
+      "text": "fish",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-fox",
+      "text": "fox",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-frog",
+      "text": "frog",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-gate",
+      "text": "gate",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-glow",
+      "text": "glow",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-golden-key",
+      "text": "golden key",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-goose",
+      "text": "goose",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-handle",
+      "text": "handle",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-hat",
+      "text": "hat",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-hill",
+      "text": "hill",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-hook",
+      "text": "hook",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-key",
+      "text": "key",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-kite",
+      "text": "kite",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-knob",
+      "text": "knob",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-ladder",
+      "text": "ladder",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-lamp",
+      "text": "lamp",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-lantern",
+      "text": "lantern",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-latch",
+      "text": "latch",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-lemon",
+      "text": "lemon",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-light",
+      "text": "light",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-little-mouse",
+      "text": "little mouse",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-lock",
+      "text": "lock",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-log",
+      "text": "log",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-long-rope",
+      "text": "long rope",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-magnet",
+      "text": "magnet",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-mat",
+      "text": "mat",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-match",
+      "text": "match",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-melon",
+      "text": "melon",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-moon",
+      "text": "moon",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-moth",
+      "text": "moth",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-mouse",
+      "text": "mouse",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-nest",
+      "text": "nest",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-net",
+      "text": "net",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-path",
+      "text": "path",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-pillow",
+      "text": "pillow",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-plank",
+      "text": "plank",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-pole",
+      "text": "pole",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-puppy",
+      "text": "puppy",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-push",
+      "text": "push",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-ribbon",
+      "text": "ribbon",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-ring",
+      "text": "ring",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-rock",
+      "text": "rock",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-rope",
+      "text": "rope",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-rope-up",
+      "text": "rope up",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-sheep",
+      "text": "sheep",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-shine",
+      "text": "shine",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-sled",
+      "text": "sled",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-star",
+      "text": "star",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-stick",
+      "text": "stick",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-stone",
+      "text": "stone",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-sun",
+      "text": "sun",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-torch",
+      "text": "torch",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-tray",
+      "text": "tray",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-wagon",
+      "text": "wagon",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-wagon-up",
+      "text": "wagon up",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-wheel",
+      "text": "wheel",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-whistle",
+      "text": "whistle",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-window",
+      "text": "window",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "w-wood",
+      "text": "wood",
+      "note": "said plainly, on its own"
+    },
+    {
+      "id": "chrome-where",
+      "text": "Where shall we go?",
+      "note": "chrome"
+    },
+    {
+      "id": "chrome-try",
+      "text": "Let's say it together.",
+      "note": "chrome"
+    },
+    {
+      "id": "chrome-sleepy",
+      "text": "The light is going down. Time to say goodnight.",
+      "note": "chrome"
+    },
+    {
+      "id": "chrome-goodnight",
+      "text": "Goodnight! See you next time.",
+      "note": "chrome"
+    },
+    {
+      "id": "chrome-wake",
+      "text": "Can you say",
+      "note": "chrome"
+    },
+    {
+      "id": "chrome-who",
+      "text": "Who shall we take with us?",
+      "note": "chrome"
+    },
+    {
+      "id": "chrome-name",
+      "text": "What shall we call them?",
+      "note": "chrome"
+    },
+    {
+      "id": "name-butterbean",
+      "text": "Butterbean",
+      "note": "a chosen companion name -- must be recorded, never synthesised"
+    },
+    {
+      "id": "name-marmalade",
+      "text": "Marmalade",
+      "note": "a chosen companion name -- must be recorded, never synthesised"
+    },
+    {
+      "id": "name-rosie",
+      "text": "Rosie",
+      "note": "a chosen companion name -- must be recorded, never synthesised"
+    },
+    {
+      "id": "name-pip",
+      "text": "Pip",
+      "note": "a chosen companion name -- must be recorded, never synthesised"
+    },
+    {
+      "id": "name-momo",
+      "text": "Momo",
+      "note": "a chosen companion name -- must be recorded, never synthesised"
+    },
+    {
+      "id": "name-bo",
+      "text": "Bo",
+      "note": "a chosen companion name -- must be recorded, never synthesised"
+    },
+    {
+      "id": "name-poppy",
+      "text": "Poppy",
+      "note": "a chosen companion name -- must be recorded, never synthesised"
+    },
+    {
+      "id": "name-dot",
+      "text": "Dot",
+      "note": "a chosen companion name -- must be recorded, never synthesised"
+    },
+    {
+      "id": "name-nell",
+      "text": "Nell",
+      "note": "a chosen companion name -- must be recorded, never synthesised"
+    },
+    {
+      "id": "name-willow",
+      "text": "Willow",
+      "note": "a chosen companion name -- must be recorded, never synthesised"
+    },
+    {
+      "id": "name-kiki",
+      "text": "Kiki",
+      "note": "a chosen companion name -- must be recorded, never synthesised"
+    },
+    {
+      "id": "name-bramble",
+      "text": "Bramble",
+      "note": "a chosen companion name -- must be recorded, never synthesised"
+    }
+  ]
+}

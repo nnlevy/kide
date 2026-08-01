@@ -136,6 +136,7 @@ import { namesFor, nameAsTarget, nameIsScoreable } from '../scene/naming.js';
 import * as Journal from '../engine/journal.js';
 import * as Profile from '../engine/profile.js';
 import * as Consent from '../engine/consent.js';
+import * as Speech from '../engine/speech.js';
 import { startScoringInBackground, previewTier, resampleTo16kMono, SAMPLE_RATE }
   from '../engine/scoring.js';
 
@@ -194,6 +195,13 @@ async function loadVocab(){
 }
 
 /* ---------------------------------------------------------------- step 1 */
+// iOS will not play audio unless the first play() happens inside a real user
+// gesture. Step 1 is a tap, so we spend it on the unlock -- otherwise the
+// opening line would be the one line a child never hears.
+document.addEventListener('pointerdown', () => Speech.unlock(), { once: true });
+// A tab that goes to the background must go quiet. A voice continuing from a
+// pocket or a locked screen is alarming, and it is also speech nobody hears.
+document.addEventListener('visibilitychange', () => { if (document.hidden) Speech.stop(); });
 function renderWho(){
   $('actorPicker').innerHTML = actorList().map((a) => `
     <button class="pick" data-a="${a.id}" aria-pressed="${actor && actor.id === a.id}">
@@ -206,6 +214,7 @@ function renderWho(){
       actor = getActor(b.dataset.a);
       chosenName = null;
       renderWho();
+      Speech.say(Speech.CHROME.nameFirst);
       $('stepWho').classList.add('hidden');
       $('stepName').classList.remove('hidden');
       $('nameTitle').textContent = `What shall we call ${actor.species.replace(/^an? /, '')}?`;
@@ -233,6 +242,7 @@ function renderNames(){
     b.addEventListener('click', () => {
       chosenName = names.find((n) => n.name === b.dataset.n);
       renderNames();
+      Speech.nameVoice(chosenName.name).then((v) => v.length && Speech.sayAll(v));
       $('btnBegin').disabled = false;
     });
   });
@@ -243,6 +253,25 @@ $('btnBegin').addEventListener('click', () => { Profile.save({
 }); begin(); });
 
 /* ---------------------------------------------------------------- step 3 */
+/**
+ * Wait for the current line to FINISH being spoken before the next one starts.
+ *
+ * This replaces every fixed gap between two lines. A fixed gap is what
+ * truncated Pip in the garden games: the caption was overwritten while the
+ * clip was still playing, so a child heard the first word of a sentence and
+ * nothing else. A floor keeps the pacing unhurried when nothing is spoken at
+ * all (no pack, no on-device voice), and a ceiling means a stalled clip can
+ * never freeze the game.
+ */
+const SPEECH_CEILING_MS = 9500;      /* > the 9000ms cap inside speech.js */
+async function said(minMs, maxMs){
+  const spoken = scene ? scene.spoken : Promise.resolve(false);
+  await Promise.race([
+    Promise.all([spoken, wait(minMs || 0)]),
+    wait(maxMs || SPEECH_CEILING_MS),
+  ]);
+}
+
 async function begin(){
   $('stepWho').classList.add('hidden');
   $('stepName').classList.add('hidden');
@@ -250,6 +279,10 @@ async function begin(){
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
   scene = new Scene($('stage'), actor, $('choices'));
+  // Every caption from here on is spoken. Routing it through the scene
+  // rather than each call site is what makes it impossible to add a line
+  // later that a pre-reader silently cannot access.
+  scene.withVoice((lines) => Speech.sayAll(lines));
   engine = new LessonEngine({
     companionName: chosenName.name, concern: 'unclear',
     // `scorer` is null until a grown-up enables listening; the engine treats a
@@ -272,9 +305,11 @@ async function begin(){
     word: first, affordance: 'HIDDEN', station: null, beat: 0,
   };
   engine.attempt = 0;
+  // Spoken as two clips so the name/word is the real recorded take.
   scene.say(actor.wakes
     ? `Can you say ${first.w}? That's how ${first.w} wakes up.`
-    : `Can you say ${first.w}?`);
+    : `Can you say ${first.w}?`,
+    [Speech.CHROME.wake, Speech.wordLine(first.w)]);
   showSay(first.w);
 }
 
@@ -333,8 +368,9 @@ async function resolveAttempt(pcm){
   // asks again, warmth unchanged. Never a failure, never a score.
   if (!r.resolves) {
     scene.pose('MODEL').say(r.say);
-    await wait(1400);
-    scene.pose('ASK').say(`Let's try together — ${engine.current.word.w}.`);
+    await said(1400);
+    scene.pose('ASK').say(`Let's try together — ${engine.current.word.w}.`,
+      [Speech.CHROME.tryAgain, Speech.wordLine(engine.current.word.w)]);
     showSay(engine.current.word.w);
     return;
   }
@@ -353,7 +389,7 @@ async function nextOffer(){
   const first = offer.choices[0];
   const art = await scene.loadArt(first.affordance);
   scene.render({ affordance: first.affordance, state: 'WAIT', art,
-    caption: 'Where shall we go?',
+    caption: 'Where shall we go?', voice: [Speech.CHROME.where],
     objects: offer.choices.map((c) => ({ label: c.word.w })),
     onPick: pick });
   scene.setTimeOfDay(engine.learner.beat / BEATS_PER_DAY);
@@ -369,8 +405,9 @@ async function pick(i){
   else scene.render({ affordance: beat.affordance, state: 'WAIT', art });
   scene.setTimeOfDay(engine.learner.beat / BEATS_PER_DAY);
   scene.pose('STUCK').say(actor.stall(engine.companionName));
-  await wait(850);
-  scene.pose('ASK').say(beat.invitation);
+  const invite = await Speech.askVoice(beat.affordance, beat.word.w, engine.companionName);
+  await said(850);
+  scene.pose('ASK').say(beat.invitation, invite);
   showSay(beat.word.w);
 }
 
@@ -379,11 +416,12 @@ async function goodnight(){
   scene.setTimeOfDay(1);
   $('dayDot').style.left = '100%';
   scene.clearChoices();
-  scene.pose('WAIT').say(`The light is going down. ${engine.companionName} is getting sleepy…`);
+  scene.pose('WAIT').say(`The light is going down. ${engine.companionName} is getting sleepy…`,
+    [Speech.CHROME.sleepy]);
   $('sayRow').innerHTML =
     `<button class="big-btn" id="btnNight">Goodnight, ${engine.companionName}</button>`;
   $('btnNight').addEventListener('click', () => {
-    scene.say(`Goodnight! See you next time.`);
+    scene.say(`Goodnight! See you next time.`, [Speech.CHROME.goodnight]);
     $('sayRow').innerHTML = '<a class="big-btn ghost" href="/play">Back to the garden</a>';
   });
   $('quiet').textContent = 'The day ended on its own — nobody had to take the tablet away.';

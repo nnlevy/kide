@@ -307,8 +307,14 @@ console.log('--- /words: listening is off until a grown-up says otherwise ---');
   // test. A guard that fires on its own subject matter is a bad guard.
   ok('the re-invite is warm, not corrective', /Let's try together/.test(words));
   {
-    const childLines = [...words.matchAll(/\.say\(`([^`]*)`\)/g)].map((m) => m[1])
-      .concat([...words.matchAll(/caption:\s*`([^`]*)`/g)].map((m) => m[1]));
+    // Tolerant of extra arguments on purpose. say() gained a second argument
+    // (how to SPEAK the line) and the old pattern -- which required the call to
+    // close straight after the backtick -- silently matched nothing. A safety
+    // check that quietly stops checking is worse than one that fails, which is
+    // why the "are there any lines at all" guard below is not optional.
+    const childLines = [...words.matchAll(/\.say\(\s*`([^`]*)`/g)].map((m) => m[1])
+      .concat([...words.matchAll(/caption:\s*`([^`]*)`/g)].map((m) => m[1]))
+      .concat([...words.matchAll(/caption:\s*'([^']*)'/g)].map((m) => m[1]));
     ok('the child is never told they were wrong',
        childLines.length > 0 && !childLines.some((l) => /wrong|incorrect|failed|no,|not quite right/i.test(l)),
        childLines.filter((l) => /wrong|incorrect|failed/i.test(l)).join(' | '));
