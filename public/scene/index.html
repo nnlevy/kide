@@ -62,6 +62,10 @@
   button.ui.primary{background:var(--sunstone);color:var(--ink);border:none;
     box-shadow:0 4px 0 rgba(138,63,34,.35)}
   button.ui:disabled{opacity:.4}
+  /* An anchor styled as a button needs the same floor as a real one -- an
+     earlier inline style left this at 23px tall. */
+  a.ui.link{display:inline-flex;align-items:center;justify-content:center;
+    text-decoration:none;min-height:48px;padding:13px 20px}
   .panel{background:#fff;border-radius:18px;padding:14px 17px;margin-top:14px;box-shadow:0 3px 0 rgba(0,0,0,.05)}
   .panel h2{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);margin:0 0 8px}
   .note{font-size:13px;color:var(--ink-soft);margin:0}
@@ -111,6 +115,7 @@
     <button class="ui primary" id="btnSay" disabled>Child says it</button>
     <button class="ui" id="btnQuiet" disabled>Child says nothing</button>
     <button class="ui" id="btnSwap">Swap companion</button>
+    <a class="ui link" href="/clinician/">Practice record →</a>
   </div>
 
   <div class="panel">

@@ -14,11 +14,12 @@
 		"test:routines": "npm run build && node test-routines.js",
 		"test:engine": "node test-engine.mjs",
 		"test:scene": "node test-scene.mjs",
+		"test:clinical": "node test-clinical.mjs",
 		"test:mobile": "npm run build && node test-mobile.mjs",
 		"lexicon:build": "python3 tools/lexicon/build_lexicon.py",
 		"calibrate": "python3 tools/calibrate/calibrate.py",
 		"share:render": "node tools/share/card.js",
-		"test": "npm run test:engine && npm run test:scene && npm run test:mobile && npm run test:voice && node test-routines.js",
+		"test": "npm run test:engine && npm run test:scene && npm run test:clinical && npm run test:mobile && npm run test:voice && node test-routines.js",
 		"demo:render": "npm run build && node tools/share/demo.js"
 	},
 	"devDependencies": {

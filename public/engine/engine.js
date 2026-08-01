@@ -50,9 +50,12 @@ export class LessonEngine {
    *                                      which is a complete experience)
    * @param {Function} opts.rng           injectable for deterministic tests
    */
-  constructor({ companionName = 'Butterbean', concern = 'unclear', scorer = null, rng = Math.random } = {}) {
+  constructor({ companionName = 'Butterbean', concern = 'unclear', scorer = null,
+                rng = Math.random, clock = () => Date.now() } = {}) {
     this.companionName = companionName;
     this.scorer = scorer;
+    // Injectable so clinical output is deterministic under test.
+    this.clock = clock;
     this.learner = createLearner({ concern, rng });
     this.current = null;
     this.attempt = 0;
@@ -188,6 +191,19 @@ export class LessonEngine {
       forced: forced && !heardClearly,
       promoted,
       pHat: pHat(this.current.target),
+      // --- fields the clinical layer needs (public/engine/clinical.js) ------
+      // `at` makes adherence computable at all -- days practised, session
+      // count, longest lapse. That is the number no one else in this category
+      // can produce, and it is unrecoverable if not stamped at the moment of
+      // the attempt.
+      at: this.clock(),
+      // Level at the time of the attempt. Recorded here because the target's
+      // level MUTATES on promotion, so reading it later would misattribute
+      // every earlier attempt to the level the child eventually reached.
+      level: this.current.target.lvl,
+      // Timestamped, per-phoneme, and never audio. The amended COPPA Rule
+      // lists voiceprints as biometric personal information; nothing in this
+      // record could re-identify a child by voice.
     };
     this.log.push(beatRecord);
 

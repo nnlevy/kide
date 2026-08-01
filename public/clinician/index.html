@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Kide · practice record</title>
+<style>
+  :root{
+    --paper:#fff; --ink:#22303A; --ink-soft:#5A6B76; --ink-faint:#8B9AA4;
+    --line:#DFE5E9; --sunstone:#E17C5B; --sunstone-ink:#8A3F22;
+    --good:#3E7C5A; --watch:#9A6B1F;
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#EEF1F3;color:var(--ink);line-height:1.5;
+       padding:16px 14px calc(40px + env(safe-area-inset-bottom,0px))}
+  .sheet{max-width:820px;margin:0 auto;background:var(--paper);border-radius:14px;
+         padding:26px 28px;box-shadow:0 2px 14px rgba(20,40,55,.09)}
+  h1{font-size:20px;margin:0 0 2px}
+  .meta{font-size:12.5px;color:var(--ink-faint);margin:0 0 18px}
+  h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);
+     margin:26px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  .narrative p{font-size:15.5px;margin:0 0 8px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+     color:var(--ink-faint);font-weight:700;padding:6px 8px;border-bottom:1px solid var(--line)}
+  td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .ci{position:relative;height:16px;background:#F1F4F6;border-radius:8px;min-width:130px}
+  .ci i{position:absolute;top:3px;height:10px;background:#BFD3C6;border-radius:5px}
+  .ci b{position:absolute;top:0;width:2px;height:16px;background:var(--good)}
+  .ci u{position:absolute;top:-3px;bottom:-3px;width:1px;background:var(--ink-faint);opacity:.35}
+  .tag{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700}
+  .tag.up{background:#E6F0E9;color:var(--good)}
+  .tag.flat{background:#F0F2F3;color:var(--ink-faint)}
+  .tag.watch{background:#F6EEDC;color:var(--watch)}
+  .tag.thin{background:#F0F2F3;color:var(--ink-faint)}
+  .kv{display:grid;grid-template-columns:1fr auto;gap:2px 14px;font-size:14.5px}
+  .kv span:nth-child(even){font-variant-numeric:tabular-nums;font-weight:700}
+  .note{font-size:12.5px;color:var(--ink-soft);background:#F7F9FA;border-left:3px solid var(--line);
+        padding:11px 13px;border-radius:0 8px 8px 0;margin-top:12px}
+  .note b{color:var(--ink)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 0}
+  button{font:inherit;font-size:16px;font-weight:700;padding:13px 20px;min-height:48px;
+         border-radius:999px;border:2px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
+  button.primary{background:var(--sunstone);color:var(--ink);border-color:var(--sunstone)}
+  @media print{
+    body{background:#fff;padding:0}
+    .sheet{box-shadow:none;max-width:none;border-radius:0;padding:0}
+    .row{display:none}
+  }
+</style>
+<link rel="stylesheet" href="../mobile.css">
+</head>
+<body>
+<div class="sheet" id="sheet">
+  <h1>Practice record</h1>
+  <p class="meta" id="meta">—</p>
+
+  <h2>Summary</h2>
+  <div class="narrative" id="narrative"></div>
+
+  <h2>Adherence</h2>
+  <div class="kv" id="adherence"></div>
+  <div class="note">
+    <b>Why this section exists.</b> Home-programme adherence is normally invisible — a
+    printable goes home and nobody can say whether it was used. These figures come from
+    the practice itself, not from a parent's recall.
+  </div>
+
+  <h2>Produced correctly, by sound</h2>
+  <table id="targets">
+    <thead><tr>
+      <th>Sound</th><th class="num">Attempts</th><th>Rate (90% credible interval)</th>
+      <th class="num">Rate</th><th>Change</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+  <div class="note" id="method"></div>
+
+  <div class="row">
+    <button class="primary" onclick="window.print()">Print / save as PDF</button>
+    <button id="btnJson">Copy underlying data</button>
+    <button id="btnDemo">Load a worked example</button>
+  </div>
+</div>
+
+<script type="module">
+import { buildRecord, narrativeFor, METHOD_VERSION, MIN_ATTEMPTS_PER_TARGET, CI_MASS }
+  from '../engine/clinical.js';
+
+const $ = (id) => document.getElementById(id);
+let record = null;
+window.__kideClinical = () => record;
+
+function render(rec) {
+  record = rec;
+  $('meta').textContent =
+    `Generated ${new Date(rec.generatedAt).toLocaleString()} · method ${rec.methodVersion} · `
+    + `${rec.scoredAttempts} scored of ${rec.totalAttempts} attempts`;
+
+  $('narrative').innerHTML = narrativeFor(rec).map((l) => `<p>${l}</p>`).join('');
+
+  const a = rec.adherence;
+  $('adherence').innerHTML = a.days ? [
+    ['Days practised', `${a.days} of ${a.spanDays} (${Math.round(a.daysPractisedRate * 100)}%)`],
+    ['Sessions', a.sessions],
+    ['Attempts per session', a.attemptsPerSession.toFixed(1)],
+    ['Longest break', `${a.longestGapDays} day${a.longestGapDays === 1 ? '' : 's'}`],
+    ['Days since last practice', a.daysSinceLastPractice],
+    ['First / last practice', `${a.firstPractice.slice(0, 10)} → ${a.lastPractice.slice(0, 10)}`],
+  ].map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join('') : '<span>No practice recorded</span><span>—</span>';
+
+  const tb = $('targets').querySelector('tbody');
+  tb.innerHTML = rec.targets.length ? rec.targets.map((t) => {
+    if (t.insufficientEvidence) {
+      return `<tr><td>/${t.phoneme}/ <span style="color:var(--ink-faint)">${t.position}</span></td>
+        <td class="num">${t.attempts}</td>
+        <td colspan="2" style="color:var(--ink-faint);font-size:13px">
+          below ${MIN_ATTEMPTS_PER_TARGET} attempts — no rate reported</td>
+        <td><span class="tag thin">too few</span></td></tr>`;
+    }
+    const c = t.producedCorrectly;
+    const tag = { improving: ['up', 'improving'], declining: ['watch', 'lower recently'],
+                  'no-clear-change': ['flat', 'no clear change'],
+                  'insufficient-data': ['thin', 'too few'] }[t.trend.direction];
+    return `<tr>
+      <td>/${t.phoneme}/ <span style="color:var(--ink-faint)">${t.position}</span></td>
+      <td class="num">${t.attempts}</td>
+      <td><div class="ci">
+        <i style="left:${(c.lo * 100).toFixed(1)}%;width:${((c.hi - c.lo) * 100).toFixed(1)}%"></i>
+        <b style="left:${(c.point * 100).toFixed(1)}%"></b>
+        <u style="left:50%"></u>
+      </div></td>
+      <td class="num">${Math.round(c.point * 100)}%<br>
+        <span style="font-size:11px;color:var(--ink-faint)">${Math.round(c.lo * 100)}–${Math.round(c.hi * 100)}</span></td>
+      <td><span class="tag ${tag[0]}">${tag[1]}</span></td></tr>`;
+  }).join('') : '<tr><td colspan="5" style="color:var(--ink-faint)">No sounds practised yet.</td></tr>';
+
+  $('method').innerHTML =
+    `<b>Method.</b> Rates are the proportion of attempts scored as clearly produced, from audio only — `
+    + `taps and attempts resolved on the encouragement cap are excluded `
+    + `(${rec.excludedTaps} and ${rec.excludedForcedResolutions} respectively here). `
+    + `Intervals are Jeffreys ${Math.round(CI_MASS * 100)}% credible intervals, which behave correctly `
+    + `at small samples and near 0% or 100% where a struggling sound sits. A change is only reported `
+    + `when the earlier and later intervals do not overlap. `
+    + `<br><br><b>${rec.disclaimer}</b>`;
+}
+
+$('btnJson').addEventListener('click', async () => {
+  await navigator.clipboard.writeText(JSON.stringify(record, null, 2));
+  $('btnJson').textContent = 'Copied';
+  setTimeout(() => { $('btnJson').textContent = 'Copy underlying data'; }, 1600);
+});
+
+/** A worked example, so the artifact can be evaluated before a real child has
+ *  used it.
+ *
+ *  Spans 28 days -- a realistic clinical review period -- rather than a
+ *  fortnight. That is not padding: at two weeks the method correctly REFUSES
+ *  to call even a genuine 25-point improvement, because with ~22 attempts per
+ *  half the intervals still overlap. Showing a month is what demonstrates the
+ *  capability honestly, and the fact that a fortnight is not enough is itself
+ *  something a clinician should know before relying on it. */
+$('btnDemo').addEventListener('click', () => {
+  const t0 = Date.parse('2026-07-14T09:00:00Z');
+  const log = [];
+  const push = (day, n, target, word, rate) => {
+    for (let i = 0; i < n; i++) {
+      log.push({
+        target, word, tier: 'gop-webgpu', forced: false, level: 2,
+        verdict: Math.random() < rate ? 'clear' : 'unsure',
+        at: t0 + day * 86400000 + i * 90000,
+      });
+    }
+  };
+  for (let d = 0; d < 28; d++) {
+    if (d === 9 || d === 10 || d === 11) continue;        // a real lapse
+    push(d, 4, 'r_initial', 'rope', d < 14 ? 0.28 : 0.60); // emerging
+    push(d, 3, 'm_initial', 'moon', 0.92);                 // strong
+    push(d, 3, 's_initial', 'sun',  0.5);                  // no clear change
+  }
+  push(27, 4, 'l_initial', 'lamp', 0.5);                   // too few to report
+  // two attempts that must NOT count, to show the exclusions working
+  log.push({ target: 'r_initial', word: 'rope', tier: 'tap', forced: false, verdict: 'clear', at: t0, level: 2 });
+  log.push({ target: 'r_initial', word: 'rope', tier: 'gop-webgpu', forced: true, verdict: 'unsure', at: t0, level: 2 });
+  render(buildRecord(log, { now: t0 + 28 * 86400000 }));
+});
+
+// Real data arrives via ?data= (base64 JSON of the engine log) so a parent can
+// hand a clinician a link without an account or a server round-trip.
+const param = new URLSearchParams(location.search).get('data');
+if (param) {
+  try { render(buildRecord(JSON.parse(atob(param)))); }
+  catch { render(buildRecord([])); }
+} else {
+  render(buildRecord([]));
+}
+</script>
+</body>
+</html>
