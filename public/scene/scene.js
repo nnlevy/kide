@@ -1,66 +1,94 @@
 // scene.js -- renders a scene and poses whatever actor it is handed.
 //
 // THIS FILE MUST NEVER NAME A SPECIFIC ACTOR. No 'dog', no 'cat', no
-// 'Butterbean'. It receives an actor object satisfying the contract in
-// actors.js and poses it by anchor id. test-scene.mjs greps this file for
-// actor names and fails if one appears -- if the scene knows what animal it
-// is rendering, the contract has already leaked and swapping bodies will
-// require touching scene code, which is the thing the contract exists to
-// prevent.
+// 'Butterbean'. It receives an actor satisfying the contract in actors.js and
+// poses it by anchor id. test-scene.mjs greps this file and fails if an actor
+// name appears -- a contract that holds by convention leaks the first time
+// someone adds a wagging-tail special case, and by then the scenes are
+// painted. It also never names a phoneme: a scene knows it has a GAP, not that
+// /r/ is being practised.
 //
-// It also never names a phoneme. A scene knows it has a GAP; it does not know
-// that /r/ is being practised (spec section 3).
+// TWO WAYS TO RENDER, one code path:
+//   * real commissioned artwork -- layered WebP (background/midground/
+//     foreground) resolved by assets.js;
+//   * the painterly SVG fallback below, for any layer not yet delivered.
+// Scenes can therefore go live one layer at a time, and the product is never
+// broken by art that hasn't arrived.
+//
+// Both are lit by the SAME low-angle warm key (palette.KEY_LIGHT) and carry
+// the same paper grain, so swapping a fallback for real art changes the
+// drawing without changing the time of day.
 
 import { MOUTHS, REQUIRED_ANCHORS } from './actors.js';
+import { ENV, KEY_LIGHT, BLOOM_GOLD, SUNSTONE } from './palette.js';
+import { LAYERS, PARALLAX, resolveSceneArt } from './assets.js';
+import { revealDefs, revealLayerMarkup, playReveal } from './reveal.js';
 
-/** Backdrops per affordance. Deliberately simple flat shapes: this is a rig to
- *  prove the contract and the interaction, not final art. The illustrator's
- *  gouache drops into these same slots. */
-const BACKDROPS = {
+const W = 1200, H = 600;
+
+/** Painterly fallback backdrops.
+ *
+ *  Deliberately soft and layered rather than flat: the bible is explicit that
+ *  the style is "Jon Klassen meets Sydney Smith... no vector-flat shading".
+ *  These will not pass for gouache -- nothing hand-authored in SVG will -- but
+ *  they establish the composition, the depth order and the key light that the
+ *  real art inherits, so the commissioned pieces drop into a world that
+ *  already behaves correctly. */
+const FALLBACK = {
   GAP: {
-    sky: ['#8FD3E8', '#D9F0FA'], ground: '#7FBF6A',
-    art: `<path d="M0 300 L300 300 L300 420 L0 420 z" fill="#7FBF6A"/>
-          <path d="M300 300 L300 420 L520 420 L520 300 z" fill="#6BA85A" opacity=".0"/>
-          <path d="M520 300 L820 300 L820 420 L520 420 z" fill="#7FBF6A"/>
-          <path d="M300 300 q110 40 220 0 L520 420 L300 420 z" fill="#4A6FA5" opacity=".35"/>`,
-    label: 'the broken bridge',
+    sky: [ENV.skyHi, ENV.skyLo],
+    background: `<path d="M0 300 q160 -92 330 -18 q150 66 300 -14 q180 -96 570 26 L1200 380 L0 380 z" fill="${ENV.hillFar}" opacity=".75"/>
+                 <path d="M0 340 q220 -70 430 -6 q210 62 420 -22 q170 -66 350 12 L1200 420 L0 420 z" fill="${ENV.hillNear}" opacity=".8"/>`,
+    midground: `<path d="M0 470 L1200 470 L1200 600 L0 600 z" fill="${ENV.water}"/>
+                <path d="M0 470 q300 26 600 0 q300 -26 600 0 L1200 505 L0 505 z" fill="${ENV.waterDeep}" opacity=".45"/>`,
+    foreground: `<path d="M0 430 L470 430 L470 600 L0 600 z" fill="${ENV.grass}"/>
+                 <path d="M730 430 L1200 430 L1200 600 L730 600 z" fill="${ENV.grass}"/>
+                 <path d="M0 430 L470 430 L470 452 L0 452 z" fill="${ENV.grassDeep}" opacity=".5"/>
+                 <path d="M730 430 L1200 430 L1200 452 L730 452 z" fill="${ENV.grassDeep}" opacity=".5"/>
+                 <rect x="380" y="424" width="120" height="17" rx="5" fill="${ENV.wood}"/>
+                 <rect x="700" y="424" width="120" height="17" rx="5" fill="${ENV.wood}"/>
+                 <rect x="380" y="437" width="120" height="7" rx="3" fill="${ENV.woodDeep}" opacity=".6"/>
+                 <rect x="700" y="437" width="120" height="7" rx="3" fill="${ENV.woodDeep}" opacity=".6"/>`,
   },
   REACH: {
-    sky: ['#9BDCEF', '#E2F5FC'], ground: '#7FBF6A',
-    art: `<path d="M0 320 L820 320 L820 420 L0 420 z" fill="#7FBF6A"/>
-          <rect x="600" y="150" width="26" height="180" rx="12" fill="#8A6242"/>
-          <circle cx="613" cy="128" r="76" fill="#5FAE55"/>
-          <circle cx="560" cy="150" r="46" fill="#6DBE60"/>
-          <circle cx="668" cy="152" r="42" fill="#6DBE60"/>`,
-    label: 'the tall tree',
+    sky: [ENV.skyHi, ENV.skyLo],
+    background: `<path d="M0 330 q240 -80 480 -12 q240 68 480 -18 q120 -40 240 8 L1200 400 L0 400 z" fill="${ENV.hillFar}" opacity=".7"/>`,
+    midground: `<rect x="880" y="210" width="34" height="250" rx="15" fill="${ENV.woodDeep}"/>
+                <circle cx="897" cy="182" r="104" fill="${ENV.grassDeep}" opacity=".9"/>
+                <circle cx="812" cy="214" r="64" fill="${ENV.grass}" opacity=".92"/>
+                <circle cx="982" cy="216" r="58" fill="${ENV.grass}" opacity=".92"/>`,
+    foreground: `<path d="M0 452 L1200 452 L1200 600 L0 600 z" fill="${ENV.grass}"/>
+                 <path d="M0 452 L1200 452 L1200 474 L0 474 z" fill="${ENV.grassDeep}" opacity=".45"/>`,
   },
   DARK: {
-    sky: ['#3C5A8A', '#7C8FC9'], ground: '#4C6B44',
-    art: `<path d="M0 320 L820 320 L820 420 L0 420 z" fill="#4C6B44"/>
-          <path d="M470 320 q0 -130 130 -130 q130 0 130 130 z" fill="#2B3A2B"/>
-          <ellipse cx="600" cy="320" rx="96" ry="20" fill="#1E2A1E"/>`,
-    label: 'the dark hollow',
+    sky: [ENV.duskHi, ENV.duskLo],
+    background: `<path d="M0 320 q260 -70 520 -6 q250 62 500 -16 L1200 400 L0 400 z" fill="#4A5C74" opacity=".8"/>`,
+    midground: `<path d="M660 470 q0 -186 190 -186 q190 0 190 186 z" fill="#2E3D34"/>
+                <ellipse cx="850" cy="470" rx="140" ry="26" fill="#222E27"/>`,
+    foreground: `<path d="M0 462 L1200 462 L1200 600 L0 600 z" fill="#4C6B44"/>
+                 <path d="M0 462 L1200 462 L1200 482 L0 482 z" fill="#3C5637" opacity=".5"/>`,
   },
   HIDDEN: {
-    sky: ['#8FD3E8', '#DCF1F8'], ground: '#7FBF6A',
-    art: `<path d="M0 330 L820 330 L820 420 L0 420 z" fill="#7FBF6A"/>
-          <path d="M430 330 q120 -120 250 -10 z" fill="#6BAF5C"/>
-          <path d="M430 330 q120 -120 250 -10" fill="none" stroke="#5C9C4F" stroke-width="4"/>`,
-    label: 'the little hill',
+    sky: [ENV.skyHi, ENV.skyLo],
+    background: `<path d="M0 330 q240 -78 480 -10 q240 66 480 -16 L1200 400 L0 400 z" fill="${ENV.hillFar}" opacity=".7"/>`,
+    midground: `<path d="M620 470 q170 -168 350 -14 z" fill="${ENV.hillNear}"/>`,
+    foreground: `<path d="M0 462 L1200 462 L1200 600 L0 600 z" fill="${ENV.grass}"/>
+                 <path d="M620 470 q170 -168 350 -14" fill="none" stroke="${ENV.grassDeep}" stroke-width="5" opacity=".55"/>`,
   },
   CLOSED: {
-    sky: ['#8FD3E8', '#DCF1F8'], ground: '#7FBF6A',
-    art: `<path d="M0 320 L820 320 L820 420 L0 420 z" fill="#7FBF6A"/>
-          <rect x="520" y="120" width="180" height="200" rx="10" fill="#9A6B45"/>
-          <rect x="540" y="140" width="140" height="160" rx="6" fill="#B07C52"/>`,
-    label: 'the door',
+    sky: [ENV.skyHi, ENV.skyLo],
+    background: `<path d="M0 340 q260 -70 520 -8 q250 60 500 -14 L1200 410 L0 410 z" fill="${ENV.hillFar}" opacity=".65"/>`,
+    midground: `<rect x="760" y="178" width="250" height="292" rx="14" fill="${ENV.woodDeep}"/>
+                <rect x="784" y="202" width="202" height="244" rx="9" fill="${ENV.wood}"/>
+                <rect x="784" y="300" width="202" height="9" fill="${ENV.woodDeep}" opacity=".45"/>`,
+    foreground: `<path d="M0 462 L1200 462 L1200 600 L0 600 z" fill="${ENV.grass}"/>`,
   },
   CARRY: {
-    sky: ['#8FD3E8', '#DCF1F8'], ground: '#7FBF6A',
-    art: `<path d="M0 320 L820 320 L820 420 L0 420 z" fill="#7FBF6A"/>
-          <path d="M540 320 q10 -90 90 -90 q80 0 90 90 z" fill="#9AA3A8"/>
-          <path d="M566 320 q8 -62 64 -62" fill="none" stroke="#B7BEC2" stroke-width="7"/>`,
-    label: 'the heavy stone',
+    sky: [ENV.skyHi, ENV.skyLo],
+    background: `<path d="M0 336 q250 -74 500 -8 q245 62 490 -16 L1200 404 L0 404 z" fill="${ENV.hillFar}" opacity=".68"/>`,
+    midground: `<path d="M760 470 q14 -128 128 -128 q114 0 128 128 z" fill="#9AA3A8"/>
+                <path d="M797 470 q11 -88 91 -88" fill="none" stroke="#B7BEC2" stroke-width="9" opacity=".8"/>`,
+    foreground: `<path d="M0 462 L1200 462 L1200 600 L0 600 z" fill="${ENV.grass}"/>`,
   },
 };
 
@@ -71,23 +99,59 @@ const BOB = {
   bounce: 'sc-bounce 0.7s cubic-bezier(.2,.9,.3,1.3) infinite',
 };
 
+/** Paper grain + edge pooling.
+ *
+ *  The bible asks for "visible gouache paper grain, watercolor edge-pooling"
+ *  and explicitly rules out vector-flat. feTurbulence gives real grain, and a
+ *  small displacement on the shapes softens the machine-perfect vector edges
+ *  into something closer to a wet edge. Applied to the fallback art only --
+ *  real gouache arrives with its grain already in the pixels, and running a
+ *  filter over it would just soften someone's painting. */
+function textureDefs() {
+  return `
+  <filter id="sc-paper" x="-5%" y="-5%" width="110%" height="110%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="4" seed="7" result="grain"/>
+    <feColorMatrix in="grain" type="saturate" values="0" result="g"/>
+    <feComponentTransfer in="g" result="soft"><feFuncA type="linear" slope="0.16"/></feComponentTransfer>
+    <feComposite in="soft" in2="SourceGraphic" operator="in" result="masked"/>
+    <feBlend in="SourceGraphic" in2="masked" mode="multiply"/>
+  </filter>
+
+  <filter id="sc-pool" x="-8%" y="-8%" width="116%" height="116%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="3" seed="3" result="warp"/>
+    <feDisplacementMap in="SourceGraphic" in2="warp" scale="7" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+
+  <linearGradient id="sc-key" x1="0" y1="0" x2="1" y2="0.35">
+    <stop offset="0%"   stop-color="${KEY_LIGHT.warm}" stop-opacity=".42"/>
+    <stop offset="45%"  stop-color="${KEY_LIGHT.warm}" stop-opacity=".12"/>
+    <stop offset="100%" stop-color="${KEY_LIGHT.warm}" stop-opacity="0"/>
+  </linearGradient>
+
+  <radialGradient id="sc-vignette" cx="50%" cy="46%" r="72%">
+    <stop offset="60%"  stop-color="#000" stop-opacity="0"/>
+    <stop offset="100%" stop-color="#3A2E22" stop-opacity=".26"/>
+  </radialGradient>`;
+}
+
 export class Scene {
   /**
    * @param {HTMLElement} root         the stage (art + caption overlay)
    * @param {object}      actor        any object satisfying the Actor Contract
-   * @param {HTMLElement} choicesRoot  where the child's choices are rendered.
+   * @param {HTMLElement} choicesRoot  where the child's choices render.
    *
    * Choices render OUTSIDE the stage on purpose. When they lived inside it the
    * caption -- an absolutely-positioned overlay pinned to the stage's bottom
    * edge -- sat on top of them and swallowed every tap. A headless click test
    * caught it; a child would have experienced it as a game that ignores them,
-   * which is the single worst failure this product can have. Keeping the
+   * which is close to the worst failure this product can have. Keeping the
    * tappable layer out of the art layer makes that structurally impossible
    * rather than a z-index someone has to remember.
    */
   constructor(root, actor, choicesRoot = null) {
     this.root = root;
     this.choicesRoot = choicesRoot;
+    this.artCache = new Map();
     this.setActor(actor);
   }
 
@@ -96,32 +160,71 @@ export class Scene {
   setActor(actor) {
     const missing = REQUIRED_ANCHORS.filter((a) => !actor.svg.includes(`id="a-${a}"`));
     if (missing.length) {
-      // Fail loudly at swap time rather than silently posing nothing.
       throw new Error(`actor "${actor.id}" is missing required anchors: ${missing.join(', ')}`);
     }
     this.actor = actor;
     if (this.root.querySelector('.sc-actor')) this._mountActor();
   }
 
-  render({ affordance, state = 'WAIT', objects = [], onPick = null, caption = '' }) {
-    const bd = BACKDROPS[affordance] || BACKDROPS.GAP;
+  /** Resolve (and cache) which painted layers exist for a scene. */
+  async loadArt(affordance, opts = {}) {
+    if (this.artCache.has(affordance)) return this.artCache.get(affordance);
+    const resolved = await resolveSceneArt(affordance, opts);
+    this.artCache.set(affordance, resolved);
+    return resolved;
+  }
+
+  render({ affordance, state = 'WAIT', objects = [], onPick = null, caption = '', art = null }) {
+    const fb = FALLBACK[affordance] || FALLBACK.GAP;
+    const painted = art && art.hasArt ? art.layers : {};
+
+    // One code path, whichever exists. A painted layer becomes an <image>; an
+    // unpainted one falls back to SVG shapes carrying the same grain.
+    const layer = (name) => {
+      const url = painted[name];
+      const px = PARALLAX[name] ?? 1;
+      if (url) {
+        return `<g class="sc-layer" data-layer="${name}" data-parallax="${px}">
+                  <image href="${url}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>
+                </g>`;
+      }
+      return `<g class="sc-layer" data-layer="${name}" data-parallax="${px}" filter="url(#sc-paper)">
+                <g filter="url(#sc-pool)">${fb[name] || ''}</g>
+              </g>`;
+    };
+
     this.root.innerHTML = `
-      <svg class="sc-svg" viewBox="0 0 820 420" preserveAspectRatio="xMidYMid slice">
+      <svg class="sc-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="img"
+           aria-label="${(art && art.alt) || fb.label || 'scene'}">
         <defs>
           <linearGradient id="sc-sky" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stop-color="${bd.sky[0]}"/><stop offset="1" stop-color="${bd.sky[1]}"/>
+            <stop offset="0" stop-color="${fb.sky[0]}"/><stop offset="1" stop-color="${fb.sky[1]}"/>
           </linearGradient>
+          ${textureDefs()}
+          ${revealDefs()}
         </defs>
-        <rect width="820" height="420" fill="url(#sc-sky)"/>
-        ${bd.art}
-        <g class="sc-objects"></g>
-        <g class="sc-actor" transform="translate(120 150) scale(0.86)"></g>
+
+        ${painted.background ? '' : `<rect width="${W}" height="${H}" fill="url(#sc-sky)"/>`}
+        ${layer('background')}
+        ${layer('midground')}
+        ${layer('foreground')}
+
+        <g class="sc-actor" transform="translate(190 250) scale(1.15)"></g>
+
+        <!-- one consistent low-angle warm key across every scene, so fallback
+             and commissioned art are lit identically -->
+        <rect class="sc-keylight" width="${W}" height="${H}" fill="url(#sc-key)"
+              style="mix-blend-mode:screen" pointer-events="none"/>
+        <rect width="${W}" height="${H}" fill="url(#sc-vignette)" pointer-events="none"/>
+
+        ${revealLayerMarkup()}
       </svg>
       <div class="sc-caption">${caption}</div>`;
 
     this._mountActor();
     this.pose(state);
     this._mountObjects(objects, onPick);
+    this.affordance = affordance;
     return this;
   }
 
@@ -144,6 +247,27 @@ export class Scene {
     if (mouth) mouth.setAttribute('d', MOUTHS[p.mouth] || MOUTHS.smile);
     this.state = state;
     return this;
+  }
+
+  /** Rim-light the actor.
+   *
+   *  Called by the reveal with 0..1. The reveal never reaches into the actor
+   *  itself -- if it did, reveal.js would have to know what a coat is and the
+   *  Actor Contract would leak. It hands the scene a number; the scene applies
+   *  it to the anchor it already owns. */
+  rimLight(v) {
+    const root = this.root.querySelector('#a-root');
+    if (!root) return;
+    root.style.filter = v > 0
+      ? `drop-shadow(0 0 ${(10 * v).toFixed(1)}px ${BLOOM_GOLD}) brightness(${(1 + 0.14 * v).toFixed(3)})`
+      : '';
+  }
+
+  /** The word reveal -- the world brightens BECAUSE of the word. */
+  async reveal(word) {
+    const svg = this.root.querySelector('.sc-svg');
+    if (!svg) return;
+    await playReveal(svg, word, { onLight: (v) => this.rimLight(v) });
   }
 
   /** The things the child can go and do. THIS is the child-driven part: the
@@ -176,8 +300,8 @@ export class Scene {
   }
 }
 
-/** Simple emoji stand-ins so the choices read as objects rather than words to
- *  a pre-reader. Real art replaces this map; nothing else changes. */
+/** Emoji stand-ins so choices read as objects rather than words to a
+ *  pre-reader. Replaced by the illustrator's spot art; nothing else changes. */
 export const OBJECT_ICONS = {
   rope: '🪢', rock: '🪨', log: '🪵', board: '🪵', stone: '🪨', boat: '⛵', net: '🕸️',
   door: '🚪', mat: '🧶', path: '🛤️', wood: '🪵', bridge: '🌉', plank: '🪵', stick: '🪵',

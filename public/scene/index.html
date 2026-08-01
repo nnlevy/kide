@@ -8,8 +8,12 @@
 <style>
   :root{
     --cream:#FFFBF2; --ink:#2E3A3F; --ink-soft:#5B6A67; --ink-faint:#9AA6A3;
-    --coral:#FF8A73; --coral-deep:#F16E55; --grass:#6FD08C; --grass-dark:#3D9C63;
-    --sand:#4EA8DE; --card:#fff;
+    /* Brand palette (docs source: kide-us-design-bible.md). Sunstone replaces
+       the old coral: coral sat at hue 10, inside the red band the bible bans
+       outright from the child surface. Label is Deep Slate, not white --
+       white on Sunstone is 2.90:1 and fails AA; Deep Slate is 5.44:1. */
+    --sunstone:#E17C5B; --sunstone-ink:#8A3F22; --bloom-gold:#FFB347;
+    --grass:#6FD08C; --grass-dark:#3D9C63; --twilight:#5B6C8A; --card:#fff;
     font-family:-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;
   }
   *{box-sizing:border-box}
@@ -19,7 +23,7 @@
   h1{font-size:17px;margin:0 0 3px}
   .sub{color:var(--ink-soft);font-size:13px;margin:0 0 14px}
   .stage{position:relative;border-radius:22px;overflow:hidden;box-shadow:0 6px 0 rgba(0,0,0,.06);background:#cfe9f5}
-  .sc-svg{display:block;width:100%;height:auto;aspect-ratio:820/420}
+  .sc-svg{display:block;width:100%;height:auto;aspect-ratio:1200/600}
   .sc-caption{position:absolute;left:0;right:0;bottom:0;pointer-events:none;padding:16px 18px 18px;
     background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.42));
     color:#fff;font-size:19px;font-weight:800;text-shadow:0 2px 4px rgba(0,0,0,.35);
@@ -35,12 +39,12 @@
   @keyframes sc-bob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-5px) rotate(-1.2deg)}}
   @keyframes sc-wobble{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
   @keyframes sc-bounce{0%,100%{transform:translateY(0)}45%{transform:translateY(-16px)}}
-  #a-bob{transform-origin:100px 166px}
+  #a-bob{transform-origin:100px 175px}
   .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
   button.ui{font:inherit;font-size:14px;font-weight:700;padding:11px 18px;border-radius:999px;
     border:2px solid #E6DFCE;background:#fff;color:var(--ink);cursor:pointer}
-  button.ui.primary{background:linear-gradient(180deg,var(--coral),var(--coral-deep));color:#fff;border:none;
-    box-shadow:0 4px 0 rgba(0,0,0,.14)}
+  button.ui.primary{background:var(--sunstone);color:var(--ink);border:none;
+    box-shadow:0 4px 0 rgba(138,63,34,.35)}
   button.ui:disabled{opacity:.4}
   .panel{background:#fff;border-radius:16px;padding:13px 16px;margin-top:14px;box-shadow:0 3px 0 rgba(0,0,0,.05)}
   .panel h2{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);margin:0 0 8px}
@@ -89,6 +93,12 @@
     <h2>Contract check</h2>
     <p class="note" id="contractNote">—</p>
   </div>
+
+  <div class="panel">
+    <h2>Artwork status</h2>
+    <p class="note" id="artNote">—</p>
+    <p class="note" style="margin-top:8px" id="artSpec"></p>
+  </div>
 </div>
 
 <script type="module">
@@ -96,6 +106,7 @@ import { LessonEngine } from '../engine/engine.js';
 import { keyOf } from '../engine/lexicon.js';
 import { Scene, iconFor } from './scene.js';
 import { ACTORS, actorList, getActor, STATES } from './actors.js';
+import { DELIVERY_SPEC, SCENE_ART, LAYERS } from './assets.js';
 
 const $ = (id) => document.getElementById(id);
 const stage = $('stage');
@@ -147,13 +158,16 @@ function start() {
   nextOffer();
 }
 
-function nextOffer() {
+async function nextOffer() {
   offer = engine.offerBeat({ count: 3 });
   const first = offer.choices[0];
+  const art = await scene.loadArt(first.affordance);
+  showArtStatus(first.affordance, art);
   scene.render({
     affordance: first.affordance,
     state: 'WAIT',
     caption: `Where shall we go?`,
+    art,
     objects: offer.choices.map(c => ({ label: c.word.w, icon: iconFor(c.word.w) })),
     onPick: (i) => pick(i),
   });
@@ -167,10 +181,13 @@ function nextOffer() {
 
 async function pick(i) {
   const beat = engine.chooseBeat(i);
+  const art = await scene.loadArt(beat.affordance);
+  showArtStatus(beat.affordance, art);
   scene.render({
     affordance: beat.affordance,
     state: 'STUCK',
     caption: actor.stall(engine.companionName),
+    art,
     objects: [],
   });
   setState('STUCK');
@@ -190,6 +207,10 @@ async function attempt(heard) {
   }
   scene.pose('TRIUMPH').say(r.say);
   setState('TRIUMPH');
+  // The signature moment: the word arrives and the WORLD gets brighter
+  // because of it (bible). Rim-light lands on the companion's coat via
+  // scene.rimLight, so reveal.js never has to know what a coat is.
+  await scene.reveal(engine.current.word.w);
   $('engineNote').innerHTML += r.forced
     ? `<br><b>Resolved on the attempt cap</b> — celebrated identically, and not recorded as mastery.`
     : '';
@@ -199,19 +220,37 @@ async function attempt(heard) {
 
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
 
+/** Makes the production gap visible instead of implicit: which layers of this
+ *  scene are painted, and what an illustrator has to deliver for the rest. */
+function showArtStatus(affordance, art) {
+  const painted = LAYERS.filter(l => art.layers && art.layers[l]);
+  $('artNote').innerHTML = painted.length
+    ? `<b>${affordance}</b>: ${painted.length}/${LAYERS.length} layers painted (${painted.join(', ')}). ` +
+      `Unpainted layers fall back to the SVG rig, so a scene can go live one layer at a time.`
+    : `<b>${affordance}</b>: no commissioned artwork yet — rendering the painterly SVG fallback. ` +
+      `Drop WebP files at <code>/art/${affordance.toLowerCase()}/&lt;layer&gt;.webp</code> and they take over with no code change.`;
+  $('artSpec').innerHTML =
+    `<b>Delivery spec:</b> ${DELIVERY_SPEC.format}, ${DELIVERY_SPEC.size}. ` +
+    `Layers: ${DELIVERY_SPEC.layers.join(' / ')} (${DELIVERY_SPEC.transparency}). ` +
+    `Light: ${DELIVERY_SPEC.light}. Style: ${DELIVERY_SPEC.style} <b>${DELIVERY_SPEC.forbidden}.</b>`;
+}
+
 $('btnStart').addEventListener('click', start);
 $('btnSay').addEventListener('click', () => attempt(true));
 $('btnQuiet').addEventListener('click', () => attempt(false));
 
-$('btnSwap').addEventListener('click', () => {
+$('btnSwap').addEventListener('click', async () => {
   actorIdx = (actorIdx + 1) % actorIds.length;
   actor = getActor(actorIds[actorIdx]);
   // THE CONTRACT: one line. No scene code is touched, no scene is re-authored,
   // and the current state is preserved across a different body plan.
   scene.setActor(actor);
   const s = scene.state || 'WAIT';
+  const aff = engine?.current?.affordance || offer?.choices[0]?.affordance || 'GAP';
+  const art = await scene.loadArt(aff);
   scene.render({
-    affordance: engine?.current?.affordance || offer?.choices[0]?.affordance || 'GAP',
+    affordance: aff,
+    art,
     state: s,
     caption: engine ? actor.stall(actor.defaultName) : 'Tap Start',
     objects: (!engine || !engine.current) && offer
@@ -229,12 +268,11 @@ $('btnSwap').addEventListener('click', () => {
 });
 
 // Boot into WAIT so the page is never blank.
-scene.render({
-  affordance: 'GAP', state: 'WAIT',
-  caption: 'Tap Start',
-  objects: [],
+scene.loadArt('GAP').then(art => {
+  showArtStatus('GAP', art);
+  scene.render({ affordance: 'GAP', state: 'WAIT', caption: 'Tap Start', objects: [], art });
+  setState('WAIT');
 });
-setState('WAIT');
 $('contractNote').textContent =
   'Swap the companion to test it. scene.js contains no actor name — a test asserts that.';
 </script>

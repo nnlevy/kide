@@ -20,39 +20,64 @@
 // (docs/BRAND.md), built so the illustrator's real artwork drops into the same
 // anchors without touching a line of scene or engine code.
 
+import { COAT, COAT_ALT, KEY_LIGHT } from './palette.js';
+
 export const STATES = ['WAIT', 'STUCK', 'ASK', 'MODEL', 'TRIUMPH'];
 
 /** Every actor exposes these anchors. The scene poses them by id and never
  *  looks inside. Adding a body plan means filling these in, nothing else. */
 export const REQUIRED_ANCHORS = ['body', 'head', 'eyeL', 'eyeR', 'mouth', 'tail', 'earL', 'earR'];
 
-const palette = {
-  dog:  { coat: '#E8C79A', coatDeep: '#D4AE7C', ear: '#C9975F', nose: '#5B4A3F' },
-  cat:  { coat: '#F2A65A', coatDeep: '#DE8C40', ear: '#C9743A', nose: '#8A5236' },
-};
+// Colour comes from palette.js only. The first cut of this file hard-coded
+// its own hexes and shipped pink cheeks at hue 347 -- inside the red band the
+// bible forbids outright. Importing removes the opportunity.
+const palette = { primary: COAT, alt: COAT_ALT };
 
 /** Shared drawing helper -- keeps the two rigs visually consistent so the
  *  swap demonstrates the contract rather than a change of art direction. */
+/** The body, built to the bible's description rather than to convenience:
+ *  "heavy-bottomed pear silhouette with the weight low to the ground, stout
+ *  legs, dense coat of soft rounded tufts (never individual hairs), drop ears
+ *  held at a 45-degree angle, expressive brows, plumed tail."
+ *
+ *  Tufts are drawn as overlapping rounded bumps along the silhouette -- the
+ *  cheap version is a smooth ellipse, which reads as a balloon and loses the
+ *  one texture cue that says "coat". Shadow is long and offset to match the
+ *  single low-angle key light every scene shares. */
 function bodySvg(p, opts = {}) {
-  const { earShape, tailPath, cheekOpacity = 0.5 } = opts;
+  const { earShape, tailPath, browTilt = 0 } = opts;
+  const tuft = (cx, cy, r) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${p.cream}"/>`;
   return `
   <g id="a-root">
-    <ellipse id="a-shadow" cx="100" cy="171" rx="41" ry="7" fill="#000" opacity=".15"/>
+    <ellipse id="a-shadow" cx="112" cy="178" rx="52" ry="8"
+             fill="${KEY_LIGHT.shadow}" opacity=".55"/>
     <g id="a-bob">
-      <path id="a-tail" d="${tailPath}" stroke="${p.coatDeep}" stroke-width="11"
+      <path id="a-tail" d="${tailPath}" stroke="${p.creamDeep}" stroke-width="13"
             fill="none" stroke-linecap="round"/>
-      <ellipse id="a-body" cx="100" cy="128" rx="43" ry="38" fill="${p.coat}"/>
-      <ellipse cx="100" cy="139" rx="27" ry="24" fill="#fff" opacity=".35"/>
+      <!-- stout legs, weight low -->
+      <rect x="72" y="139" width="19" height="32" rx="9" fill="${p.creamDeep}"/>
+      <rect x="110" y="139" width="19" height="32" rx="9" fill="${p.creamDeep}"/>
+      <!-- pear body: wide and heavy at the base -->
+      <path id="a-body" d="M100 88 q-44 6 -44 52 q0 32 44 32 q44 0 44 -32 q0 -46 -44 -52 z" fill="${p.cream}"/>
+      ${tuft(62, 132, 13)}${tuft(70, 152, 12)}${tuft(92, 162, 13)}
+      ${tuft(114, 162, 13)}${tuft(134, 150, 12)}${tuft(140, 130, 12)}
+      <ellipse cx="100" cy="142" rx="26" ry="21" fill="#fff" opacity=".28"/>
       <g id="a-head">
         <path id="a-earL" d="${earShape.l}" fill="${p.ear}"/>
         <path id="a-earR" d="${earShape.r}" fill="${p.ear}"/>
-        <circle id="a-skull" cx="100" cy="74" r="37" fill="${p.coat}"/>
-        <ellipse cx="100" cy="88" rx="22" ry="17" fill="#fff" opacity=".45"/>
-        <ellipse id="a-cheekL" cx="72" cy="86" rx="9" ry="6" fill="#FF8FA8" opacity="${cheekOpacity}"/>
-        <ellipse id="a-cheekR" cx="128" cy="86" rx="9" ry="6" fill="#FF8FA8" opacity="${cheekOpacity}"/>
-        <g id="a-eyeL"><circle cx="86" cy="68" r="7.5" fill="#fff"/><circle id="a-pupilL" cx="87" cy="69" r="4.4" fill="#2E3A3F"/></g>
-        <g id="a-eyeR"><circle cx="114" cy="68" r="7.5" fill="#fff"/><circle id="a-pupilR" cx="115" cy="69" r="4.4" fill="#2E3A3F"/></g>
-        <ellipse id="a-nose" cx="100" cy="84" rx="7" ry="5.5" fill="${p.nose}"/>
+        <circle id="a-skull" cx="100" cy="72" r="38" fill="${p.cream}"/>
+        ${tuft(70, 56, 12)}${tuft(130, 56, 12)}${tuft(100, 38, 13)}
+        <ellipse cx="100" cy="87" rx="23" ry="17" fill="#fff" opacity=".38"/>
+        <ellipse id="a-cheekL" cx="70" cy="86" rx="9" ry="6" fill="${p.blush}" opacity=".55"/>
+        <ellipse id="a-cheekR" cx="130" cy="86" rx="9" ry="6" fill="${p.blush}" opacity=".55"/>
+        <!-- expressive brows: the whole face reads from these -->
+        <path id="a-browL" d="M78 55 q8 ${-4 + browTilt} 16 -1" stroke="${p.nose}" stroke-width="2.6"
+              fill="none" stroke-linecap="round" opacity=".75"/>
+        <path id="a-browR" d="M106 54 q8 ${-1 - browTilt} 16 1" stroke="${p.nose}" stroke-width="2.6"
+              fill="none" stroke-linecap="round" opacity=".75"/>
+        <g id="a-eyeL"><circle cx="86" cy="68" r="8" fill="#fff"/><circle id="a-pupilL" cx="87" cy="69" r="4.6" fill="#3A2E26"/><circle cx="89" cy="66.5" r="1.7" fill="#fff"/></g>
+        <g id="a-eyeR"><circle cx="114" cy="68" r="8" fill="#fff"/><circle id="a-pupilR" cx="115" cy="69" r="4.6" fill="#3A2E26"/><circle cx="117" cy="66.5" r="1.7" fill="#fff"/></g>
+        <ellipse id="a-nose" cx="100" cy="84" rx="7.5" ry="5.8" fill="${p.nose}"/>
         <path id="a-mouth" d="M100 90 q-9 9 -16 3 M100 90 q9 9 16 3"
               stroke="${p.nose}" stroke-width="3" fill="none" stroke-linecap="round"/>
       </g>
@@ -70,12 +95,13 @@ export const ACTORS = {
     // Non-verbal sound bank -- never words, so it never competes with the VO.
     voice: { wait: 'soft panting', stuck: 'a little whine', triumph: 'happy pant' },
     whoFor: 'The default. A name a two-year-old can say.',
-    svg: bodySvg(palette.dog, {
+    svg: bodySvg(palette.primary, {
       earShape: {
-        l: 'M70 52 q-19 4 -21 27 q-2 20 13 24 q10 2 13 -14 z',
-        r: 'M130 52 q19 4 21 27 q2 20 -13 24 q-10 2 -13 -14 z',
+        l: 'M68 48 q-26 10 -28 42 q-1 24 16 27 q12 2 14 -18 q2 -30 -2 -51 z',
+        r: 'M132 48 q26 10 28 42 q1 24 -16 27 q-12 2 -14 -18 q-2 -30 2 -51 z',
       },
-      tailPath: 'M139 132 q26 -6 24 -30',
+      tailPath: 'M143 128 q30 -8 26 -36',
+      browTilt: 0,
     }),
     // Per-state pose deltas. The scene applies these blindly.
     poses: {
@@ -97,13 +123,13 @@ export const ACTORS = {
     stall: (n) => `${n} climbed up and now can't get down.`,
     voice: { wait: 'a low purr', stuck: 'a small mew', triumph: 'a chirrup' },
     whoFor: 'Cat households; a different stall grammar.',
-    svg: bodySvg(palette.cat, {
+    svg: bodySvg(palette.alt, {
       earShape: {
         l: 'M72 48 L62 20 L92 38 z',
         r: 'M128 48 L138 20 L108 38 z',
       },
-      tailPath: 'M141 130 q30 -2 22 -34',
-      cheekOpacity: 0.42,
+      tailPath: 'M145 126 q32 -4 24 -38',
+      browTilt: 3,
     }),
     poses: {
       WAIT:    { bob: 'gentle', tail: 'M141 130 q30 -2 22 -34',  head: 'rotate(0 100 74)',  mouth: 'smile' },

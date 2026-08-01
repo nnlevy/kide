@@ -183,6 +183,117 @@ console.log('--- no failure state is reachable through the scene ---');
 }
 
 // ---------------------------------------------------------------------------
+console.log('--- zero red in the child surface (bible: absolute) ---');
+// ---------------------------------------------------------------------------
+
+{
+  const { isRedBand, CHILD_SURFACE_COLOURS, SUNSTONE } = await import('./public/scene/palette.js');
+
+  // The rule has been broken twice already -- the prototype's cat nose at hue
+  // 7, and this rig's first cut (pink cheeks at 347, coral buttons at 10).
+  // Enforcing it mechanically is the only version that stays true.
+  for (const hex of CHILD_SURFACE_COLOURS) {
+    const r = isRedBand(hex);
+    ok(`palette colour ${hex} is outside the red band`, !r.red,
+       `hue ${r.hue.toFixed(0)} sat ${r.sat.toFixed(2)}`);
+  }
+
+  // Sunstone is the brand's own accent and sits near the boundary -- the band
+  // must be narrow enough to permit it, or the rule bans the brand.
+  ok('Sunstone itself is permitted', !isRedBand(SUNSTONE).red,
+     `hue ${isRedBand(SUNSTONE).hue.toFixed(1)}`);
+  // ...and wide enough to still catch actual alarm red.
+  ok('true red is caught', isRedBand('#FF0000').red);
+  ok('the old coral is caught', isRedBand('#FF8A73').red, 'this shipped once');
+  ok('the old pink cheek is caught', isRedBand('#FF8FA8').red, 'this shipped once');
+  ok('warm browns are not false-flagged', !isRedBand('#8A5236').red);
+
+  // And every literal colour in the rendered child surface, not just the
+  // palette constants -- a hard-coded hex is exactly how this got in before.
+  for (const f of ['./public/scene/actors.js', './public/scene/scene.js',
+                   './public/scene/palette.js', './public/scene/reveal.js']) {
+    const src = fs.readFileSync(f, 'utf8');
+    const hexes = [...new Set(src.match(/#[0-9A-Fa-f]{6}\b/g) || [])];
+    const reds = hexes.filter((h) => isRedBand(h).red);
+    eq(`no red literal in ${f.split('/').pop()}`, reds.length, 0, reds.join(','));
+  }
+}
+
+// ---------------------------------------------------------------------------
+console.log('--- the artwork pipeline ---');
+// ---------------------------------------------------------------------------
+
+{
+  const { LAYERS, PARALLAX, SCENE_ART, artPathFor, DELIVERY_SPEC, resolveSceneArt } =
+    await import('./public/scene/assets.js');
+  const { STATIONS } = await import('./public/engine/lexicon.js');
+
+  eq('layer order is background -> midground -> foreground',
+     LAYERS.join(','), 'background,midground,foreground');
+  ok('parallax increases with proximity',
+     PARALLAX.background < PARALLAX.midground && PARALLAX.midground < PARALLAX.foreground,
+     'depth is the reason to have layers at all');
+
+  // Every affordance the engine can select must have somewhere for art to go,
+  // or a scene will be unpaintable and nobody will notice until it is live.
+  for (const aff of Object.keys(STATIONS)) {
+    ok(`${aff} has an art manifest entry`, !!SCENE_ART[aff]);
+    ok(`${aff} has alt text`, !!(SCENE_ART[aff] && SCENE_ART[aff].alt),
+       'a scene with no alt text is unreadable to a screen reader');
+  }
+
+  eq('art path convention is stable', artPathFor('GAP', 'background'), '/art/gap/background.webp');
+  ok('the delivery spec forbids red', /zero red/i.test(DELIVERY_SPEC.forbidden));
+  ok('the delivery spec names one key light', /one .*key/i.test(DELIVERY_SPEC.light));
+  ok('the delivery spec rules out vector-flat', /no vector-flat/i.test(DELIVERY_SPEC.style));
+
+  // Without probing (no fetch in node) every layer must resolve to null and
+  // the scene must still be renderable -- art that hasn't arrived can never
+  // break the product.
+  const dry = await resolveSceneArt('GAP', { probe: false });
+  eq('unpainted scene reports no art', dry.hasArt, false);
+  ok('unpainted scene still returns every layer key',
+     LAYERS.every((l) => l in dry.layers));
+
+  // The placeholder proving the pipeline should actually be on disk.
+  ok('the sample painted layer exists',
+     fs.existsSync('./public/art/gap/background.webp'),
+     'proves a real raster file is consumed, not just the theory');
+}
+
+// ---------------------------------------------------------------------------
+console.log('--- the word reveal (the product visual signature) ---');
+// ---------------------------------------------------------------------------
+
+{
+  const { revealDefs, revealLayerMarkup, REVEAL_HOLD_MS } = await import('./public/scene/reveal.js');
+  const defs = revealDefs();
+  const markup = revealLayerMarkup();
+
+  // The bible: "The word IS the light source, not a lit object." An emission
+  // filter is what makes that literal rather than decorative.
+  ok('the word has an emission filter', /id="sc-word-emit"/.test(defs));
+  ok('emission floods Bloom Gold', /flood-color="#FFB347"/i.test(defs));
+
+  // "a localised feathered multiply shadow hugging the letterforms at 45% core
+  // density... Not a scrim, not a plate." A rect behind the text is the wrong
+  // answer and would read as UI sitting on a painting.
+  ok('the shadow is a feathered filter, not a plate', /id="sc-word-shadow"/.test(defs));
+  ok('shadow core density is 45%', /slope="0\.45"/.test(defs));
+  ok('no solid backing plate behind the word', !/<rect[^>]*class="sc-word-bg"/.test(markup));
+
+  ok('the word coalesces out of motes', /class="sc-motes"/.test(markup));
+  ok('the hold matches the spec 3500ms', REVEAL_HOLD_MS === 3500, String(REVEAL_HOLD_MS));
+
+  // The scene owns rim-lighting the actor, NOT the reveal -- otherwise
+  // reveal.js would need to know what a coat is and the contract would leak.
+  const revealSrc = fs.readFileSync('./public/scene/reveal.js', 'utf8');
+  ok('the reveal never touches actor anchors directly',
+     !/#a-|a-root|coat/i.test(revealSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')),
+     'it hands the scene a number instead');
+}
+
+// ---------------------------------------------------------------------------
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) {
   console.log('\nFAILURES:');
