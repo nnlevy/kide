@@ -1,0 +1,81 @@
+/* mobile.css -- the floor every surface has to clear on a phone.
+ *
+ * Audited at 320 / 390 / 430 / 768px and fixed here rather than per page, so a
+ * new page inherits the rules instead of re-earning them.
+ *
+ * WHY EACH RULE EXISTS (all four were real failures, not theory):
+ *
+ * 1. 44x44 MINIMUM TOUCH TARGETS. Buttons were 42px, selects 36px, state chips
+ *    32px and nav links 15-17px tall. 44pt is Apple's HIG floor and WCAG
+ *    2.5.5's, and this product's primary user is a two- to seven-year-old
+ *    whose motor control is worse than the guideline assumes. A tap that
+ *    misses reads to a child as the game ignoring them, which is the single
+ *    worst failure this product can have.
+ *
+ * 2. 16px MINIMUM ON FORM CONTROLS. Safari on iOS auto-zooms the page when a
+ *    control smaller than 16px receives focus, and never zooms back out. Every
+ *    select on the engine and bench pages was 14px, so the first tap on an
+ *    iPad left the layout permanently magnified and horizontally scrolling.
+ *
+ * 3. NO HORIZONTAL OVERFLOW. The bench page overflowed 56px at 320px because
+ *    an unbroken userAgent string forced a table wider than the viewport.
+ *
+ * 4. SAFE-AREA INSETS. Bottom controls sat under the home indicator on notched
+ *    devices.
+ *
+ * Deliberately NOT here: user-scalable=no. Disabling pinch-zoom fails WCAG
+ * 1.4.4 and takes a genuine accessibility tool away from the parent, who is
+ * the one reading the small print. The fix for zoom problems is text that is
+ * big enough, which is rules 1-3.
+ */
+
+:root { --tap: 44px; }
+
+/* 1 -- touch targets */
+button,
+[role="button"],
+select,
+input[type="submit"],
+input[type="button"] {
+  min-height: var(--tap);
+}
+
+/* Inline text links need a real tappable box. Padding alone was 3px short at
+   the measured font sizes (41px, not 44), and a min-height on an `inline`
+   element is simply ignored -- so these become inline-flex, which honours
+   min-height and centres the label without changing where the text sits. */
+nav a,
+footer a,
+.nav-links a,
+.links a,
+a.cta,
+a.nav-play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap);
+  padding-inline: 10px;
+}
+
+/* 2 -- never let iOS auto-zoom a form control */
+input, select, textarea, button {
+  font-size: max(16px, 1rem);
+}
+
+/* 3 -- nothing may exceed the viewport */
+html, body { max-width: 100%; overflow-x: hidden; }
+img, svg, video, table, pre { max-width: 100%; }
+pre, code { overflow-wrap: anywhere; word-break: break-word; }
+
+/* Wide data tables scroll inside their own box instead of the page. */
+table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table td, table th { overflow-wrap: anywhere; }
+
+/* 4 -- keep controls clear of the home indicator */
+body { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
+
+/* Comfortable spacing between adjacent targets so a fat finger can't hit two. */
+@media (max-width: 700px) {
+  .row { gap: 10px; }
+  .row > button { flex: 1 1 auto; min-width: 44%; }
+}

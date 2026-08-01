@@ -217,7 +217,7 @@ export class Scene {
         ${layer('midground')}
         ${layer('foreground')}
 
-        <g class="sc-actor" transform="translate(190 250) scale(1.15)"></g>
+        <g class="sc-actor" transform="translate(250 250) scale(1.15)"></g>
 
         <!-- one consistent low-angle warm key across every scene, so fallback
              and commissioned art are lit identically -->
@@ -348,7 +348,7 @@ export class Scene {
       g.style.transform = `translateX(${(-x * p).toFixed(2)}px)`;
     });
     const actor = this.root.querySelector('.sc-actor');
-    if (actor) actor.style.transform = `translate(${190 - x}px, 250px) scale(1.15)`;
+    if (actor) actor.style.transform = `translate(${250 - x}px, 250px) scale(1.15)`;
     this.cameraX = x;
     return this;
   }

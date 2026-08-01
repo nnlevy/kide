@@ -97,13 +97,19 @@ p.desc{color:var(--ink-soft);font-size:16px;max-width:560px;margin:0 auto 30px;t
 .notify{background:var(--card);border-radius:var(--radius-lg);padding:34px 26px;text-align:center;box-shadow:0 3px 14px rgba(0,0,0,.05);}
 .notify h2{margin-bottom:8px;}
 .notify-form{display:flex;gap:10px;max-width:400px;margin:20px auto 0;flex-wrap:wrap;justify-content:center;}
-.notify-form input{flex:1;min-width:200px;border:2px solid #EFE9DA;border-radius:999px;padding:13px 20px;font-size:15px;font-family:inherit;color:var(--ink);}
+.notify-form input{flex:1;min-width:200px;border:2px solid #EFE9DA;border-radius:999px;padding:14px 20px;font-size:16px;min-height:48px;font-family:inherit;color:var(--ink);}
 .notify-form input:focus{outline:none;border-color:var(--sand);}
-.notify-form button{border:none;border-radius:999px;padding:13px 24px;font-size:15px;font-weight:800;color:#fff;background:linear-gradient(180deg,var(--sand),var(--sand-deep));cursor:pointer;}
+.notify-form button{border:none;border-radius:999px;padding:14px 24px;font-size:16px;min-height:48px;font-weight:800;color:#fff;background:linear-gradient(180deg,var(--sand),var(--sand-deep));cursor:pointer;}
 .notify-msg{margin-top:14px;font-size:14px;font-weight:700;min-height:18px;}
 .notify-msg.ok{color:var(--grass-dark);}
 .notify-msg.err{color:var(--coral-deep);}
 
+/* Standalone call-to-action links sitting alone in a paragraph. Inline links
+   inside running text are exempt from the target-size rule, but these are
+   CTAs, so they get a real tap box. */
+.readmore{display:inline-flex;align-items:center;min-height:44px;padding:0 4px;
+  font-weight:700;color:var(--sand-deep);text-decoration:none;}
+.readmore:hover{text-decoration:underline;}
 footer{margin-top:64px;padding:30px 0 46px;text-align:center;color:var(--ink-faint);font-size:13px;}
 footer a{text-decoration:underline;}
 footer .links{margin-top:6px;}
@@ -111,6 +117,7 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
 
 @media (max-width:520px){.card-grid{grid-template-columns:1fr 1fr;}}
 </style>
+<link rel="stylesheet" href="/mobile.css">
 </head>
 <body>
 
@@ -158,14 +165,14 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
     <h2>Pip's Turn: rehearsing the routine</h2>
     <p class="desc">A toddler will happily play with a toy sink that has no water in it. Nothing is being rewarded — <i>doing the routine</i> is the whole reward, and being the one who does it is the point. Pip's Turn is built on that. Your child doesn't answer questions about the potty; they help Pip go, step by step, as many times as they want. Nothing is scored, there is no wrong tap, and there is no way to fail.</p>
     <p class="desc" style="margin-top:14px"><b>Pip sometimes sits and nothing happens. Pip sometimes doesn't make it in time.</b> Both are deliberate, and nobody is cross about either — so that if it happens to your child, they have already watched it be okay. We never reward a child for going, because pressure is the fastest route to holding it in. And we'd rather you played this <i>before</i> the real moment, in another room: a screen on the toilet pulls attention away from exactly the signals your child is learning to notice.</p>
-    <p class="desc" style="margin-top:10px"><a href="/guides/potty-training-without-pressure">Why it's built this way, with the research →</a></p>
+    <p class="desc" style="margin-top:10px"><a class="readmore" href="/guides/potty-training-without-pressure">Why it's built this way, with the research →</a></p>
   </section>
 
   <section>
     <h2>Pip talks. And, if you like, listens.</h2>
     <p class="desc">Every question is spoken aloud in Pip's voice, so a two-year-old who can't read a word can still play alone. Turn it on in the Parent Corner and Pip will listen too — your child can just say <i>&ldquo;red!&rdquo;</i> instead of tapping.</p>
     <p class="desc" style="margin-top:14px"><b>We only ever listen on the device.</b> If a browser would need to send your child's voice to a company's servers to understand it, we don't offer the microphone there at all — there's no cloud option to switch on. Nothing is recorded, stored, or sent. Tapping always works, and listening is off until a grown-up turns it on.</p>
-    <p class="desc" style="margin-top:10px"><a href="/guides/your-childs-voice-stays-on-the-device">Exactly how that works, device by device →</a></p>
+    <p class="desc" style="margin-top:10px"><a class="readmore" href="/guides/your-childs-voice-stays-on-the-device">Exactly how that works, device by device →</a></p>
   </section>
 
   <section>

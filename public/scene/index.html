@@ -24,13 +24,24 @@
   .sub{color:var(--ink-soft);font-size:13px;margin:0 0 14px}
   .stage{position:relative;border-radius:24px;overflow:hidden;box-shadow:0 8px 0 rgba(0,0,0,.07);background:#F1E6D2}
   .sc-svg{display:block;width:100%;height:auto;aspect-ratio:1200/600}
+  /* On a phone in portrait a 2:1 stage is only ~146px tall at 320px wide, which
+     leaves the companion too small to read on the surface that matters most.
+     A 3:2 stage crops the sides (preserveAspectRatio slice) to x=150..1050 of
+     the 1200-unit viewBox -- which is why the actor sits at x=250, safely
+     inside that window rather than at the old x=190. */
+  @media (max-width:700px){
+    .sc-svg{aspect-ratio:3/2}
+    .sc-caption{font-size:18px;padding:14px 16px 16px;min-height:56px}
+    .sc-obj{min-width:96px;padding:10px 12px}
+    .sc-obj-art{width:56px;height:56px}
+  }
   .sc-layer{will-change:transform}
   .sc-caption{position:absolute;left:0;right:0;bottom:0;pointer-events:none;padding:18px 20px 20px;
     background:linear-gradient(180deg,rgba(0,0,0,0),rgba(46,32,20,.5));
     color:#FFF7E6;font-size:21px;font-weight:800;text-shadow:0 2px 6px rgba(46,32,20,.45);
     min-height:62px;display:flex;align-items:flex-end}
   .sc-choices{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;padding:16px 10px 4px;min-height:20px}
-  .sc-obj{border:none;background:var(--card);border-radius:22px;padding:10px 14px 10px;
+  .sc-obj{border:none;background:var(--card);border-radius:22px;padding:12px 16px;min-height:96px;
     box-shadow:0 6px 0 rgba(138,63,34,.14);cursor:pointer;font:inherit;min-width:104px;
     display:flex;flex-direction:column;align-items:center;gap:2px;
     transition:transform .12s cubic-bezier(.2,.9,.3,1.3),box-shadow .12s}
@@ -46,7 +57,7 @@
     #a-bob{animation:none !important}
   }
   .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
-  button.ui{font:inherit;font-size:14px;font-weight:700;padding:11px 18px;border-radius:999px;
+  button.ui{font:inherit;font-size:16px;font-weight:700;padding:13px 20px;border-radius:999px;min-height:48px;
     border:2px solid #E6DFCE;background:#fff;color:var(--ink);cursor:pointer}
   button.ui.primary{background:var(--sunstone);color:var(--ink);border:none;
     box-shadow:0 4px 0 rgba(138,63,34,.35)}
@@ -58,11 +69,11 @@
     background:#F3EBE2;color:var(--sunstone-ink);margin-right:5px}
   code{background:#F3EEE2;padding:1px 5px;border-radius:4px;font-size:12px}
   .states{display:flex;gap:6px;flex-wrap:wrap}
-  .states button{font-size:12px;padding:7px 12px;border-radius:999px;border:2px solid #E6DFCE;
-    background:#fff;font-weight:700;cursor:pointer;font-family:inherit}
+  .states button{font-size:13px;padding:11px 14px;border-radius:999px;border:2px solid #E6DFCE;
+    background:#fff;font-weight:700;cursor:pointer;font-family:inherit;min-height:44px}
   .states button[aria-pressed="true"]{background:var(--sunstone);border-color:var(--sunstone);color:var(--ink)}
   .picker{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:4px 0 0}
-  .picker button{border:2px solid #E6DFCE;background:#fff;border-radius:20px;padding:10px 14px;
+  .picker button{border:2px solid #E6DFCE;background:#fff;border-radius:20px;padding:12px 16px;min-height:56px;
     cursor:pointer;font:inherit;font-weight:800;font-size:15px;display:flex;flex-direction:column;
     align-items:center;gap:3px;min-width:112px}
   .picker button[aria-pressed="true"]{border-color:var(--sunstone);box-shadow:0 0 0 3px rgba(225,124,91,.18)}
@@ -72,6 +83,7 @@
   .daybar i{position:absolute;top:-4px;width:14px;height:14px;border-radius:50%;background:#fff;
     box-shadow:0 1px 4px rgba(0,0,0,.25);transform:translateX(-7px);transition:left .6s ease}
 </style>
+<link rel="stylesheet" href="../mobile.css">
 </head>
 <body>
 <div class="wrap">
