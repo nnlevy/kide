@@ -78,6 +78,15 @@ t('no clip exceeds the player cap', () => {
   assert.equal(over.length, 0, `over 9s: ${over.map(([i, d]) => `${i}=${d.toFixed(1)}s`).join(', ')}`);
 });
 
+t('the pack records which voice and model made it', () => {
+  // Two tools write index.json; the id-list refresh used to erase this. When a
+  // clip sounds wrong, "which voice was this rendered with" is the first
+  // question, and a pack that cannot answer it is a pack you have to re-render
+  // blind.
+  assert(index.voice, 'no voice recorded in index.json');
+  assert(index.model, 'no model recorded in index.json');
+});
+
 console.log('\nthe splice has no audible seam');
 
 t('invitations do not trail off into silence', () => {

@@ -16,7 +16,7 @@
 // Output: tools/voice/words-script.json, and (when rendering)
 // public/voice/words/v1/*.mp3 plus index.json.
 
-import { writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ASK, CHROME, slug, wordLine } from '../../public/engine/speech.js';
 import { LEX, STATIONS } from '../../public/engine/lexicon.js';
@@ -78,7 +78,15 @@ console.log(`  (recording every station x word combination would be ${naive})`);
 // player's manifest can never claim a clip that is not there.
 if (existsSync(OUT_DIR)) {
   const ids = readdirSync(OUT_DIR).filter((f) => f.endsWith('.mp3')).map((f) => f.replace('.mp3', ''));
-  writeFileSync(join(OUT_DIR, 'index.json'), JSON.stringify({ ids }) + '\n');
+  // PRESERVE what the renderer recorded. Two tools write this file: the
+  // renderer stamps which voice and model produced the pack, and this script
+  // refreshes the id list. Writing a bare {ids} here silently erased that
+  // provenance -- and the deployed pack shipped with no record of what voice
+  // was in it, which is the one thing you need when a clip sounds wrong.
+  let meta = {};
+  try { const { ids: _, ...rest } = JSON.parse(readFileSync(join(OUT_DIR, 'index.json'), 'utf8')); meta = rest; }
+  catch { /* no pack yet */ }
+  writeFileSync(join(OUT_DIR, 'index.json'), JSON.stringify({ ids, ...meta }) + '\n');
   console.log(`  pack on disk: ${ids.length}/${lines.length} recorded`);
 } else {
   mkdirSync(OUT_DIR, { recursive: true });
