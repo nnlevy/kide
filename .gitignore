@@ -7,3 +7,4 @@ dist/
 tools/voice/out/
 r2-upload/
 tools/lexicon/lexicon_rows.json
+__pycache__/
