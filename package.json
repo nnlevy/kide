@@ -4,7 +4,7 @@
 	"private": true,
 	"scripts": {
 		"art:manifest": "node tools/art/build-manifest.mjs",
-		"build": "npm run art:manifest && mkdir -p dist && cp -r public/* dist/ 2>/dev/null || true; cp index.html dist/index.html 2>/dev/null || true; echo 'build complete'",
+		"build": "npm run art:manifest && mkdir -p dist && cp -r public/* dist/ 2>/dev/null || true; cp index.html dist/index.html 2>/dev/null || true; find dist -name '.render-state.json' -delete; echo 'build complete'",
 		"check": "npm run build && npx wrangler deploy --dry-run",
 		"deploy": "npm run build && npx wrangler deploy",
 		"dev": "npx wrangler dev",
@@ -19,11 +19,13 @@
 		"test:speech": "node test-speech.mjs",
 		"test:journal": "node test-journal.mjs",
 		"test:words-voice": "npm run voice:words --silent && node test-words-voice.mjs",
+		"test:voice-pack": "node test-voice-pack.mjs",
+		"voice:words:render": "node tools/voice/render-words.mjs",
 		"test:mobile": "npm run build && node test-mobile.mjs",
 		"lexicon:build": "python3 tools/lexicon/build_lexicon.py && python3 tools/lexicon/build_play_targets.py",
 		"calibrate": "python3 tools/calibrate/calibrate.py",
 		"share:render": "node tools/share/card.js",
-		"test": "npm run test:engine && npm run test:scene && npm run test:clinical && npm run test:speech && npm run test:journal && npm run test:words-voice && npm run test:mobile && npm run test:voice && node test-routines.js",
+		"test": "npm run test:engine && npm run test:scene && npm run test:clinical && npm run test:speech && npm run test:journal && npm run test:words-voice && npm run test:voice-pack && npm run test:mobile && npm run test:voice && node test-routines.js",
 		"demo:render": "npm run build && node tools/share/demo.js"
 	},
 	"devDependencies": {
