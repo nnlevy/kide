@@ -964,6 +964,19 @@ function screenHome(){
   return c;
 }
 
+/* The companion a child already chose, if any. Read directly rather than
+   imported: this file is a plain script and the garden must render instantly,
+   before any module graph resolves. Falls back to null, which reads as an
+   invitation rather than an error. */
+function wordsCompanionName(){
+  try{
+    const raw = localStorage.getItem("kide_profile_v1");
+    if(!raw) return null;
+    const p = JSON.parse(raw);
+    return (p && p.profile && p.profile.companionName) || null;
+  }catch(e){ return null; }
+}
+
 function screenGarden(){
   const c = document.createElement("div");
   c.style.width="100%"; c.style.maxWidth="460px";
@@ -986,6 +999,22 @@ function screenGarden(){
           '<div class="level-info"><b>'+cd.label+'</b><span>'+cd.sub+'</span><div class="leaf-row">'+leafDots+'</div></div>'+
         '</button>';
       }).join("")+
+    '</div>'+
+    /* "Say it with me" sits between the quizzes and Pip's Turn because that is
+       what it is: more than a quiz, less than a routine. It is a separate page
+       rather than a fourth card here because it runs a different engine
+       entirely -- companions, a named friend, and the word lexicon -- and
+       folding that into this file would fuse two products that should stay
+       swappable. */
+    '<div class="garden-sub">Say it with me</div>'+
+    '<div class="grid">'+
+      '<a class="routine-card" href="/words" style="text-decoration:none;color:inherit">'+
+        '<div class="level-emoji" style="background:#FDE7DC">🗣️</div>'+
+        '<div class="level-info"><b>'+(wordsCompanionName()||'A friend')+'</b>'+
+        '<span>'+(wordsCompanionName()
+          ? wordsCompanionName()+' is waiting for you'
+          : 'Pick someone to take with you')+'</span></div>'+
+      '</a>'+
     '</div>'+
     '<div class="garden-sub">Pip\'s Turn</div>'+
     '<div class="grid">'+

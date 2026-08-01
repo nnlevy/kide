@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Say it with me — Kide</title>
+<meta name="description" content="Your child chooses a companion, names them, and helps them through a world where every word is a little bit of speech practice. Nothing is scored. Nothing ever leaves the device.">
+<meta name="theme-color" content="#F5E7CF">
+<link rel="canonical" href="https://kide.us/words">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<style>
+  :root{
+    --alabaster:#F5F2EB; --ink:#2E3A3F; --ink-soft:#5B6A67; --ink-faint:#9AA6A3;
+    --sunstone:#E17C5B; --sunstone-ink:#8A3F22; --bloom-gold:#FFB347;
+    --twilight:#5B6C8A; --card:#fff;
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--alabaster);color:var(--ink);-webkit-font-smoothing:antialiased;
+       line-height:1.45;padding:0 0 calc(20px + env(safe-area-inset-bottom,0px))}
+  .wrap{max-width:760px;margin:0 auto;padding:12px 14px}
+  .topbar{display:flex;align-items:center;gap:8px;padding:6px 0 12px}
+  .icon-btn{width:48px;height:48px;min-width:48px;border-radius:50%;border:2px solid #E6DFCE;
+    background:#fff;font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    text-decoration:none;color:var(--ink)}
+  .spacer{flex:1}
+  h1{font-size:22px;margin:0 0 4px;text-align:center}
+  .lead{color:var(--ink-soft);font-size:15px;margin:0 0 16px;text-align:center}
+  .stage{position:relative;border-radius:24px;overflow:hidden;box-shadow:0 8px 0 rgba(0,0,0,.07);background:#F1E6D2}
+  .sc-svg{display:block;width:100%;height:auto;aspect-ratio:1200/600}
+  @media (max-width:700px){ .sc-svg{aspect-ratio:3/2} }
+  .sc-layer{will-change:transform}
+  .sc-caption{position:absolute;left:0;right:0;bottom:0;pointer-events:none;padding:16px 18px 18px;
+    background:linear-gradient(180deg,rgba(0,0,0,0),rgba(46,32,20,.5));
+    color:#FFF7E6;font-size:20px;font-weight:800;text-shadow:0 2px 6px rgba(46,32,20,.45);
+    min-height:60px;display:flex;align-items:flex-end}
+  .sc-choices{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;padding:16px 6px 4px;min-height:20px}
+  .sc-obj{border:none;background:var(--card);border-radius:22px;padding:12px 16px;min-height:104px;min-width:106px;
+    box-shadow:0 6px 0 rgba(138,63,34,.14);cursor:pointer;font:inherit;
+    display:flex;flex-direction:column;align-items:center;gap:2px;
+    transition:transform .12s cubic-bezier(.2,.9,.3,1.3),box-shadow .12s}
+  .sc-obj:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(138,63,34,.14)}
+  .sc-obj-art{width:62px;height:62px;display:block}
+  .sc-obj-art svg{display:block}
+  .sc-obj-label{font-size:17px;font-weight:800;color:var(--ink)}
+  @keyframes sc-bob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-5px) rotate(-1.2deg)}}
+  @keyframes sc-wobble{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+  @keyframes sc-bounce{0%,100%{transform:translateY(0)}45%{transform:translateY(-18px)}}
+  #a-bob{transform-origin:102px 176px}
+  @media (prefers-reduced-motion: reduce){ #a-bob{animation:none !important} }
+  .say-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:14px}
+  .big-btn{font:inherit;font-size:19px;font-weight:800;padding:16px 26px;min-height:60px;min-width:60px;
+    border-radius:999px;border:none;background:var(--sunstone);color:var(--ink);cursor:pointer;
+    box-shadow:0 5px 0 rgba(138,63,34,.35)}
+  .big-btn.ghost{background:#fff;color:var(--ink);border:2px solid #E6DFCE;box-shadow:0 4px 0 rgba(0,0,0,.06)}
+  .big-btn:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(138,63,34,.35)}
+  .picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:6px}
+  .pick{border:3px solid #E6DFCE;background:#fff;border-radius:22px;padding:14px 12px;cursor:pointer;
+    font:inherit;display:flex;flex-direction:column;align-items:center;gap:6px;min-height:150px}
+  .pick[aria-pressed="true"]{border-color:var(--sunstone);box-shadow:0 0 0 4px rgba(225,124,91,.18)}
+  .pick .mini{width:82px;height:82px}
+  .pick b{font-size:17px}
+  .pick span{font-size:12.5px;color:var(--ink-faint);text-align:center;line-height:1.3}
+  .names{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+  .name-btn{font:inherit;font-size:18px;font-weight:800;padding:14px 20px;min-height:56px;min-width:56px;
+    border-radius:999px;border:3px solid #E6DFCE;background:#fff;color:var(--ink);cursor:pointer}
+  .name-btn[aria-pressed="true"]{border-color:var(--sunstone);background:#FDF1EB}
+  .daybar{height:8px;border-radius:4px;margin-top:14px;
+    background:linear-gradient(90deg,var(--bloom-gold),#F5E7CF 45%,var(--twilight));position:relative}
+  .daybar i{position:absolute;top:-5px;width:18px;height:18px;border-radius:50%;background:#fff;
+    box-shadow:0 1px 5px rgba(0,0,0,.25);transform:translateX(-9px);transition:left .6s ease}
+  .quiet{font-size:13px;color:var(--ink-faint);text-align:center;margin-top:16px}
+  .hidden{display:none !important}
+</style>
+<link rel="stylesheet" href="../mobile.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="icon-btn" href="/play" aria-label="Back to Pip's garden">🌿</a>
+    <div class="spacer"></div>
+    <a class="icon-btn" href="/parent/" aria-label="For grown-ups">⚙️</a>
+  </div>
+
+  <!-- 1 · who -->
+  <section id="stepWho">
+    <h1>Who shall we take with us?</h1>
+    <p class="lead">Whoever your child picks will be waiting for them next time.</p>
+    <div class="picker" id="actorPicker"></div>
+  </section>
+
+  <!-- 2 · name -->
+  <section id="stepName" class="hidden">
+    <h1 id="nameTitle">What shall we call them?</h1>
+    <p class="lead">The name your child chooses is the very first word they practise.</p>
+    <div class="names" id="namePicker"></div>
+    <div class="say-row"><button class="big-btn" id="btnBegin" disabled>Let's go</button></div>
+  </section>
+
+  <!-- 3 · play -->
+  <section id="stepPlay" class="hidden">
+    <div class="stage" id="stage"></div>
+    <div class="sc-choices" id="choices"></div>
+    <div class="say-row" id="sayRow"></div>
+    <div class="daybar"><i id="dayDot" style="left:0%"></i></div>
+    <p class="quiet" id="quiet">Tapping always works. Saying it out loud is optional.</p>
+  </section>
+</div>
+
+<script type="module">
+import { LessonEngine } from '../engine/engine.js';
+import { Scene } from '../scene/scene.js';
+import { actorList, getActor, ASLEEP, portraitSvg } from '../scene/actors.js';
+import { namesFor, nameAsTarget, nameIsScoreable } from '../scene/naming.js';
+import * as Journal from '../engine/journal.js';
+import * as Profile from '../engine/profile.js';
+
+const $ = (id) => document.getElementById(id);
+const BEATS_PER_DAY = 12;
+
+let actor = null, chosenName = null, scene = null, engine = null, offer = null, ended = false;
+let vocab = null;
+window.__kideWords = () => ({ actor, chosenName, engine, ended, beats: engine?.learner.beat });
+
+/* A tiny stand-in for the scorer until the on-device model is wired into this
+   surface. Every attempt here is a TAP, which the evidence layer correctly
+   counts as adherence and never as speech (see docs/WEDGE.md). Saying the word
+   out loud is still the point of the activity -- we simply cannot yet prove it
+   happened on this surface, and the record says so rather than guessing. */
+const tapOnly = null;
+
+async function loadVocab(){
+  if (vocab) return vocab;
+  try { vocab = await (await fetch('/bench/data/vocab.json')).json(); }
+  catch { vocab = {}; }
+  return vocab;
+}
+
+/* ---------------------------------------------------------------- step 1 */
+function renderWho(){
+  $('actorPicker').innerHTML = actorList().map((a) => `
+    <button class="pick" data-a="${a.id}" aria-pressed="${actor && actor.id === a.id}">
+      <span class="mini">${miniSvg(a)}</span>
+      <b>${a.defaultName}</b>
+      <span>${a.species}</span>
+    </button>`).join('');
+  $('actorPicker').querySelectorAll('.pick').forEach((b) => {
+    b.addEventListener('click', () => {
+      actor = getActor(b.dataset.a);
+      chosenName = null;
+      renderWho();
+      $('stepWho').classList.add('hidden');
+      $('stepName').classList.remove('hidden');
+      $('nameTitle').textContent = `What shall we call ${actor.species.replace(/^an? /, '')}?`;
+      renderNames();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+}
+
+/** A small portrait for the chooser: the actor's own rig, scaled down, so what
+    a child picks is exactly who turns up.
+    Ids are STRIPPED -- four portraits plus the stage would otherwise put five
+    copies of #a-root in the document. See portraitSvg() in actors.js. */
+function miniSvg(a){
+  return `<svg viewBox="0 0 200 190" width="100%" height="100%" aria-hidden="true">
+            <g transform="translate(0,-6) scale(0.98)">${portraitSvg(a)}</g></svg>`;
+}
+
+/* ---------------------------------------------------------------- step 2 */
+function renderNames(){
+  const names = namesFor(actor.id, 4);
+  $('namePicker').innerHTML = names.map((n) => `
+    <button class="name-btn" data-n="${n.name}" aria-pressed="${chosenName?.name === n.name}">${n.name}</button>`).join('');
+  $('namePicker').querySelectorAll('.name-btn').forEach((b) => {
+    b.addEventListener('click', () => {
+      chosenName = names.find((n) => n.name === b.dataset.n);
+      renderNames();
+      $('btnBegin').disabled = false;
+    });
+  });
+}
+
+$('btnBegin').addEventListener('click', () => { Profile.save({
+  actorId: actor.id, companionName: chosenName.name, concern: 'unclear',
+}); begin(); });
+
+/* ---------------------------------------------------------------- step 3 */
+async function begin(){
+  $('stepWho').classList.add('hidden');
+  $('stepName').classList.add('hidden');
+  $('stepPlay').classList.remove('hidden');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  scene = new Scene($('stage'), actor, $('choices'));
+  engine = new LessonEngine({
+    companionName: chosenName.name, concern: 'unclear',
+    scorer: tapOnly, journal: Journal.record,
+  });
+  ended = false;
+
+  // The name is the first word. For the toy it is also what wakes it up --
+  // nothing happens until the child speaks (or taps) for the first time.
+  const v = await loadVocab();
+  const first = nameAsTarget(chosenName, v);
+  const art = await scene.loadArt('HIDDEN');
+  scene.render({ affordance: 'HIDDEN', state: actor.wakes ? ASLEEP : 'WAIT', art,
+                 caption: actor.wakes ? actor.stall(chosenName.name) : `Someone's here!` });
+  scene.setTimeOfDay(0);
+
+  engine.current = {
+    target: { ph: first.ph, pos: first.pos, a: 1, b: 1, lvl: 2, lastBeat: -99, n: 0 },
+    word: first, affordance: 'HIDDEN', station: null, beat: 0,
+  };
+  engine.attempt = 0;
+  scene.say(actor.wakes
+    ? `Can you say ${first.w}? That's how ${first.w} wakes up.`
+    : `Can you say ${first.w}?`);
+  showSay(first.w);
+}
+
+/** The one action a child ever takes: they said it (or they tapped, which is
+    the same thing as far as the game is concerned -- never a failure). */
+function showSay(word){
+  $('sayRow').innerHTML = `<button class="big-btn" id="btnSaid">I said &ldquo;${word}&rdquo;</button>`;
+  $('btnSaid').addEventListener('click', said);
+}
+
+async function said(){
+  if (!engine || !engine.current || ended) return;
+  $('sayRow').innerHTML = '';
+  const r = await engine.submitAttempt(null);   // tap tier -- adherence, never speech
+  if (actor.wakes && scene.asleep) scene.setAsleep(false);
+  scene.pose('TRIUMPH').say(r.say);
+  await scene.reveal(engine.current.word.w);
+  nextOffer();
+}
+
+async function nextOffer(){
+  if (ended) return;
+  if (engine.learner.beat >= BEATS_PER_DAY) return goodnight();
+
+  offer = engine.offerBeat({ count: 3 });
+  const first = offer.choices[0];
+  const art = await scene.loadArt(first.affordance);
+  scene.render({ affordance: first.affordance, state: 'WAIT', art,
+    caption: 'Where shall we go?',
+    objects: offer.choices.map((c) => ({ label: c.word.w })),
+    onPick: pick });
+  scene.setTimeOfDay(engine.learner.beat / BEATS_PER_DAY);
+  $('dayDot').style.left = `${(engine.learner.beat / BEATS_PER_DAY) * 100}%`;
+  $('sayRow').innerHTML = '';
+}
+
+async function pick(i){
+  const prev = engine.current?.affordance;
+  const beat = engine.chooseBeat(i);
+  const art = await scene.loadArt(beat.affordance);
+  if (prev && prev !== beat.affordance) await scene.panTo(beat.affordance, { art });
+  else scene.render({ affordance: beat.affordance, state: 'WAIT', art });
+  scene.setTimeOfDay(engine.learner.beat / BEATS_PER_DAY);
+  scene.pose('STUCK').say(actor.stall(engine.companionName));
+  await wait(850);
+  scene.pose('ASK').say(beat.invitation);
+  showSay(beat.word.w);
+}
+
+async function goodnight(){
+  ended = true;
+  scene.setTimeOfDay(1);
+  $('dayDot').style.left = '100%';
+  scene.clearChoices();
+  scene.pose('WAIT').say(`The light is going down. ${engine.companionName} is getting sleepy…`);
+  $('sayRow').innerHTML =
+    `<button class="big-btn" id="btnNight">Goodnight, ${engine.companionName}</button>`;
+  $('btnNight').addEventListener('click', () => {
+    scene.say(`Goodnight! See you next time.`);
+    $('sayRow').innerHTML = '<a class="big-btn ghost" href="/play">Back to the garden</a>';
+  });
+  $('quiet').textContent = 'The day ended on its own — nobody had to take the tablet away.';
+}
+
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/* ------------------------------------------------------------------ boot */
+(async () => {
+  const saved = Profile.load();
+  if (saved) {
+    // They have played before: the same companion is waiting, by name. Being
+    // asked to choose again would tell a child the choice did not matter.
+    actor = getActor(saved.actorId);
+    const v = await loadVocab();
+    chosenName = namesFor(actor.id, 12).find((n) => n.name === saved.companionName)
+      || { name: saved.companionName, ph: [], target: 'b_initial' };
+    if (!chosenName.ph.length) {
+      // A name we have no recording for still works -- it just is not the
+      // first practice target. Never synthesise it (see naming.js).
+      chosenName = namesFor(actor.id, 1)[0];
+    }
+    begin();
+  } else {
+    actor = getActor('goldendoodle');
+    renderWho();
+  }
+})();
+</script>
+</body>
+</html>

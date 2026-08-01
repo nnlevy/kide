@@ -383,6 +383,38 @@ console.log('--- world motion ---');
 }
 
 // ---------------------------------------------------------------------------
+console.log('--- duplicate DOM ids (audit defect 2, reintroduced once already) ---');
+// ---------------------------------------------------------------------------
+
+{
+  const { portraitSvg } = await import('./public/scene/actors.js');
+
+  // The rig carries ids because the scene poses by id. Anywhere an actor is
+  // drawn OUTSIDE the stage -- a chooser, a card, a print sheet -- the ids MUST
+  // be stripped, or an unscoped document.querySelector('#a-root') silently
+  // addresses the wrong element. The prototype's companion picker shipped this
+  // exact defect (spec section 9, defect 2) and /words reintroduced it.
+  for (const a of actorList()) {
+    const p = portraitSvg(a);
+    eq(`portraitSvg(${a.id}) carries no ids`, (p.match(/\sid="a-/g) || []).length, 0);
+    ok(`portraitSvg(${a.id}) still draws the body`, p.includes('<path') && p.length > 400,
+       'stripping ids must not strip the artwork');
+    ok(`${a.id}'s stage rig still HAS ids`, a.svg.includes('id="a-root"'),
+       'the scene poses by id -- only copies are stripped');
+  }
+
+  // And no surface may inject a raw rig into a repeated element.
+  for (const f of ['./public/words/index.html', './public/scene/index.html']) {
+    const src = fs.readFileSync(f, 'utf8');
+    const name = f.split('/').slice(-2)[0];
+    // `.svg` used inside a list/map render is the shape of the bug.
+    const rawInMap = /\.map\([^)]*\)[\s\S]{0,400}?\$\{\s*\w+\.svg\s*\}/.test(src);
+    ok(`${name} never injects a raw rig into a repeated element`, !rawInMap,
+       'use portraitSvg() for anything drawn more than once');
+  }
+}
+
+// ---------------------------------------------------------------------------
 console.log('--- the naming flow ---');
 // ---------------------------------------------------------------------------
 

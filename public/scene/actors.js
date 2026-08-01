@@ -290,5 +290,23 @@ export const MOUTHS = {
  *  so no actor needs a second set of eye artwork. */
 export const CLOSED_EYES = 'M0 0 m-8 0 q8 6 16 0';
 
+/** A copy of an actor's artwork with every id stripped.
+ *
+ *  MUST be used anywhere an actor is drawn OUTSIDE the stage -- a chooser, a
+ *  marketing card, a print sheet. The rig carries ids (#a-root, #a-head,
+ *  #a-eyeL...) because the scene poses by id; injecting it more than once puts
+ *  duplicate ids in the document, which is invalid HTML and makes any
+ *  unscoped `document.querySelector('#a-root')` silently address the wrong
+ *  element.
+ *
+ *  This is the SECOND time this defect has appeared: the prototype's companion
+ *  picker did exactly the same thing and the audit caught it (spec section 9,
+ *  defect 2 -- "ids are now stripped on inject"). It reappeared because the
+ *  safe way to do it was a convention rather than a function. Now it is a
+ *  function, and a test asserts no surface injects a raw rig more than once. */
+export function portraitSvg(actor) {
+  return actor.svg.replace(/\sid="a-[a-zA-Z]+"/g, '');
+}
+
 export const actorList = () => Object.values(ACTORS);
 export const getActor = (id) => ACTORS[id] || ACTORS.goldendoodle;
