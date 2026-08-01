@@ -2,19 +2,19 @@
   "models": [
     {
       "id": "gruut-ctc-v1-int8",
-      "label": "wav2vec2-base phoneme CTC — INT8 (default)",
+      "label": "wav2vec2-base phoneme CTC — INT8 (slow on WebGPU, keep for WASM)",
       "url": "/models/gruut-ctc-v1-int8.onnx",
       "approxSizeMB": 122,
-      "default": true,
-      "notes": "wav2vec2-base (94.4M params, bookbot/wav2vec2-ljspeech-gruut) fine-tuned for IPA phoneme CTC output. Dynamic INT8 quantization applied to MatMul/Gemm ops only — the 7-layer conv feature extractor and the positional conv embedding stayed FP32 because their weight-norm reparameterization (a Mul feeding Conv) isn't a quantizer-recognized constant initializer. FP32 source was 377.8MB; this build is 121.9MB (32%)."
+      "default": false,
+      "notes": "wav2vec2-base (94.4M params, bookbot/wav2vec2-ljspeech-gruut) fine-tuned for IPA phoneme CTC output. Dynamic INT8 quantization applied to MatMul/Gemm ops only — the 7-layer conv feature extractor and the positional conv embedding stayed FP32 because their weight-norm reparameterization (a Mul feeding Conv) isn't a quantizer-recognized constant initializer. FP32 source was 377.8MB; this build is 121.9MB (32%). MEASURED 2026-08-01, real iPad, WebGPU: 572ms mean per utterance — 4.9x SLOWER than the FP16 build of the identical checkpoint. Do not ship this on the WebGPU path. Kept because INT8 kernels are mature on WASM/CPU and it is very likely still the right choice for the WASM fallback path — that comparison has not been run on-device yet."
     },
     {
       "id": "gruut-ctc-v1-fp16",
-      "label": "wav2vec2-base phoneme CTC — FP16 (diagnostic)",
+      "label": "wav2vec2-base phoneme CTC — FP16 (default, WebGPU winner)",
       "url": "/models/gruut-ctc-v1-fp16.onnx",
       "approxSizeMB": 189,
-      "default": false,
-      "notes": "Same checkpoint, weights/activations cast to FP16 (onnxconverter-common float16.convert_float_to_float16, keep_io_types=True so input_values/logits stay FP32 -- no harness changes needed). Added 2026-08-01 to test one hypothesis: real-iPad WebGPU steady-state latency on the INT8 build came back at ~572ms (mean, post-warmup, tight variance 540-631ms) -- over 3x the sandbox's own INT8-on-CPU number. INT8 kernels are far more mature on WASM/CPU than on current WebGPU backends across browsers, so INT8 may be actively hurting here rather than helping. FP16 rather than FP32 specifically because (a) FP16 is the precision GPUs -- including WebGPU -- are generally best optimized for, a more apt comparison than FP32, and (b) FP32 is 377.8MB, over wrangler's 300MiB `r2 object put` ceiling; FP16 halves that to 189.1MB. If FP16 is faster than INT8 on WebGPU, that confirms the quantization-is-hurting hypothesis; if FP16 is also 500ms+, the bottleneck is elsewhere (e.g. per-op GPU dispatch overhead across 12 transformer layers at this sequence length) and precision isn't the lever to pull. Verified correct (not just fast) against real speech from this repo's own voice pack before shipping, same as the INT8 build."
+      "default": true,
+      "notes": "Same checkpoint, weights/activations cast to FP16 (onnxconverter-common float16.convert_float_to_float16, keep_io_types=True so input_values/logits stay FP32 — no harness changes needed). MEASURED 2026-08-01, real iPad, WebGPU, 20 reps post-warmup: 116.75ms mean / 117ms median / 121ms p95, range 113-121ms. PASSES the 300ms budget with 2.6x headroom, and is 4.9x faster than the INT8 build of the identical checkpoint (572ms). That confirms the hypothesis this file was built to test: INT8 quantization was actively hurting on WebGPU, not helping — INT8 kernel paths are mature on WASM/CPU but thin on current WebGPU backends. Verified correct (not just fast) against real speech from this repo's own voice pack before shipping, same as the INT8 build."
     }
   ],
   "readme": "Add more entries here to compare candidates side-by-side (e.g. a further-compressed or smaller-architecture model). The harness reads this file to populate the model picker; nothing else needs to change."
