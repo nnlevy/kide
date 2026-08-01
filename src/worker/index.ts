@@ -1,3 +1,6 @@
+// Sitemap and robots are GENERATED from the pages that actually exist -- the
+// hand-written version silently went stale and was missing five live pages.
+import { SITEMAP, ROBOTS } from "./seo-generated";
 export interface Env {
   DB?: D1Database;
   ASSETS: Fetcher;
@@ -5,7 +8,7 @@ export interface Env {
   MODELS?: R2Bucket;
 }
 
-const SITEMAP = `<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://kide.us/</loc></url><url><loc>https://kide.us/play</loc></url><url><loc>https://kide.us/words</loc></url><url><loc>https://kide.us/guides</loc></url><url><loc>https://kide.us/guides/potty-training-without-pressure</loc></url><url><loc>https://kide.us/guides/screen-time-that-ends-itself</loc></url><url><loc>https://kide.us/guides/your-childs-voice-stays-on-the-device</loc></url><url><loc>https://kide.us/privacy</loc></url><url><loc>https://kide.us/terms</loc></url></urlset>`;
+
 
 const NOT_FOUND_HTML = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Page not found · Kide</title><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#56C6E6,#BDEBFF);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;text-align:center;color:#fff;}h1{font-size:22px;}a{color:#fff;font-weight:800;}</style></head><body><div><div style="font-size:64px">🌱</div><h1>Pip couldn't find that page</h1><p><a href="/">Back to Kide</a></p></div></body></html>`;
 
@@ -34,18 +37,29 @@ export default {
       }
     }
 
-    if (url.pathname === "/ads.txt") {
-      return new Response("google.com, pub-1860356577073395, DIRECT, f08c47fec0942fa0\n", {
-        headers: { "Content-Type": "text/plain" },
-      });
-    }
+    // ads.txt is deliberately ABSENT, and this is not an oversight.
+    //
+    // kide.us is a service directed to children aged roughly 2-7. Under COPPA's
+    // amended Rule, persistent identifiers used to serve targeted advertising on
+    // a child-directed service are personal information and require verifiable
+    // parental consent. An ads.txt file declares ad inventory for this domain and
+    // is a public invitation to buy it.
+    //
+    // It also contradicts the only thing this product actually sells. Every page
+    // tells a parent their child's voice never leaves the device; carrying an ad
+    // network that fingerprints the same child would make that a technicality.
+    // The portfolio already has a convention for this (sensitive domains carry no
+    // ad pixels) and kide belongs in it.
+    //
+    // 404 rather than an empty file: an empty ads.txt is ambiguous, a missing one
+    // is not.
 
     if (url.pathname === "/sitemap.xml") {
-      return new Response(SITEMAP, { headers: { "Content-Type": "application/xml" } });
+      return new Response(SITEMAP, { headers: { "Content-Type": "application/xml; charset=utf-8" } });
     }
 
     if (url.pathname === "/robots.txt") {
-      return new Response("User-agent: *\nAllow: /\nSitemap: https://kide.us/sitemap.xml");
+      return new Response(ROBOTS, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
     }
 
     if (url.pathname === "/api/health") {

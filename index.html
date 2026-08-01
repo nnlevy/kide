@@ -146,6 +146,7 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
 @media (max-width:520px){.card-grid{grid-template-columns:1fr 1fr;}}
 </style>
 <link rel="stylesheet" href="/mobile.css">
+<link rel="manifest" href="/site.webmanifest">
 </head>
 <body>
 
@@ -153,8 +154,8 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
   <nav><div class="row">
     <a class="wordmark" href="/">kide</a>
     <div>
-      <a class="nav-play" href="/guides" style="border-color:var(--sand);color:var(--sand-deep);margin-right:8px;">Guides</a>
-      <a class="nav-play" href="/play">Play</a>
+      <a class="nav-play" href="/sounds" style="border-color:var(--sand);color:var(--sand-deep);margin-right:8px;">Sounds</a>
+      <a class="nav-play" href="/words">Practise</a>
     </div>
   </div></nav>
 
@@ -219,6 +220,9 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
       <i>same</i> sound — so wherever your child chooses to go, there is no wrong door, and they
       can never quietly avoid the sound they find hardest.</p>
     <p class="desc"><a class="readmore" href="/words">Try it with your child →</a></p>
+    <p class="desc" style="margin-top:18px">Not sure which sounds your child should have yet?
+       Most of the time the answer is &ldquo;this one is still on its way, and that's on time&rdquo; —
+       <a class="readmore" href="/sounds">check your child's age against the research →</a></p>
   </section>
 
   <section>
@@ -251,7 +255,9 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
   <footer>
     kide.us — a Quizbiz LLC product
     <div class="links"><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></div>
-  </footer>
+    <div class="links" style="margin-top:8px">Part of the portfolio network ·
+    <a href="https://growth.business/?from=kide.us">growth.business</a></div>
+</footer>
 </div>
 
 <script>
@@ -325,7 +331,12 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
             return '<span class="chip">'+w.w+'<i>/'+w.ipa.join(' ')+'/</i></span>';
           }).join('') + (ws.length>14 ? '<span class="chip">+'+(ws.length-14)+' more</span>' : '') + '</div>'
         + '<p class="where">Your child meets these at <b>' + placeNames.join('</b>, <b>') + '</b>'
-        + ' — and the harder ones only unlock once the easier ones are comfortable.</p>';
+        + ' — and the harder ones only unlock once the easier ones are comfortable.</p>'
+        /* Straight through to the page that answers "should they have this by now?".
+           The homepage is the strongest page on the site; pointing it at the surface
+           built to rank is free, and it is also the next thing a parent wants. */
+        + '<p class="where" style="margin-top:10px"><a class="readmore" href="/sounds/' + ph + '">'
+        + 'When do children learn the &ldquo;' + (PH_LABEL[ph]||ph) + '&rdquo; sound? →</a></p>';
     }
 
     picker.innerHTML = sounds.map(function(ph){
@@ -375,6 +386,11 @@ document.getElementById('notifyForm').addEventListener('submit', function(e){
     msg.className = 'notify-msg err';
   });
 });
+</script>
+<script type="module">
+  // Parent-facing page: measured, with no identifier of any kind. Child-facing
+  // surfaces (/words, /play) send nothing at all. See engine/measure.js.
+  import("/engine/measure.js").then((m) => m.start()).catch(() => {});
 </script>
 </body>
 </html>

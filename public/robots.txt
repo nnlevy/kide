@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /bench/
+Disallow: /clinician/
+Disallow: /engine/
+Disallow: /parent/
+Disallow: /scene/
+
+Sitemap: https://kide.us/sitemap.xml

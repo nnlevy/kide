@@ -1,0 +1,14 @@
+{
+  "name": "Kide — speech practice that never scores your child",
+  "short_name": "Kide",
+  "description": "A game a pre-reader can play alone. Every line is spoken aloud, nothing is scored, and your child's voice never leaves the device.",
+  "start_url": "/words",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFBF2",
+  "theme_color": "#56C6E6",
+  "categories": ["education", "kids"],
+  "icons": [
+    { "src": "/favicon.ico", "sizes": "any", "type": "image/x-icon" }
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "built": [
+    {
+      "path": "/sounds/b",
+      "code": "b",
+      "letters": "b",
+      "mastery": 36,
+      "words": 14
+    },
+    {
+      "path": "/sounds/m",
+      "code": "m",
+      "letters": "m",
+      "mastery": 36,
+      "words": 9
+    },
+    {
+      "path": "/sounds/p",
+      "code": "p",
+      "letters": "p",
+      "mastery": 36,
+      "words": 6
+    },
+    {
+      "path": "/sounds/n",
+      "code": "n",
+      "letters": "n",
+      "mastery": 36,
+      "words": 3
+    },
+    {
+      "path": "/sounds/d",
+      "code": "d",
+      "letters": "d",
+      "mastery": 36,
+      "words": 4
+    },
+    {
+      "path": "/sounds/w",
+      "code": "w",
+      "letters": "w",
+      "mastery": 36,
+      "words": 6
+    },
+    {
+      "path": "/sounds/h",
+      "code": "h",
+      "letters": "h",
+      "mastery": 36,
+      "words": 4
+    },
+    {
+      "path": "/sounds/k",
+      "code": "k",
+      "letters": "k",
+      "mastery": 42,
+      "words": 6
+    },
+    {
+      "path": "/sounds/t",
+      "code": "t",
+      "letters": "t",
+      "mastery": 42,
+      "words": 2
+    },
+    {
+      "path": "/sounds/g",
+      "code": "g",
+      "letters": "g",
+      "mastery": 42,
+      "words": 3
+    },
+    {
+      "path": "/sounds/f",
+      "code": "f",
+      "letters": "f",
+      "mastery": 48,
+      "words": 3
+    },
+    {
+      "path": "/sounds/l",
+      "code": "l",
+      "letters": "l",
+      "mastery": 60,
+      "words": 8
+    },
+    {
+      "path": "/sounds/sh",
+      "code": "sh",
+      "letters": "sh",
+      "mastery": 60,
+      "words": 4
+    },
+    {
+      "path": "/sounds/ch",
+      "code": "ch",
+      "letters": "ch",
+      "mastery": 60,
+      "words": 2
+    },
+    {
+      "path": "/sounds/s",
+      "code": "s",
+      "letters": "s",
+      "mastery": 66,
+      "words": 5
+    },
+    {
+      "path": "/sounds/r",
+      "code": "r",
+      "letters": "r",
+      "mastery": 72,
+      "words": 6
+    }
+  ]
+}
