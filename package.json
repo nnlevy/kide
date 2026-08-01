@@ -16,11 +16,12 @@
 		"test:scene": "node test-scene.mjs",
 		"test:clinical": "node test-clinical.mjs",
 		"test:speech": "node test-speech.mjs",
+		"test:journal": "node test-journal.mjs",
 		"test:mobile": "npm run build && node test-mobile.mjs",
-		"lexicon:build": "python3 tools/lexicon/build_lexicon.py",
+		"lexicon:build": "python3 tools/lexicon/build_lexicon.py && python3 tools/lexicon/build_play_targets.py",
 		"calibrate": "python3 tools/calibrate/calibrate.py",
 		"share:render": "node tools/share/card.js",
-		"test": "npm run test:engine && npm run test:scene && npm run test:clinical && npm run test:speech && npm run test:mobile && npm run test:voice && node test-routines.js",
+		"test": "npm run test:engine && npm run test:scene && npm run test:clinical && npm run test:speech && npm run test:journal && npm run test:mobile && npm run test:voice && node test-routines.js",
 		"demo:render": "npm run build && node tools/share/demo.js"
 	},
 	"devDependencies": {

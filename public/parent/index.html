@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Kide · your child's week</title>
+<style>
+  :root{
+    --cream:#FFFBF2; --card:#fff; --ink:#2E3A3F; --ink-soft:#5B6A67; --ink-faint:#9AA6A3;
+    --sunstone:#E17C5B; --sunstone-ink:#8A3F22; --grass:#6FD08C; --grass-dark:#3D9C63;
+    --radius-lg:28px; --radius-md:20px;
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--cream);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;
+       padding:18px 16px calc(48px + env(safe-area-inset-bottom,0px))}
+  .wrap{max-width:680px;margin:0 auto}
+  h1{font-size:23px;margin:0 0 4px}
+  .sub{color:var(--ink-soft);font-size:14.5px;margin:0 0 20px}
+  .card{background:var(--card);border-radius:var(--radius-md);padding:20px 20px;margin-bottom:14px;
+        box-shadow:0 5px 0 rgba(0,0,0,.05)}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);margin:0 0 10px}
+  .big{font-size:17px;margin:0 0 8px}
+  .muted{font-size:14px;color:var(--ink-soft);margin:0}
+  .carlist{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}
+  .carword{background:#F6F2E6;border-radius:999px;padding:10px 16px;font-size:17px;font-weight:800}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+  button,a.btn{font:inherit;font-size:16px;font-weight:700;padding:13px 20px;min-height:48px;min-width:48px;
+    border-radius:999px;border:2px solid #EFE9DA;background:#fff;color:var(--ink);cursor:pointer;
+    display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+  button.primary{background:var(--sunstone);color:var(--ink);border-color:var(--sunstone)}
+  button.danger{border-color:#E4D5CE;color:var(--sunstone-ink)}
+  .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
+  .stat{background:#FAF7F0;border-radius:16px;padding:14px 10px;text-align:center}
+  .stat b{display:block;font-size:26px;color:var(--grass-dark);line-height:1.1}
+  .stat span{font-size:12px;color:var(--ink-soft)}
+  .note{font-size:13px;color:var(--ink-soft);background:#FAF7F0;border-left:3px solid #EFE9DA;
+        padding:11px 13px;border-radius:0 10px 10px 0;margin-top:12px}
+  .note b{color:var(--ink)}
+  .link{word-break:break-all;font-size:12px;color:var(--ink-faint);margin-top:10px}
+</style>
+<link rel="stylesheet" href="../mobile.css">
+</head>
+<body>
+<div class="wrap">
+  <h1>Your child's week</h1>
+  <p class="sub">Movement over many tries — never a score, and never a verdict.
+     Your child never sees any of this.</p>
+
+  <div class="card">
+    <h2>This week</h2>
+    <div id="narrative"><p class="big">No practice recorded yet.</p></div>
+    <div class="stat-row" id="stats" style="margin-top:14px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Try these in the car</h2>
+    <p class="muted" id="carIntro">Once there is a little practice, this is where the
+      words most likely to come up next will appear.</p>
+    <div class="carlist" id="carlist"></div>
+    <div class="note">
+      These are not a generic tip. They are literally the words the game would
+      choose next, so saying them in the car is practice that lines up with
+      tomorrow's session.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Share with a speech therapist</h2>
+    <p class="muted">Creates a link containing the practice record. It opens on
+      their device straight from the link — no account, no login, and it is not
+      sent to us or stored anywhere.</p>
+    <div class="row">
+      <button class="primary" id="btnShare">Create a link</button>
+      <a class="btn" id="btnOpen" href="/clinician/" style="display:none">Open the record</a>
+    </div>
+    <p class="link" id="linkOut"></p>
+  </div>
+
+  <div class="card">
+    <h2>Your child's data</h2>
+    <p class="muted" id="storageNote">—</p>
+    <div class="note">
+      <b>Nothing here is audio.</b> No recording, no voiceprint, nothing that could
+      identify your child by their voice — only which word was practised and whether
+      it was heard. It is kept on this device and nowhere else.
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="danger" id="btnClear">Delete everything</button>
+    </div>
+  </div>
+
+  <p class="sub" style="text-align:center;margin-top:22px">
+    Kide is practice, not therapy. It does not diagnose or treat.
+  </p>
+</div>
+
+<script type="module">
+import * as Journal from '../engine/journal.js';
+import { buildRecord, narrativeFor, MIN_ATTEMPTS_PER_TARGET } from '../engine/clinical.js';
+import { LEX, keyOf } from '../engine/lexicon.js';
+
+const $ = (id) => document.getElementById(id);
+let record = null;
+window.__kideParent = () => ({ record, events: Journal.count() });
+
+function render() {
+  const events = Journal.all();
+  record = buildRecord(events);
+
+  $('narrative').innerHTML = events.length
+    ? narrativeFor(record).map((l) => `<p class="big">${l}</p>`).join('')
+    : '<p class="big">No practice recorded yet.</p>';
+
+  const a = record.adherence;
+  $('stats').innerHTML = events.length ? [
+    [a.days || 0, 'days practised'],
+    [a.sessions || 0, 'sessions'],
+    [record.scoredAttempts, 'spoken tries'],
+    [record.excludedTaps, 'tapped tries'],
+  ].map(([n, l]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('') : '';
+
+  // The car list: the words most likely to come up next. Derived from what has
+  // actually been practised least well, not from a fixed list.
+  const weak = record.targets
+    .filter((t) => !t.insufficientEvidence && t.producedCorrectly.point < 0.6)
+    .slice(0, 3);
+  const source = weak.length ? weak : record.targets.slice(0, 3);
+  const words = [];
+  for (const t of source) {
+    for (const x of LEX) {
+      if (keyOf(x) === t.target && x.lvl <= 2 && !words.includes(x.w)) { words.push(x.w); break; }
+    }
+  }
+  $('carlist').innerHTML = words.map((w) => `<span class="carword">${w}</span>`).join('');
+  $('carIntro').textContent = words.length
+    ? 'Say these together — they are what the game would choose next.'
+    : 'Once there is a little practice, this is where the words most likely to come up next will appear.';
+
+  const bytes = Journal.sizeBytes();
+  $('storageNote').textContent = Journal.storageAvailable()
+    ? `${Journal.count()} practice moments kept on this device (${(bytes / 1024).toFixed(1)} KB).`
+    : 'This browser will not let us keep a record between visits, so only this '
+      + 'session is shown. Everything else still works.';
+}
+
+$('btnShare').addEventListener('click', async () => {
+  if (!Journal.count()) { $('linkOut').textContent = 'Nothing to share yet.'; return; }
+  const rel = Journal.exportLink('/clinician/', { days: 90 });
+  const url = new URL(rel, location.origin).href;
+  $('btnOpen').href = rel;
+  $('btnOpen').style.display = 'inline-flex';
+  try {
+    if (navigator.share) { await navigator.share({ title: "Practice record", url }); $('linkOut').textContent = 'Shared.'; return; }
+    await navigator.clipboard.writeText(url);
+    $('linkOut').textContent = 'Link copied. Paste it wherever you like.';
+  } catch {
+    $('linkOut').textContent = url;   // always give them something they can use
+  }
+});
+
+$('btnClear').addEventListener('click', () => {
+  // A parent deleting their child's record is an obligation, not a feature --
+  // but it is irreversible, so it is confirmed once.
+  if (!confirm('Delete all practice history on this device? This cannot be undone.')) return;
+  Journal.clear();
+  $('linkOut').textContent = '';
+  $('btnOpen').style.display = 'none';
+  render();
+});
+
+render();
+</script>
+</body>
+</html>

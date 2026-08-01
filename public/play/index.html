@@ -593,6 +593,52 @@ function say(id){
   return KideVoice.speak(id);
 }
 
+/* --------------------------- practice evidence ----------------------------
+   This game has always asked children to SAY words -- "red", "three",
+   "circle" -- and the on-device recogniser has always known whether it heard
+   them. That is real speech practice, and until now none of it was recorded.
+   Mapping each answer word to the speech sound it carries turns the existing
+   game into the evidence source behind the practice record, WITHOUT changing
+   anything a child sees or does.
+
+   The distinction that matters, and the one a clinician would check first:
+   a TAP is not speech. Both are recorded, because tapping is a valid way to
+   play and still counts as practice, but only a spoken answer is ever counted
+   as evidence about articulation (see public/engine/clinical.js).
+
+   Nothing leaves the device. No audio is retained -- only which word, which
+   sound, and whether it was heard.
+--------------------------------------------------------------------------- */
+var PLAY_TARGETS = null;
+fetch("/data/play-targets.json").then(function(r){ return r.ok ? r.json() : null; })
+  .then(function(j){ PLAY_TARGETS = j; }).catch(function(){});
+
+var Journal = null;
+import("/engine/journal.js").then(function(m){ Journal = m; }).catch(function(){});
+
+/* How the answer now on screen was given. Set by the mic handler just before
+   it clicks the button, so answerWith() can tell speech from a tap. */
+var answerSource = "tap";
+
+function recordPractice(word, correct, source){
+  if(!Journal || !PLAY_TARGETS) return;
+  var t = PLAY_TARGETS[String(word).toLowerCase()];
+  if(!t) return;                       // a word we cannot attribute to a sound
+  Journal.record({
+    at: Date.now(),
+    target: t.target,
+    word: t.w,
+    /* 'native' = the browser's own on-device recogniser heard it. Word-level,
+       not phoneme-level, and the report says so. 'tap' contributes adherence
+       only. */
+    tier: source === "voice" ? "native" : "tap",
+    verdict: correct ? "clear" : "unsure",
+    forced: false,
+    level: 2,
+    surface: "play"
+  });
+}
+
 /* Advance only once Pip has actually finished the line.
  *
  * THE BUG THIS EXISTS TO PREVENT. Two call sites used to start a clip and then
@@ -769,11 +815,17 @@ function maybeListen(){
     onMatch: function(value){
       KideVoice.mic.indicator("idle");
       const btn = document.querySelector('#optWrap [data-val="' + value + '"]:not(.collected)');
-      if(btn) answerWith(btn);
+      // The child SPOKE and was understood -- this is the one path that
+      // produces genuine speech evidence rather than adherence only.
+      if(btn){ answerSource = "voice"; answerWith(btn); }
       else maybeListen();
     },
     onNoMatch: function(){
       KideVoice.mic.indicator("idle");
+      // Heard something, could not match it. Recorded as an unsure SPOKEN
+      // attempt: leaving it out would quietly bias the record upward by
+      // dropping exactly the attempts that did not go well.
+      if(state.q) recordPractice(state.q.target, false, "voice");
       listenTries++;
       if(listenTries >= 2) return;  // then it's tap-only, no nagging
       const at = state.screen;
@@ -1344,6 +1396,11 @@ function handoffCardHTML(){
      part another parent would care about. Nothing is uploaded to build it: the
      numbers come from this device and the text is composed here. */
   const shareable = s.good >= 2;
+  /* The practice record lives behind the same grown-ups gate. It is the only
+     place the speech-practice evidence surfaces, and it must never be reachable
+     from a child-facing screen: per-attempt outcomes are surfaced to nobody,
+     and a child seeing anything that looks like a score is the failure mode the
+     whole design exists to avoid. */
   return '<div class="settings-card">'+
     '<h3>Your week with Pip</h3>'+
     '<p style="font-size:17px;color:var(--ink)"><b>You handed Pip over '+times+'.</b> '+s.good+' ended with a goodbye.</p>'+
@@ -1352,6 +1409,8 @@ function handoffCardHTML(){
       ? '<button class="btn btn-secondary" id="shareWeek" style="font-size:15px;padding:11px 20px;margin-top:6px">Tell another parent</button>'+
         '<div class="lead-ok" id="shareOk" style="display:none">Copied — paste it anywhere.</div>'
       : '')+
+    '<p style="margin-top:14px"><a href="/parent/" style="font-weight:800;color:var(--sand-deep);'+
+      'display:inline-flex;align-items:center;min-height:44px">Speech practice this week &rarr;</a></p>'+
   '</div>';
 }
 
@@ -1575,6 +1634,7 @@ function answerWith(btn){
       document.getElementById("basketCount").textContent = q.got+" / "+q.need+" collected";
       if(q.got>=q.need){
         recordAnswer("shapes", true);
+        recordPractice(q.target, true, answerSource); answerSource = "tap";
         state.awaitingNext = true;
         const ai = Math.floor(Math.random()*AFFIRM_WORDS.length);
         showAffirm(AFFIRM_WORDS[ai]);
@@ -1605,6 +1665,7 @@ function answerWith(btn){
     const line = say(q.type==="counting" ? ("answer-"+q.target) : ("affirm-"+(ai+1)));
     const pipC = document.getElementById("pipChar"); if(pipC) pipC.classList.add("celebrate");
     recordAnswer(state.level, true);
+    recordPractice(q.target, true, answerSource); answerSource = "tap";
     updateHudLeafBar();
     afterSpeech(line, 950).then(()=>{
       state.awaitingNext=false; newQuestion(state.level); render();
@@ -1613,6 +1674,7 @@ function answerWith(btn){
     btn.classList.add("wrong-flash");
     sfxTry();
     recordAnswer(state.level, false);
+    recordPractice(q.target, false, answerSource); answerSource = "tap";
     state.missOnQuestion++;
     state.awaitingNext = false;
     setTimeout(()=>btn.classList.remove("wrong-flash"), 450);

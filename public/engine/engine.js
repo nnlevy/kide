@@ -50,8 +50,15 @@ export class LessonEngine {
    *                                      which is a complete experience)
    * @param {Function} opts.rng           injectable for deterministic tests
    */
+  /**
+   * @param {Function} opts.journal  optional sink for durable evidence. Kept as
+   *   an injected function rather than an import so the engine stays pure and
+   *   testable -- and so a caller that does not want persistence simply does
+   *   not pass one.
+   */
   constructor({ companionName = 'Butterbean', concern = 'unclear', scorer = null,
-                rng = Math.random, clock = () => Date.now() } = {}) {
+                rng = Math.random, clock = () => Date.now(), journal = null } = {}) {
+    this.journal = journal;
     this.companionName = companionName;
     this.scorer = scorer;
     // Injectable so clinical output is deterministic under test.
@@ -206,6 +213,12 @@ export class LessonEngine {
       // record could re-identify a child by voice.
     };
     this.log.push(beatRecord);
+    // Persist immediately. Evidence that only exists in memory is not evidence:
+    // adherence is entirely a function of history, and a month of it must
+    // survive a browser restart.
+    if (this.journal) {
+      try { this.journal({ ...beatRecord, surface: 'scene' }); } catch { /* never break play */ }
+    }
 
     if (resolves) {
       this.learner.beat++;

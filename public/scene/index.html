@@ -149,6 +149,7 @@ import { objectSvg } from './objects.js';
 import { actorList, getActor, STATES, ASLEEP } from './actors.js';
 import { DELIVERY_SPEC, LAYERS } from './assets.js';
 import { namesFor, nameAsTarget, nameIsScoreable } from './naming.js';
+import * as Journal from '../engine/journal.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -210,7 +211,8 @@ $('btnBegin').addEventListener('click', begin);
 
 async function begin() {
   ended = false;
-  engine = new LessonEngine({ companionName: chosenName.name, concern: 'unclear', scorer: demoScorer });
+  engine = new LessonEngine({ companionName: chosenName.name, concern: 'unclear',
+                              scorer: demoScorer, journal: Journal.record });
   $('setup').style.display = 'none';
   $('btnSay').disabled = false; $('btnQuiet').disabled = false;
 

@@ -1,6 +1,15 @@
 # The wedge
 
-**Live:** [kide.us/clinician/](https://kide.us/clinician/) · **Test:** `npm run test:clinical` (59 assertions)
+**Live:** [kide.us/parent/](https://kide.us/parent/) (parent) ·
+[kide.us/clinician/](https://kide.us/clinician/) (the record) ·
+**Tests:** `npm run test:clinical` (59) + `npm run test:journal` (82)
+
+```
+public/engine/clinical.js   the statistics
+public/engine/journal.js    durable, local-only, privacy-enforced storage
+public/parent/              weekly trend, car list, share, delete
+public/clinician/           the artifact an SLP files
+```
 
 Spec §7 names it in one line, and it was the only named component never built:
 
@@ -49,6 +58,47 @@ data-collection mechanism rather than the thing being sold.
 *This does not overturn the scorecard.* It identifies a customer the scorecard
 didn't evaluate. Testing that with real clinicians is the next commercial step,
 and it is cheap: the artifact now exists to show them.
+
+## Where the evidence comes from, and how it survives
+
+**The gem was a demo until the data persisted and the real game fed it.**
+Two things were missing, and both were fatal:
+
+**1. Evidence lived only in memory.** Close the tab and a month of history was
+gone. Adherence — the number nobody else can produce — is *entirely* a function
+of history, so a 28-day record that cannot survive a browser restart is not a
+record. `journal.js` is now an append-only, capped, versioned local store, and
+it degrades rather than fails: quota exhausted drops the oldest half, storage
+unavailable falls back to memory, corrupt or future-schema data is ignored
+rather than half-interpreted.
+
+**2. The real game produced no evidence at all.** Only the scene demo did. But
+`/play` has *always* asked children to say words — "red", "three", "circle" —
+and the on-device recogniser has always known whether it heard them. That was
+real speech practice going unrecorded. Mapping each answer word to the phoneme
+target it carries (`tools/lexicon/build_play_targets.py`, validated exactly
+like the main lexicon) turns the existing game into the evidence source
+**without changing one thing a child sees or does**.
+
+The distinction a clinician would check first is preserved end to end: a spoken
+answer is recorded at the `native` tier and counts as speech; a tap is recorded
+and counts as adherence only. An attempt the recogniser heard but could not
+match is *also* recorded — leaving it out would bias the record upward by
+discarding exactly the attempts that went badly.
+
+## Privacy is enforced on write, not by convention
+
+The journal has an **allow-list**, not a block-list, and a test asserts that a
+field nobody anticipated is dropped too. `audio`, `pcm`, `waveform`,
+`embedding`, `voiceprint`, names, emails and dates of birth cannot be persisted
+even if a future caller passes them. An allow-list fails safe; a block-list
+fails open, and this is the one place the product's defining promise is kept or
+lost.
+
+Sharing is a **link with the data in the URL** — a parent hands a clinician a
+record from their own device with no account, no login, and nothing reaching a
+server. `clear()` deletes everything and is reachable from the parent surface,
+because a parent deleting their child's record is an obligation, not a feature.
 
 ## The correctness constraint that makes it credible
 

@@ -29,7 +29,7 @@ const DEVICES = [
 ];
 const PAGES = [
   '/scene/index.html', '/engine/index.html', '/bench/index.html',
-  '/guides/index.html', '/index.html', '/clinician/index.html',
+  '/guides/index.html', '/index.html', '/clinician/index.html', '/parent/index.html',
 ];
 const MIN_TAP = 44, MIN_FORM_FONT = 16;
 
