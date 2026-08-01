@@ -110,6 +110,34 @@ p.desc{color:var(--ink-soft);font-size:16px;max-width:560px;margin:0 auto 30px;t
 .readmore{display:inline-flex;align-items:center;min-height:44px;padding:0 4px;
   font-weight:700;color:var(--sand-deep);text-decoration:none;}
 .readmore:hover{text-decoration:underline;}
+/* ---- companions + lessons (data-driven from /data/lessons.json) ---- */
+.companion-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;}
+.companion{background:var(--card);border-radius:var(--radius-md);padding:18px 16px;
+  box-shadow:0 5px 0 rgba(0,0,0,.05);text-align:center;}
+.companion b{display:block;font-size:17px;margin-bottom:2px;}
+.companion .sp{font-size:12.5px;color:var(--ink-faint);display:block;margin-bottom:8px;}
+.companion .stall{font-size:13.5px;color:var(--ink-soft);font-style:italic;}
+.companion .who{font-size:12px;color:var(--ink-faint);margin-top:8px;display:block;}
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-top:22px;}
+.stat{background:var(--card);border-radius:var(--radius-md);padding:16px 12px;text-align:center;
+  box-shadow:0 5px 0 rgba(0,0,0,.05);}
+.stat b{display:block;font-size:28px;color:var(--grass-dark);line-height:1.1;}
+.stat span{font-size:12.5px;color:var(--ink-soft);}
+.sound-picker{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:12px;}
+.sound-picker button{font:inherit;font-size:16px;font-weight:800;min-height:48px;min-width:48px;
+  padding:10px 16px;border-radius:999px;border:2px solid #EFE9DA;background:#fff;color:var(--ink);
+  cursor:pointer;}
+/* min-width matters as much as min-height here: a single-letter label like "p"
+   made a 40px-wide target, which fails the 44px floor on the horizontal axis
+   even though the button is tall enough. */
+.sound-picker button[aria-pressed="true"]{background:var(--grass);border-color:var(--grass-deep);color:#fff;}
+.word-panel{background:var(--card);border-radius:var(--radius-md);padding:18px 18px 20px;margin-top:14px;
+  box-shadow:0 5px 0 rgba(0,0,0,.05);min-height:110px;}
+.word-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.chip{background:#F6F2E6;border-radius:999px;padding:7px 13px;font-size:15px;font-weight:700;}
+.chip i{font-style:normal;color:var(--ink-faint);font-weight:600;font-size:13px;margin-left:5px;}
+.where{font-size:13.5px;color:var(--ink-soft);margin-top:12px;}
+.where b{color:var(--ink);}
 footer{margin-top:64px;padding:30px 0 46px;text-align:center;color:var(--ink-faint);font-size:13px;}
 footer a{text-decoration:underline;}
 footer .links{margin-top:6px;}
@@ -161,6 +189,33 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
     </div>
   </section>
 
+  <section id="companions">
+    <h2>Your child picks who comes with them</h2>
+    <p class="desc">Four companions, and the choice matters more than it looks. Each one gets stuck
+      for a different reason, so the world reads differently depending on who your child brings.
+      Then your child names them — and that name becomes the very first word they practise, because
+      a name you chose is the most motivating word in the language.</p>
+    <div class="companion-grid" id="companionGrid"></div>
+  </section>
+
+  <section id="lessons">
+    <h2>Hundreds of little lessons, hiding in one afternoon</h2>
+    <p class="desc">Your child never sees a lesson. They see a companion who needs a rope, and a
+      hill with somebody behind it. Underneath, every word carries a speech sound, and every sound
+      is chosen for what your child is ready for next — so the practice is invisible and never
+      turns into a test.</p>
+
+    <div class="stat-row" id="lessonStats"></div>
+
+    <p class="desc" style="margin-top:26px"><b>Pick a sound to see the words that carry it.</b></p>
+    <div class="sound-picker" id="soundPicker"></div>
+    <div class="word-panel" id="wordPanel"></div>
+
+    <p class="desc" style="margin-top:22px">Every option offered at any moment practises the
+      <i>same</i> sound — so wherever your child chooses to go, there is no wrong door, and they
+      can never quietly avoid the sound they find hardest.</p>
+  </section>
+
   <section>
     <h2>Pip's Turn: rehearsing the routine</h2>
     <p class="desc">A toddler will happily play with a toy sink that has no water in it. Nothing is being rewarded — <i>doing the routine</i> is the whole reward, and being the one who does it is the point. Pip's Turn is built on that. Your child doesn't answer questions about the potty; they help Pip go, step by step, as many times as they want. Nothing is scored, there is no wrong tap, and there is no way to fail.</p>
@@ -194,6 +249,90 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
 </div>
 
 <script>
+/* ---------------------------------------------------------------------------
+   Companions + the word lessons, rendered from the SAME data the game runs on
+   (/data/lessons.json, generated from public/engine/lexicon.js by the build).
+
+   Deliberately not a hand-written marketing list: a curated copy would drift
+   from the real lexicon the first time a word was added, and then the homepage
+   would be advertising something the product does not do. Generated from the
+   engine, it cannot.
+
+   Progressive enhancement -- if the fetch fails the sections simply stay
+   hidden, and nothing else on the page is affected.
+--------------------------------------------------------------------------- */
+(function(){
+  var COMPANIONS = [
+    {name:"Butterbean", sp:"a fluffy dog",    stall:"can't quite reach it",           who:"The default. A name a two-year-old can say."},
+    {name:"Marmalade",  sp:"a marmalade cat", stall:"climbed up and can't get down",  who:"Cat households — and a genuinely different way of getting stuck."},
+    {name:"Rosie",      sp:"a friend",        stall:"can't get across on her own",    who:"Children who don't respond to animals."},
+    {name:"Pip",        sp:"a soft toy",      stall:"hasn't woken up yet",            who:"Sits colourless until your child speaks. Then colour floods back."}
+  ];
+  var grid = document.getElementById('companionGrid');
+  if (grid) {
+    grid.innerHTML = COMPANIONS.map(function(c){
+      return '<div class="companion"><b>'+c.name+'</b><span class="sp">'+c.sp+'</span>'
+           + '<span class="stall">&ldquo;'+c.name+' '+c.stall+'.&rdquo;</span>'
+           + '<span class="who">'+c.who+'</span></div>';
+    }).join('');
+  }
+
+  var PH_LABEL = {p:"p",b:"b",m:"m",n:"n",w:"w",h:"h",t:"t",d:"d",k:"k",g:"g",
+                  f:"f",v:"v",s:"s",z:"z",l:"l",r:"r",sh:"sh",ch:"ch",th:"th",y:"y"};
+
+  fetch('/data/lessons.json').then(function(r){ return r.ok ? r.json() : null; }).then(function(data){
+    if (!data) return;
+    var stats = document.getElementById('lessonStats');
+    if (stats) {
+      stats.innerHTML = [
+        [data.counts.words,  'words your child can be asked for'],
+        [data.counts.targets,'speech sounds practised'],
+        [data.counts.scenes, 'places to go'],
+        [data.counts.pairs,  'different little moments']
+      ].map(function(x){ return '<div class="stat"><b>'+x[0]+'</b><span>'+x[1]+'</span></div>'; }).join('');
+    }
+
+    /* Order sounds the way an SLP would recognise: earlier-developing first. */
+    var ORDER = ['p','b','m','n','w','h','t','d','k','g','f','sh','ch','l','s','r','th'];
+    var byPh = {};
+    data.words.forEach(function(w){ (byPh[w.ph] = byPh[w.ph] || []).push(w); });
+    var sounds = Object.keys(byPh).sort(function(a,b){
+      var ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
+      return (ia<0?99:ia) - (ib<0?99:ib);
+    });
+
+    var picker = document.getElementById('soundPicker');
+    var panel  = document.getElementById('wordPanel');
+    if (!picker || !panel) return;
+
+    function show(ph){
+      var ws = byPh[ph] || [];
+      picker.querySelectorAll('button').forEach(function(b){
+        b.setAttribute('aria-pressed', String(b.getAttribute('data-ph') === ph));
+      });
+      var places = {};
+      ws.forEach(function(w){ w.aff.forEach(function(a){ places[a] = true; }); });
+      var placeNames = Object.keys(places).map(function(a){ return data.stations[a]; });
+      panel.innerHTML =
+        '<b>' + ws.length + ' word' + (ws.length===1?'':'s') + ' carry the /' + (PH_LABEL[ph]||ph) + '/ sound</b>'
+        + '<div class="word-chips">' + ws.slice(0,14).map(function(w){
+            return '<span class="chip">'+w.w+'<i>/'+w.ipa.join(' ')+'/</i></span>';
+          }).join('') + (ws.length>14 ? '<span class="chip">+'+(ws.length-14)+' more</span>' : '') + '</div>'
+        + '<p class="where">Your child meets these at <b>' + placeNames.join('</b>, <b>') + '</b>'
+        + ' — and the harder ones only unlock once the easier ones are comfortable.</p>';
+    }
+
+    picker.innerHTML = sounds.map(function(ph){
+      return '<button data-ph="'+ph+'" aria-pressed="false">'+(PH_LABEL[ph]||ph)+'</button>';
+    }).join('');
+    picker.querySelectorAll('button').forEach(function(b){
+      b.addEventListener('click', function(){ show(b.getAttribute('data-ph')); });
+    });
+    /* Open on /r/ -- the sound families most often come for. */
+    show(sounds.indexOf('r') >= 0 ? 'r' : sounds[0]);
+  }).catch(function(){ /* sections stay hidden; nothing else is affected */ });
+})();
+
 document.getElementById('notifyForm').addEventListener('submit', function(e){
   e.preventDefault();
   var emailInput = document.getElementById('notifyEmail');

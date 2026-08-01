@@ -593,6 +593,44 @@ function say(id){
   return KideVoice.speak(id);
 }
 
+/* Advance only once Pip has actually finished the line.
+ *
+ * THE BUG THIS EXISTS TO PREVENT. Two call sites used to start a clip and then
+ * advance on a fixed setTimeout(..., 900). speak() begins by calling
+ * stopSpeaking(), so the next question's prompt cut the previous line off
+ * mid-sentence. Measured against the shipped voice pack, NINE OF FIFTEEN
+ * affirm/answer/retry clips are longer than 900ms -- the longest is 3.10s --
+ * so Pip was truncated roughly 60% of the time. It read as "Pip only says the
+ * first word", which is exactly what a cut-off clip sounds like.
+ *
+ * A fixed timer can never be right here: clip length is data, not code, and a
+ * re-recorded voice pack would silently change the failure rate. So wait for
+ * the SPEECH, not the clock:
+ *
+ *   floor   -- a minimum beat, so a very short clip still gets a moment to
+ *              land rather than snapping straight into the next question;
+ *   ceiling -- a maximum, so a stalled or blocked audio element can never
+ *              freeze the game.
+ *
+ * THE CEILING IS DERIVED, NOT GUESSED. A first cut used 6000ms and the test
+ * caught that the longest clip in the shipped pack (r-potty-4) is 6.91s -- so
+ * the safety valve would itself have truncated a real line, reintroducing the
+ * very bug it was added to prevent. Fixed constants that must respect the data
+ * are how this class of bug happens, so the ceiling is now tied to speak()'s
+ * own guarantee: speak() self-resolves at SPEAK_MAX_MS no matter what, and the
+ * ceiling sits just beyond it. In normal operation the ceiling therefore never
+ * fires -- it only exists for a speak() that is itself broken.
+ *
+ * Use this for anything that changes what is on screen while Pip is talking.
+ */
+var SPEAK_MAX_MS = 9000;                    /* must match voice.js speak() */
+var SPEECH_CEILING_MS = SPEAK_MAX_MS + 500;
+function afterSpeech(speech, minMs, maxMs){
+  const floor = new Promise(function(r){ setTimeout(r, minMs || 0); });
+  const ceiling = new Promise(function(r){ setTimeout(r, maxMs || SPEECH_CEILING_MS); });
+  return Promise.race([ Promise.all([speech, floor]), ceiling ]);
+}
+
 function refreshMicStatus(){
   if(!window.KideVoice) return Promise.resolve("unsupported");
   return KideVoice.mic.support().then(function(s){ micStatus = s; return s; });
@@ -1539,9 +1577,11 @@ function answerWith(btn){
         recordAnswer("shapes", true);
         state.awaitingNext = true;
         const ai = Math.floor(Math.random()*AFFIRM_WORDS.length);
-        showAffirm(AFFIRM_WORDS[ai]); say("affirm-"+(ai+1));
+        showAffirm(AFFIRM_WORDS[ai]);
         const pipC = document.getElementById("pipChar"); if(pipC) pipC.classList.add("celebrate");
-        setTimeout(()=>{ state.awaitingNext=false; newQuestion("shapes"); render(); }, 900);
+        afterSpeech(say("affirm-"+(ai+1)), 900).then(()=>{
+          state.awaitingNext=false; newQuestion("shapes"); render();
+        });
       }
     }else{
       btn.classList.add("wrong"); sfxTry();
@@ -1562,11 +1602,13 @@ function answerWith(btn){
     showAffirm(AFFIRM_WORDS[ai]);
     // Counting is the one case where naming the answer teaches more than
     // praising it — Pip says "Three!" and the praise stays on screen.
-    say(q.type==="counting" ? ("answer-"+q.target) : ("affirm-"+(ai+1)));
+    const line = say(q.type==="counting" ? ("answer-"+q.target) : ("affirm-"+(ai+1)));
     const pipC = document.getElementById("pipChar"); if(pipC) pipC.classList.add("celebrate");
     recordAnswer(state.level, true);
     updateHudLeafBar();
-    setTimeout(()=>{ state.awaitingNext=false; newQuestion(state.level); render(); }, 950);
+    afterSpeech(line, 950).then(()=>{
+      state.awaitingNext=false; newQuestion(state.level); render();
+    });
   }else{
     btn.classList.add("wrong-flash");
     sfxTry();
@@ -1584,6 +1626,18 @@ function answerWith(btn){
       say("retry-"+(ri+1)).then(function(ok){ if(!ok) return; listenTries = 0; maybeListen(); });
     }
   }
+}
+
+/* Test seam. The speech-truncation regression test (test-speech.mjs) has to be
+   able to reach a specific question type and assert the game does not advance
+   while Pip is talking. Exposing these is cheaper and far more honest than
+   making the test click through a random walk and hope. */
+if (typeof window !== "undefined") {
+  window.__kidePlay = {
+    get state(){ return state; },
+    newQuestion: function(l){ return newQuestion(l); },
+    render: function(){ return render(); },
+  };
 }
 
 function updateHudLeafBar(){
