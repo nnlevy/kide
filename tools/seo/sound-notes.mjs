@@ -430,7 +430,7 @@ export const SOUND_NOTES = {
        + 'and a fair amount of goodwill to lose. Growl like a tiger, or use "errr" as a '
        + 'thinking noise — the sound turns up in play long before it turns up on demand.',
     faq: [[
-      'My four-year-old says "wabbit". Should we be practising "r" properly?',
+      'My four-year-old says "wabbit". Should we be practicing "r" properly?',
       'Not yet, and pushing it now mostly costs enthusiasm. This is the last consonant to '
       + 'arrive, and "w" standing in for it is the documented pattern. Growling and playful '
       + '"errr" noises are the right level of effort at four.',

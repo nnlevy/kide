@@ -10,7 +10,7 @@
 //
 //   * STARVATION -- with a symmetric ZPD falloff, the two weakest sounds were
 //     never selected once in 40 beats. A child who struggles with /r/ would
-//     open a speech app every day and never practise /r/.
+//     open a speech app every day and never practice /r/.
 //   * UNGATED LADDER -- with per-level target keys, clusters and phrases were
 //     selectable from beat one, so the complexity ladder gated nothing.
 //
@@ -229,9 +229,9 @@ const trueAbility = { b: 0.9, m: 0.9, p: 0.85, l: 0.5, r: 0.25, s: 0.33,
 
   const rCount = counts['r_initial'] || 0;
   const sCount = (counts['s_initial'] || 0) + (counts['s_cluster'] || 0);
-  ok('the weakest sound (/r/) is practised, not starved', rCount > 0,
+  ok('the weakest sound (/r/) is practiced, not starved', rCount > 0,
      'THIS IS THE STARVATION REGRESSION PIN -- a symmetric falloff makes this 0');
-  ok('/s/ is practised too', sCount > 0);
+  ok('/s/ is practiced too', sCount > 0);
 
   const strongCount = counts['m_initial'] || 0;
   ok('weak targets get at least as much practice as strong ones',

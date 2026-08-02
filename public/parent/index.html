@@ -91,12 +91,12 @@
       their device straight from the link — no account, no login, and it is not
       sent to us or stored anywhere.</p>
     <!-- Parents had no idea why a therapist would want this, so most never
-         offered it. "Did they practise, and on what?" is a question a home
+         offered it. "Did they practice, and on what?" is a question a home
          programme has never been able to answer, and the parent is the only
          person who can hand over the answer. Saying so is what turns a feature
          nobody uses into the way clinicians hear about this at all. -->
     <p class="muted">Worth offering even if they haven't asked. It shows which
-      sounds were practised, on how many days, and what happened — the part of a
+      sounds were practiced, on how many days, and what happened — the part of a
       home programme a therapist normally has to take on trust.
       <a href="/for-slps">What your therapist sees →</a></p>
     <div class="row">
@@ -130,7 +130,7 @@
     <p class="muted" id="storageNote">—</p>
     <div class="note">
       <b>Nothing here is audio.</b> No recording, no voiceprint, nothing that could
-      identify your child by their voice — only which word was practised and whether
+      identify your child by their voice — only which word was practiced and whether
       it was heard. It is kept on this device and nowhere else.
     </div>
     <div class="row" style="margin-top:12px">
@@ -325,14 +325,14 @@ function render() {
 
   const a = record.adherence;
   $('stats').innerHTML = events.length ? [
-    [a.days || 0, 'days practised'],
+    [a.days || 0, 'days practiced'],
     [a.sessions || 0, 'sessions'],
     [record.scoredAttempts, 'spoken tries'],
     [record.excludedTaps, 'tapped tries'],
   ].map(([n, l]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('') : '';
 
   // The car list: the words most likely to come up next. Derived from what has
-  // actually been practised least well, not from a fixed list.
+  // actually been practiced least well, not from a fixed list.
   const weak = record.targets
     .filter((t) => !t.insufficientEvidence && t.producedCorrectly.point < 0.6)
     .slice(0, 3);

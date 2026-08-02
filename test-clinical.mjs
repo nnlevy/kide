@@ -72,8 +72,8 @@ console.log('--- a tap is not speech (the exclusion that keeps this honest) ---'
   eq('no per-sound figures are produced from taps', r.targets.length, 0);
 
   const n = narrativeFor(r);
-  ok('adherence is still reported for a tap-only session', /Practised on/.test(n[0]),
-     'the child DID practise, and that is what a clinician most wants');
+  ok('adherence is still reported for a tap-only session', /Practiced on/.test(n[0]),
+     'the child DID practice, and that is what a clinician most wants');
   ok('the narrative says plainly that no speech was measured',
      n.some((l) => /no speech was measured/i.test(l)));
   ok('tapping is not framed as a concern', n.some((l) => /not a concern/i.test(l)));
@@ -176,7 +176,7 @@ console.log('--- adherence: the number nobody else can produce ---');
     for (let i = 0; i < 5; i++) log.push(ev({ at: T0 + d * 86400000 + i * 60000 }));
   }
   const a = adherenceFrom(log, T0 + 9 * 86400000);
-  eq('days practised', a.days, 5);
+  eq('days practiced', a.days, 5);
   eq('span', a.spanDays, 8);
   eq('sessions (30-minute gap rule)', a.sessions, 5);
   eq('longest lapse is found', a.longestGapDays, 3);

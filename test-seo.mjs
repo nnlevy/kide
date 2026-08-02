@@ -108,7 +108,7 @@ t('browser-level opt-outs are honoured', () => {
 console.log('\nthe sound pages are built from real data, not invented');
 
 t('every sound page has words behind it', () => {
-  // A page for a sound the product cannot practise would be written for a
+  // A page for a sound the product cannot practice would be written for a
   // crawler rather than a parent, and would rank for a question it can't answer.
   for (const [code] of soundPages) {
     const n = LEX.filter((w) => w.ph === code).length;
@@ -197,7 +197,7 @@ const ADULT_PAGES = allPages.filter(([p]) =>
 t('every adult-facing page carries the same three nav links', () => {
   // Three different navs were live at once: the homepage omitted Guides, and
   // /guides called it "Play" pointing at /play while everyone else said
-  // "Practise" pointing at /words.
+  // "Practice" pointing at /words.
   for (const [p, h] of ADULT_PAGES) {
     const nav = (h.match(/<nav[\s\S]*?<\/nav>/) || [''])[0];
     assert(nav, `${p} has no nav`);

@@ -52,7 +52,7 @@ for (const banned of ['dog', 'cat', 'puppy', 'Butterbean', 'Marmalade', 'goldend
 }
 ok('scene code never references a phoneme target',
    !/\bph\b\s*[:=]|phoneme/i.test(sceneCode),
-   'a scene knows it has a gap; it does not know /r/ is being practised');
+   'a scene knows it has a gap; it does not know /r/ is being practiced');
 
 // ---------------------------------------------------------------------------
 console.log('--- every actor satisfies the contract ---');
@@ -109,7 +109,7 @@ console.log('--- child-driven choice ---');
   // choice cannot derail the lesson.
   const engineTarget = keyOf(offer.target.m);
   const allSame = offer.choices.every((c) => keyOf(c.word) === engineTarget);
-  ok('every offered choice practises the same sound', allSame,
+  ok('every offered choice practices the same sound', allSame,
      'if choices differed in target, the child could dodge their weakest sound');
 
   const words = new Set(offer.choices.map((c) => c.word.w));

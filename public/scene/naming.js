@@ -27,7 +27,7 @@ import { LEX } from '../engine/lexicon.js';
 /** The recorded name bank.
  *
  *  `ph` is the gruut phoneme sequence, and `target` is the phoneme/position
- *  this name practises -- which is what makes the name a real lesson rather
+ *  this name practices -- which is what makes the name a real lesson rather
  *  than a label. All are early-acquired sounds so the first attempt succeeds.
  */
 export const NAME_BANK = [

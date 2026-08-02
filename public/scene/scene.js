@@ -6,7 +6,7 @@
 // name appears -- a contract that holds by convention leaks the first time
 // someone adds a wagging-tail special case, and by then the scenes are
 // painted. It also never names a phoneme: a scene knows it has a GAP, not that
-// /r/ is being practised.
+// /r/ is being practiced.
 //
 // TWO WAYS TO RENDER, one code path:
 //   * real commissioned artwork -- layered WebP (background/midground/

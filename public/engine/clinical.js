@@ -14,7 +14,7 @@
 //     asymmetry widens with every session and cannot be bought.
 //   * ADHERENCE is the question nobody in home-programme speech therapy can
 //     currently answer. The incumbent is a laminated printable with zero
-//     visibility into whether it was ever used. "Did they practise, and on
+//     visibility into whether it was ever used. "Did they practice, and on
 //     what?" is worth paying for on its own.
 //
 // AND THE INVERSION THAT MAKES IT WORK:
@@ -36,7 +36,7 @@
 // That state is a CONTROL signal, deliberately biased for selection: it decays
 // at 0.92 per attempt so it tracks recent ability, and it weights a miss at
 // half a success because the scorer under-detects. Both choices are correct
-// for deciding what to practise next, and both are WRONG for inference -- they
+// for deciding what to practice next, and both are WRONG for inference -- they
 // systematically overstate ability and discard history.
 //
 // A clinician reading a number derived from it would be reading an artefact of
@@ -252,7 +252,7 @@ export function buildRecord(log, { now = Date.now() } = {}) {
     adherence: adherenceFrom(events, now),
     // Stated on the artifact so a reader cannot mistake it for an assessment.
     disclaimer: 'Kide is practice, not therapy. This report describes what was '
-      + 'practised and what happened. It does not diagnose, assess, or treat, and '
+      + 'practiced and what happened. It does not diagnose, assess, or treat, and '
       + 'automated scoring of young children\'s speech is known to miss real errors '
       + 'more often than it false-flags correct speech. Interpretation requires a '
       + 'qualified clinician.',
@@ -314,7 +314,7 @@ export function adherenceFrom(events, now) {
 
   const firstMs = stamped[0].at, lastMs = stamped[stamped.length - 1].at;
 
-  // CALENDAR days, not elapsed milliseconds. "Practised on 5 of 8 days" and
+  // CALENDAR days, not elapsed milliseconds. "Practiced on 5 of 8 days" and
   // "2 days since last practice" are statements about dates as a human reads a
   // calendar. Millisecond arithmetic gets both wrong whenever attempts sit at
   // different times of day -- it made an 8-day span read as 9, and a two-day
@@ -336,7 +336,7 @@ export function adherenceFrom(events, now) {
   return {
     days: days.size,
     spanDays,
-    daysPractisedRate: days.size / spanDays,
+    daysPracticedRate: days.size / spanDays,
     sessions,
     attempts: events.length,
     attemptsPerSession: events.length / sessions,
@@ -361,7 +361,7 @@ export function narrativeFor(record) {
     return lines;
   }
   lines.push(
-    `Practised on ${a.days} of ${a.spanDays} days (${Math.round(a.daysPractisedRate * 100)}%), `
+    `Practiced on ${a.days} of ${a.spanDays} days (${Math.round(a.daysPracticedRate * 100)}%), `
     + `${a.sessions} session${a.sessions === 1 ? '' : 's'}, `
     + `${record.scoredAttempts} scored attempt${record.scoredAttempts === 1 ? '' : 's'}.`
   );
@@ -373,7 +373,7 @@ export function narrativeFor(record) {
   }
 
   // Adherence above is reported whether or not any speech was scored -- the
-  // child DID practise, and on a tap-only device that is the whole of what a
+  // child DID practice, and on a tap-only device that is the whole of what a
   // clinician can be told. Reporting the engagement and then declining to
   // report articulation is the honest split.
   if (!record.speechWasMeasured) {

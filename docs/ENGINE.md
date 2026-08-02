@@ -64,7 +64,7 @@ test suite:
 - **the asymmetric `zpdFit` falloff** — `1 − d×2.4` above the band, `1 − d×1.2`
   below. With a symmetric falloff the two weakest sounds were never selected
   once in 40 beats: a child who struggles with /r/ would open a speech app
-  every day and never practise /r/.
+  every day and never practice /r/.
 
 ### The pool, and why it had to exist
 

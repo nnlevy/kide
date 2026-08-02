@@ -94,7 +94,7 @@
   <h1>A session</h1>
   <p class="sub">
     The whole loop, end to end: choose a companion, name it (that name is the first
-    lesson), then play. The child chooses where to go — every option practises the same
+    lesson), then play. The child chooses where to go — every option practices the same
     sound, so there is no wrong door. The camera pans, the day runs into dusk, and the
     session ends because evening came.
   </p>
@@ -263,7 +263,7 @@ async function nextOffer() {
   setState('WAIT');
   $('engineNote').innerHTML =
     `<span class="pill">target ${keyOf(offer.target)}</span>` +
-    `all ${offer.choices.length} choices practise the same sound — ` +
+    `all ${offer.choices.length} choices practice the same sound — ` +
     offer.choices.map((c) => `<code>${c.word.w}</code> at ${c.affordance}`).join(', ') +
     `. Whichever the child picks, the lesson is served.`;
 }

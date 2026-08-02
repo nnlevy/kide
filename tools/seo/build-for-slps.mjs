@@ -56,7 +56,7 @@ const FAQS = [
   ['Is this an assessment?',
    'No, and it is not built to become one. Per-attempt scoring of young children\'s speech is not '
    + 'reliable enough for that, and pretending otherwise would be the fastest way to lose your '
-   + 'trust. What it is: a longitudinal record of what a child practised at home and what happened '
+   + 'trust. What it is: a longitudinal record of what a child practiced at home and what happened '
    + 'when they did. It describes; you interpret.'],
 
   ['Does it replace the probe data I take in session?',
@@ -182,7 +182,7 @@ const html = `<!DOCTYPE html>
 <div class="wrap">
   <nav><div class="row">
     <a class="wordmark" href="/">kide</a>
-    <div class="nav-links"><a href="/words">Practise</a><a href="/sounds">Sounds</a><a href="/guides">Guides</a></div>
+    <div class="nav-links"><a href="/words">Practice</a><a href="/sounds">Sounds</a><a href="/guides">Guides</a></div>
   </div></nav>
 
   <p class="eyebrow">For speech-language pathologists</p>
@@ -194,7 +194,7 @@ const html = `<!DOCTYPE html>
   <div class="verdict">
     <span class="tag">What this is</span>
     <p>Kide is a free speech-practice game for two- to seven-year-olds. It runs on the family&rsquo;s
-       device, scores pronunciation attempts on-device, and keeps a record of what was practised
+       device, scores pronunciation attempts on-device, and keeps a record of what was practiced
        and what happened.</p>
     <p>A parent can hand you that record as a link. You get per-phoneme accuracy with credible
        intervals, adherence figures nobody has previously been able to produce, and a trend
@@ -207,7 +207,7 @@ const html = `<!DOCTYPE html>
         <td>Proportion of attempts scored as clearly produced, per phoneme and word position, with
             a Jeffreys ${pct(CI_MASS)} credible interval on each.</td></tr>
     <tr><td>Adherence</td>
-        <td>Days practised out of days elapsed, number of sessions, attempts per session, longest
+        <td>Days practiced out of days elapsed, number of sessions, attempts per session, longest
             break, and days since last practice. This is the figure a home programme has never
             been able to give you.</td></tr>
     <tr><td>Direction of change</td>
@@ -239,7 +239,7 @@ const html = `<!DOCTYPE html>
       <li><b>A tap is not counted as speech.</b> The child produced nothing to score. Counting taps
           would inflate every rate, and most for the children who talk least.</li>
       <li><b>It never reads the game&rsquo;s own scheduling state.</b> The engine keeps a decayed,
-          deliberately biased estimate to choose what to practise next; that is correct for
+          deliberately biased estimate to choose what to practice next; that is correct for
           selection and wrong for inference. The evidence layer keeps a separate accumulator over
           raw attempt events, and a test enforces the separation. Otherwise you would be reading an
           artefact of our scheduler.</li>
@@ -279,7 +279,7 @@ const html = `<!DOCTYPE html>
   <p>They open <a href="/words">kide.us/words</a> and play. Nothing to install, no account to make,
      no card. Practice starts producing a record immediately, and the parent surface at
      <a href="/parent">kide.us/parent</a> is where they generate the link for you.</p>
-  <p>If you would rather point a family at a specific sound, every phoneme the game practises has a
+  <p>If you would rather point a family at a specific sound, every phoneme the game practices has a
      page written for parents — <a href="/sounds">kide.us/sounds</a> — with the acquisition norms,
      the substitution pattern, and words checked at build time to carry the target in the claimed
      position.</p>
@@ -291,7 +291,7 @@ const html = `<!DOCTYPE html>
      <a href="${CITATION.doi}" rel="nofollow noopener">${CITATION.doi}</a>
      Figures are ${CITATION.criterion}.<br>
      Kide is practice, not therapy. Nothing here diagnoses anything, nothing here is a standardised
-     assessment, and none of it replaces clinical judgement. It reports what a child practised and
+     assessment, and none of it replaces clinical judgement. It reports what a child practiced and
      what happened, with the uncertainty attached, so that a qualified person can decide what it
      means.</p>
 

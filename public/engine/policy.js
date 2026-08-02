@@ -1,7 +1,7 @@
 // policy.js -- mastery model and selection policy. Pure functions, no DOM,
 // no audio, no network. Spec section 5.
 //
-// The child never sees any of this. It decides what to practise next; the
+// The child never sees any of this. It decides what to practice next; the
 // scene it lands in is chosen by the word, and the word is chosen by the
 // target. That ordering is what makes the pedagogy invisible -- the child
 // sees a companion who needs a rope, not a drill on /r/.
@@ -14,7 +14,7 @@
 //     beats despite real underlying improvement).
 //   * the ASYMMETRIC zpdFit falloff -- with a symmetric one, the two weakest
 //     sounds were never selected once in 40 beats. A child who struggles with
-//     /r/ would open the app every day and never practise /r/.
+//     /r/ would open the app every day and never practice /r/.
 // Re-run simulate.js against any change to this file. These failure modes are
 // invisible in a five-beat manual playthrough and obvious in forty simulated.
 
@@ -247,7 +247,7 @@ export function record(learner, m, success) {
  *
  *  Here the engine still chooses the target -- the pedagogy stays invisible
  *  and stays correct -- but the child chooses which of several equally valid
- *  routes to take. Every option practises the same sound, so their choice
+ *  routes to take. Every option practices the same sound, so their choice
  *  genuinely drives the world without ever derailing the lesson. The agency
  *  is real rather than an illusion, and it is the same mechanism that already
  *  makes Pip's Turn work: the child is the one doing, not the one being

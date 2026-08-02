@@ -114,7 +114,7 @@ ${keywords ? `<meta name="keywords" content="${esc(keywords)}">\n` : ''}<link re
 <div class="wrap">
   <nav><div class="row">
     <a class="wordmark" href="/">kide</a>
-    <div class="nav-links"><a href="/words">Practise</a><a href="/sounds">Sounds</a><a href="/guides">Guides</a></div>
+    <div class="nav-links"><a href="/words">Practice</a><a href="/sounds">Sounds</a><a href="/guides">Guides</a></div>
   </div></nav>
 ${body}
   <footer>
@@ -135,7 +135,7 @@ ${body}
 }
 
 /* -- which sounds we can honestly build a page for ------------------------- */
-// Only sounds the product actually practises. A page for a sound with no words
+// Only sounds the product actually practices. A page for a sound with no words
 // behind it would be a page written for a search engine rather than a parent,
 // and it would rank for a query it cannot answer.
 const byCode = new Map();
@@ -165,23 +165,23 @@ for (const code of codes) {
   // exactly that. Every page now leads with its own idea.
   const note = SOUND_NOTES[code];
 
-  // Don't promise "words to practise" on a page that has three of them. The
+  // Don't promise "words to practice" on a page that has three of them. The
   // substance of a thin page is the age answer, the substitution pattern and
   // the sound's own quirk, none of which depend on the word count.
   const title = note?.angle
     ? `The "${L}" sound: ${note.angle}`
     : rows.length >= 5
-      ? `The "${L}" sound: when children learn it, and words to practise`
+      ? `The "${L}" sound: when children learn it, and words to practice`
       : `The "${L}" sound: when should my child be saying it?`;
   const description =
     `Most children have "${L}" by about ${ageWords(n.mastery)} (${CITATION.short}). `
     + `If your child isn't saying it yet, here's whether that's on time — and `
-    + `${rows.length} words to practise it with, with no pressure and no scoring.`;
+    + `${rows.length} words to practice it with, with no pressure and no scoring.`;
 
   // The higher-intent half of the search: what a parent actually HEARS. This
   // also carries the pages whose word list is short -- the reassurance and the
   // named pattern are the substance, and they do not depend on how many words
-  // the game happens to practise for this sound.
+  // the game happens to practice for this sound.
   const sub = SUBSTITUTIONS[code];
   const subBlock = sub ? `
   <h2>If your child says &ldquo;${esc(sub.eg[1])}&rdquo; instead of &ldquo;${esc(sub.eg[0])}&rdquo;</h2>
@@ -231,12 +231,12 @@ for (const code of codes) {
      + `the research predicts. It is worth mentioning to your doctor if the sound is still `
      + `absent well after ${ageWords(n.mastery)}, or if you or other people often can't `
      + `understand what your child is saying — that second one matters more than any single sound.`],
-    [`How do I practise the "${L}" sound at home?`,
+    [`How do I practice the "${L}" sound at home?`,
      `Say the word yourself, clearly and unhurried, and let your child have a go. Don't correct `
      + `a wrong attempt — say the word again warmly and move on. Practice works because it is `
      + `repeated and pleasant, not because it is accurate. Kide is built on exactly that rule: `
      + `nothing is scored, and there is no way to fail.`],
-    [`Which words are best for practising "${L}"?`,
+    [`Which words are best for practicing "${L}"?`,
      `Short, concrete words for things a child can picture: ${rows.slice(0, 5).map((r) => r.w).join(', ')}. `
      + `Every word on this page was checked to be sure the "${L}" sound really does occur where we say it does.`],
   ];
@@ -280,14 +280,14 @@ for (const code of codes) {
      purpose: an earlier one would manufacture worry rather than answer it.</p>
 
   ${subBlock}
-  <h2>Words to practise, and where the sound falls</h2>
+  <h2>Words to practice, and where the sound falls</h2>
   <p>Every word below was checked at build time to confirm the &ldquo;${L}&rdquo; sound really does
      occur where we claim it does — and that it's a word a two- to seven-year-old can picture.</p>
   ${wordsByPos.map(([p, ws]) => `
   <p style="margin-bottom:2px"><b>&ldquo;${L}&rdquo; ${POS_LABEL[p] || p} of the word</b></p>
   <div class="wordgrid">${ws.map((w) => `<span>${esc(w)}</span>`).join('')}</div>`).join('')}
 
-  <h2>How to practise without it becoming a test</h2>
+  <h2>How to practice without it becoming a test</h2>
   <p>Say the word yourself first, clearly and slowly. Let your child try. If what comes back isn't
      right, <b>don't correct it</b> — say the word again warmly, and carry on. A child who feels
      tested stops trying, and a child who stops trying gets no practice at all.</p>
@@ -295,7 +295,7 @@ for (const code of codes) {
      word wrong, and the third attempt always works out regardless.</p>
 
   <div class="cta-row">
-    <p style="margin-bottom:0">Practise these words in a game your child can play alone —
+    <p style="margin-bottom:0">Practice these words in a game your child can play alone —
        every line is spoken aloud, so a pre-reader doesn't need you to read it.</p>
     <a class="cta" href="/words">Say it with me — it's free</a>
   </div>
@@ -339,7 +339,7 @@ for (const code of codes) {
 const hubTitle = 'Speech sounds by age: what your child should be saying, and when';
 const hubDesc = 'Enter your child\'s age and see which sounds are expected and which are still '
   + 'developing — based on McLeod & Crowe (2018), the 90% standard clinicians use. Plus '
-  + 'validated word lists to practise each sound at home. Free, and nothing is scored.';
+  + 'validated word lists to practice each sound at home. Free, and nothing is scored.';
 
 const hubBody = `
   <p class="eyebrow">Speech sounds</p>

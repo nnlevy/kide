@@ -41,7 +41,7 @@ it at all.
 
 **3. Adherence is a question nobody can currently answer.** The incumbent in
 home-programme speech therapy is a laminated printable. It goes home and no one
-ever learns whether it was used. "Did they practise, and on what?" is worth
+ever learns whether it was used. "Did they practice, and on what?" is worth
 paying for on its own, before a single accuracy figure is considered. Note the
 product's own retention insight points the same way: the competitor fails
 because *the parent* quits around week two, not the child (docs/HABITS.md). The
@@ -107,7 +107,7 @@ because a parent deleting their child's record is an obligation, not a feature.
 The policy's `a`/`b` counts are a **control signal**, deliberately biased for
 selection: decayed at 0.92 per attempt so they track *recent* ability, and
 weighting a miss at half a success because the scorer under-detects. Both are
-correct for deciding what to practise next. Both are **wrong for inference** —
+correct for deciding what to practice next. Both are **wrong for inference** —
 they systematically overstate ability and discard history.
 
 A clinician reading a number derived from that would be reading an artefact of
@@ -131,7 +131,7 @@ the scene resolves regardless of what was heard. Right for the child, meaningles
 as evidence. Excluded, and disclosed.
 
 On a tap-only device the report still gives full adherence and then says plainly
-that no speech was measured — the honest split, since the child *did* practise.
+that no speech was measured — the honest split, since the child *did* practice.
 
 ## Method
 
@@ -266,5 +266,5 @@ because the assertion grepped the source instead of executing it.
   these figures are measured but on adult speech (docs/BENCH.md). Every number
   on the report inherits that limitation, and the disclaimer says so.
 - **Nothing here diagnoses.** Kide is practice, not therapy. The report
-  describes what was practised and what happened, with the uncertainty
+  describes what was practiced and what happened, with the uncertainty
   attached, so a qualified human can decide.

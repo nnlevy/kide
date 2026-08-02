@@ -25,11 +25,11 @@ the companion is freed. That makes the *companion* the protagonist and the
 child the assistant. It also means the engine decides where the child goes
 next and the camera simply pans there.
 
-Inverted here. The engine still chooses **which sound** is being practised —
+Inverted here. The engine still chooses **which sound** is being practiced —
 the pedagogy stays invisible and stays correct — but the world lays out
 **several things the child could go and do**, and waits. The child picks.
 
-The trick that makes this safe: **every offered choice practises the same
+The trick that makes this safe: **every offered choice practices the same
 phoneme target.** So the child's choice genuinely drives the world and cannot
 derail the lesson. There is no wrong door. `offerChoices()` in
 `public/engine/policy.js` guarantees it and a test asserts it — if the options

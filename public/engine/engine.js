@@ -96,7 +96,7 @@ export class LessonEngine {
     };
   }
 
-  /** Offer the child several places they could go next, all practising the
+  /** Offer the child several places they could go next, all practicing the
    *  same sound. The child picks; nothing happens until they do.
    *
    *  Prefer this over nextBeat() for child-facing surfaces. nextBeat() decides
@@ -199,7 +199,7 @@ export class LessonEngine {
       promoted,
       pHat: pHat(this.current.target),
       // --- fields the clinical layer needs (public/engine/clinical.js) ------
-      // `at` makes adherence computable at all -- days practised, session
+      // `at` makes adherence computable at all -- days practiced, session
       // count, longest lapse. That is the number no one else in this category
       // can produce, and it is unrecoverable if not stamped at the moment of
       // the attempt.
