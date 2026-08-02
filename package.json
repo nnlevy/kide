@@ -15,7 +15,8 @@
 		"dev": "npx wrangler dev",
 		"predeploy": "bash scripts/deploy-guard.sh",
 		"test:voice": "npm run build && node test-voice.js",
-		"voice:render": "node tools/voice/generate.js",
+		"voice:render": "node tools/voice/generate.js && node tools/voice/publish.mjs",
+		"voice:publish": "node tools/voice/publish.mjs",
 		"voice:words": "node tools/voice/words-manifest.mjs",
 		"test:routines": "npm run build && node test-routines.js",
 		"test:engine": "node test-engine.mjs",
@@ -25,6 +26,7 @@
 		"test:journal": "node test-journal.mjs",
 		"test:words-voice": "npm run voice:words --silent && node test-words-voice.mjs",
 		"test:voice-pack": "node test-voice-pack.mjs",
+		"test:voice-game": "node test-voice-game.mjs",
 		"test:seo": "npm run seo --silent && node test-seo.mjs",
 		"test:billing": "node test-billing.mjs",
 		"test:packs": "node test-packs.mjs",
@@ -35,7 +37,7 @@
 		"lexicon:build": "python3 tools/lexicon/build_lexicon.py && python3 tools/lexicon/build_play_targets.py",
 		"calibrate": "python3 tools/calibrate/calibrate.py",
 		"share:render": "node tools/share/card.js",
-		"test": "npm run test:engine && npm run test:scene && npm run test:clinical && npm run test:speech && npm run test:journal && npm run test:words-voice && npm run test:voice-pack && npm run test:seo && npm run test:billing && npm run test:packs && npm run test:gift && npm run test:slps && npm run test:mobile && npm run test:voice && node test-routines.js",
+		"test": "npm run test:engine && npm run test:scene && npm run test:clinical && npm run test:speech && npm run test:journal && npm run test:words-voice && npm run test:voice-pack && npm run test:voice-game && npm run test:seo && npm run test:billing && npm run test:packs && npm run test:gift && npm run test:slps && npm run test:mobile && npm run test:voice && node test-routines.js",
 		"demo:render": "npm run build && node tools/share/demo.js"
 	},
 	"devDependencies": {
