@@ -259,16 +259,25 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
     <p class="desc" style="margin-top:6px"><a class="readmore" href="/parent/">See what your child has been practising →</a></p>
   </section>
 
+  <!-- This was "More concept packs are coming — letters, feelings, and more",
+       with an email box under it. Letters and Feelings now exist, so the
+       promise is replaced by the thing itself, and the email capture moved to
+       the Parent Corner where a parent who has actually played will find it.
+       An unfinished-state promise on the front page costs more credibility
+       than an address is worth. -->
   <section>
-    <div class="notify">
-      <h2>More concept packs are coming</h2>
-      <p class="desc" style="margin-bottom:0">Letters, feelings, and more — Pip is just getting started. Want to know the moment something new lands?</p>
-      <form class="notify-form" id="notifyForm">
-        <input type="email" id="notifyEmail" placeholder="you@email.com" required>
-        <button type="submit">Notify me</button>
-      </form>
-      <div class="notify-msg" id="notifyMsg"></div>
+    <h2>Two new packs: Letters and Feelings</h2>
+    <p class="desc">Both are built in the order children actually learn, which is not the
+      order you would guess.</p>
+    <div class="card-grid" style="margin-top:16px">
+      <div class="mini-card"><div class="emoji">🔤</div><b>Letters</b><span>Starts with the letters
+        in the name your child chose for their companion — children learn those first — then follows
+        the letters whose names give away their sound before the ones that don't</span></div>
+      <div class="mini-card"><div class="emoji">💛</div><b>Feelings</b><span>Happy and sad first,
+        then angry, then scared, then surprised — the order children separate them. And it asks
+        about situations before faces, because that is the easier one for a little child</span></div>
     </div>
+    <p class="desc" style="margin-top:14px"><a class="readmore" href="/play">Play them with your child →</a></p>
   </section>
 
   <footer>
@@ -376,42 +385,10 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
   }).catch(function(){ /* sections stay hidden; nothing else is affected */ });
 })();
 
-document.getElementById('notifyForm').addEventListener('submit', function(e){
-  e.preventDefault();
-  var emailInput = document.getElementById('notifyEmail');
-  var msg = document.getElementById('notifyMsg');
-  var email = emailInput.value.trim();
-  var btn = e.target.querySelector('button');
-  msg.className = 'notify-msg';
-  msg.textContent = '';
-  btn.disabled = true;
-  fetch('/api/notify', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      email: email,
-      matchedDomain: 'kide',
-      matchedTitle: 'Kide — landing page signup',
-      need: 'Notify me about new Kide activities',
-      pageUrl: location.href
-    })
-  }).then(function(r){ return r.json().then(function(data){ return {ok: r.ok, data: data}; }); })
-  .then(function(res){
-    btn.disabled = false;
-    if(res.ok && res.data.ok){
-      msg.textContent = "Thanks — we'll let you know!";
-      msg.className = 'notify-msg ok';
-      emailInput.value = '';
-    } else {
-      msg.textContent = 'Please double-check that email address.';
-      msg.className = 'notify-msg err';
-    }
-  }).catch(function(){
-    btn.disabled = false;
-    msg.textContent = "Couldn't reach the server — please try again.";
-    msg.className = 'notify-msg err';
-  });
-});
+/* The notify form moved to the Parent Corner (/parent) when Letters and
+   Feelings shipped. An email box under an unfinished-state promise was
+   costing more credibility on the front page than an address is worth,
+   and a parent who has actually played is a far better person to ask. */
 </script>
 <script type="module">
   // Parent-facing page: measured, with no identifier of any kind. Child-facing

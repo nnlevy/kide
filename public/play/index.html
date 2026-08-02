@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Pip the Sprout — Grow &amp; Learn | Kide</title>
-<meta name="description" content="A joyful, adaptive learning game for toddlers. Pip the Sprout reads every question out loud — and can listen for spoken answers — so little ones learn colors, counting and shapes before they can read. No accounts, no ads, no voice recordings, nothing ever leaves the device.">
+<meta name="description" content="A joyful, adaptive learning game for toddlers. Pip the Sprout reads every question out loud — and can listen for spoken answers — so little ones learn colors, counting, shapes, letters and feelings before they can read. No accounts, no ads, no voice recordings, nothing ever leaves the device.">
 <meta name="robots" content="index, follow">
 <meta name="theme-color" content="#56C6E6">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -32,7 +32,7 @@
 <meta name="twitter:image" content="https://kide.us/og-card.png">
 
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"MobileApplication","name":"Pip the Sprout — Kide","applicationCategory":"EducationalApplication","operatingSystem":"iOS, Web","description":"An adaptive learning game that teaches toddlers colors, counting and shapes, and builds an early habit of noticing when screen time is done.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"publisher":{"@type":"Organization","name":"Kide","url":"https://kide.us"}}
+{"@context":"https://schema.org","@type":"MobileApplication","name":"Pip the Sprout — Kide","applicationCategory":"EducationalApplication","operatingSystem":"iOS, Web","description":"An adaptive learning game that teaches toddlers colors, counting, shapes, letters and feelings, and builds an early habit of noticing when screen time is done.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"publisher":{"@type":"Organization","name":"Kide","url":"https://kide.us"}}
 </script>
 <style>
 :root{
@@ -197,6 +197,10 @@ p.lead{font-size:19px;color:var(--ink-soft);text-align:center;margin:0 0 18px;ma
 .shape-tile.collected{visibility:hidden;}
 .shape-tile.wrong{animation:shake .4s ease;}
 .shape-svg{width:56%;height:56%;}
+/* Letters are the content, so they get the room shapes get. Rounded font stack
+   already in use; weight does the work, as the brand guide says. */
+.opt .oletter{font-size:52px;font-weight:800;line-height:1;color:var(--ink);}
+.feel-svg{width:60%;height:60%;max-width:88px;}
 .basket{display:flex;align-items:center;gap:10px;margin:10px 0 4px;font-size:16px;color:var(--ink-soft);font-weight:700;}
 .basket .bx{font-size:28px;}
 
@@ -349,6 +353,8 @@ const DEFAULT_PROGRESS = {
   colors:   { tier: 1, streak: 0, miss: 0, best: 1 },
   counting: { tier: 1, streak: 0, miss: 0, best: 1 },
   shapes:   { tier: 1, streak: 0, miss: 0, best: 1 },
+  letters:  { tier: 1, streak: 0, miss: 0, best: 1 },
+  feelings: { tier: 1, streak: 0, miss: 0, best: 1 },
   totalCorrect: 0,
   goodbyes: 0,
   routineRuns: 0,
@@ -406,6 +412,185 @@ const SHAPE_TIERS = {
   2:{ pool:["circle","square","triangle"] },
   3:{ pool:["circle","square","triangle"], collect:true, gridSize:6 }
 };
+
+/* ============================== LETTERS ==============================
+   Uppercase letter NAMES, not letter sounds — deliberately.
+
+   Alphabet knowledge is among the strongest predictors of later reading
+   (National Early Literacy Panel), and for this age band letter names come
+   first: knowing a letter's name makes learning its sound easier rather than
+   competing with it (Treiman and colleagues). Sounds already have a home in
+   this product — /sounds and the speech engine — so teaching names here and
+   sounds there keeps each surface doing one job well.
+
+   THE ORDER IS NOT A TO Z, and that is the whole design.
+
+   1. THE OWN-NAME ADVANTAGE. Children learn the letters in their own name
+      before other letters, and the first letter most of all. This game already
+      has a name the child chose and cares about: their companion's. So tier 1
+      seeds from that name, which means the first letters a child meets are the
+      ones they are already motivated to know. A generic A-B-C start throws that
+      away.
+
+   2. THE ACROPHONIC CLASSES. English letter names carry the letter's sound in
+      three different ways, and children acquire them in that order:
+        CV     the sound starts the name  — B "bee", D "dee", P "pee"...
+        VC     the sound ends the name    — F "ef", L "el", M "em"...
+        OPAQUE the name doesn't contain the sound at all — H, W, Y, Q
+      Tiers follow that gradient rather than the alphabet.
+
+   3. VISUAL CONFUSABILITY. Uppercase avoids the b/d/p/q problem that plagues
+      lowercase, but E/F, M/W, O/Q, P/R, C/G and V/W are still easy to confuse.
+      They are kept out of the same option set in the early tiers, so a child's
+      first experience of letters is not a discrimination task they are not
+      ready for.
+
+   Uppercase throughout: it is what children recognise first, and it is what is
+   on the blocks, the fridge magnets and the front of the cereal box. */
+
+const LETTER_CV     = ["B","D","J","K","P","T","V","Z"];
+const LETTER_VC     = ["F","L","M","N","R","S","X"];
+const LETTER_VOWEL  = ["A","E","I","O","U"];
+const LETTER_OPAQUE = ["C","G","H","Q","W","Y"];
+const ALL_LETTERS   = LETTER_CV.concat(LETTER_VC, LETTER_VOWEL, LETTER_OPAQUE).sort();
+
+/* Pairs a young child genuinely mixes up by shape. Kept apart while the task is
+   still "what is this letter" rather than "which of these two is it". */
+const LETTER_CONFUSABLE = {
+  E:["F"], F:["E"], M:["W","N"], W:["M","V"], N:["M"], V:["W","Y"], Y:["V"],
+  O:["Q","C","G"], Q:["O"], C:["G","O"], G:["C","O"], P:["R"], R:["P"],
+  I:["T","L"], T:["I"], L:["I"], K:["X"], X:["K"], S:["Z"], Z:["S"], U:["V"]
+};
+
+const LETTER_TIERS = {
+  /* Visually distinct, acrophonically transparent, and high-frequency. */
+  1:{ pool:["B","D","K","P","T"],                                   choices:2, avoidConfusable:true },
+  2:{ pool:["B","D","K","P","T","A","O","J","V","Z"],               choices:3, avoidConfusable:true },
+  3:{ pool:["B","D","K","P","T","A","O","J","V","Z","E","I","U","F","L","M","N","R","S"], choices:3 },
+  4:{ pool:ALL_LETTERS,                                             choices:4 }
+};
+
+/* The companion name is typed by a child on a keyboard and then rendered into
+   the prompt card, so it goes through here first. Self-inflicted and local-only
+   as an injection goes, but a name field that reaches innerHTML unescaped is
+   not a thing to leave lying around in a children's app. */
+function esc(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+                  .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
+/* The letters of the name the child chose for their companion, which is the
+   most motivating word in their vocabulary and the reason tier 1 is personal. */
+function ownNameLetters(){
+  var n = readCompanionName();
+  if(!n) return [];
+  var out = [], seen = {};
+  String(n).toUpperCase().split("").forEach(function(ch){
+    if(ch >= "A" && ch <= "Z" && !seen[ch]){ seen[ch] = 1; out.push(ch); }
+  });
+  return out;
+}
+
+/* ============================== FEELINGS ==============================
+   Naming a feeling, in the order children actually acquire the categories.
+
+   Widen & Russell's differentiation account is unusually well replicated
+   (81%, 78% and 86% of children fit the predicted sequence across three
+   studies): a child who has one emotion label has "happy"; they then add sad
+   or angry; then all three; then fear or surprise; disgust last. So the tiers
+   are happy/sad → +angry → +scared → +surprised, and disgust is left out
+   entirely rather than taught last to a four-year-old who is not there yet.
+
+   THE DESIGN DECISION THAT MATTERS: SITUATIONS BEFORE FACES. The obvious build
+   is a row of faces and "which one is sad?". But young children label emotions
+   from situations and stories EARLIER and more accurately than from facial
+   expressions alone — the face-only task is the harder one, and building only
+   that would make this pack feel like failure for exactly the age it is for.
+   So tier 1 is entirely situations ("someone's ice cream fell over — how do
+   they feel?"), and faces are introduced afterwards.
+
+   TONE. Nobody in these stories is hurt, punished or frightened badly, and
+   nothing here is about the child's own family. The scared items are a loud
+   dog and a dark room, both resolved in the telling. docs/BRAND.md forbids Pip
+   from ever being scared, sad or scolding, so none of these feelings are ever
+   Pip's — the faces below are separate, nameless little faces, and Pip stays
+   the calm one who asks the question.
+
+   AND THERE IS NO WRONG FEELING. The engine never tells a child they are
+   wrong, and on the third try it resolves regardless. That matters more here
+   than anywhere else in the game: a child who is told their reading of a
+   feeling is incorrect learns something worse than a label. */
+
+const FEELINGS = {
+  happy:     { word:"Happy",     face:"#FFD166" },
+  sad:       { word:"Sad",       face:"#7FB3D9" },
+  angry:     { word:"Angry",     face:"#FF9F5B" },
+  scared:    { word:"Scared",    face:"#B497D6" },
+  surprised: { word:"Surprised", face:"#6FD08C" }
+};
+
+const FEELING_TIERS = {
+  1:{ pool:["happy","sad"],                                  choices:2, storyOnly:true },
+  2:{ pool:["happy","sad","angry"],                          choices:3 },
+  3:{ pool:["happy","sad","angry","scared"],                 choices:3 },
+  4:{ pool:["happy","sad","angry","scared","surprised"],     choices:4 }
+};
+
+/* Canonical, unambiguous situations — the kind an adult would agree on without
+   hesitating, because an ambiguous one teaches nothing and quietly tells a
+   child they read it wrongly. Ids double as voice-clip ids. */
+const FEELING_STORIES = [
+  { id:"story-happy-1",     feel:"happy",     text:"Someone got a big hug." },
+  { id:"story-happy-2",     feel:"happy",     text:"Someone's best friend came to play." },
+  { id:"story-happy-3",     feel:"happy",     text:"Someone blew out the candles on a cake." },
+  { id:"story-sad-1",       feel:"sad",       text:"Someone's ice cream fell on the ground." },
+  { id:"story-sad-2",       feel:"sad",       text:"Someone's friend had to go home." },
+  { id:"story-sad-3",       feel:"sad",       text:"Someone lost their favourite toy." },
+  { id:"story-angry-1",     feel:"angry",     text:"Someone knocked over the tower they just built." },
+  { id:"story-angry-2",     feel:"angry",     text:"Someone took the toy right out of their hands." },
+  { id:"story-angry-3",     feel:"angry",     text:"Someone had to stop playing before they were ready." },
+  { id:"story-scared-1",    feel:"scared",    text:"A very big dog barked, very loudly." },
+  { id:"story-scared-2",    feel:"scared",    text:"The lights went out and the room went dark." },
+  { id:"story-scared-3",    feel:"scared",    text:"There was a loud crash of thunder outside." },
+  { id:"story-surprised-1", feel:"surprised", text:"Someone opened a box, and a puppy was inside!" },
+  { id:"story-surprised-2", feel:"surprised", text:"Everyone jumped out and shouted, surprise!" },
+  { id:"story-surprised-3", feel:"surprised", text:"Someone found a present they were not expecting." }
+];
+
+/* Flat, rounded, no sharp corners — the same shape language as the rest of the
+   game. Drawn rather than emoji on purpose: an emotion-recognition task cannot
+   be built on glyphs that render as a different expression on every platform,
+   which is exactly what happens to the emoji faces across iOS, Android and
+   Windows. These render identically everywhere. */
+function feelingSvg(key){
+  var f = FEELINGS[key]; if(!f) return "";
+  var mouth = {
+    happy:     '<path d="M32 58 Q50 74 68 58" fill="none" stroke="#2E3A3F" stroke-width="6" stroke-linecap="round"/>',
+    sad:       '<path d="M32 68 Q50 52 68 68" fill="none" stroke="#2E3A3F" stroke-width="6" stroke-linecap="round"/>',
+    angry:     '<path d="M34 66 Q50 58 66 66" fill="none" stroke="#2E3A3F" stroke-width="6" stroke-linecap="round"/>',
+    scared:    '<ellipse cx="50" cy="65" rx="9" ry="11" fill="#2E3A3F"/>',
+    surprised: '<circle cx="50" cy="64" r="11" fill="#2E3A3F"/>'
+  }[key];
+  var brows = {
+    happy:     '',
+    sad:       '<path d="M28 33 Q35 29 42 33" fill="none" stroke="#2E3A3F" stroke-width="5" stroke-linecap="round"/>'
+             + '<path d="M58 33 Q65 29 72 33" fill="none" stroke="#2E3A3F" stroke-width="5" stroke-linecap="round"/>',
+    angry:     '<path d="M28 28 L44 36" fill="none" stroke="#2E3A3F" stroke-width="5" stroke-linecap="round"/>'
+             + '<path d="M72 28 L56 36" fill="none" stroke="#2E3A3F" stroke-width="5" stroke-linecap="round"/>',
+    scared:    '<path d="M28 30 Q35 24 43 29" fill="none" stroke="#2E3A3F" stroke-width="5" stroke-linecap="round"/>'
+             + '<path d="M72 30 Q65 24 57 29" fill="none" stroke="#2E3A3F" stroke-width="5" stroke-linecap="round"/>',
+    surprised: '<path d="M28 27 Q35 22 43 27" fill="none" stroke="#2E3A3F" stroke-width="5" stroke-linecap="round"/>'
+             + '<path d="M72 27 Q65 22 57 27" fill="none" stroke="#2E3A3F" stroke-width="5" stroke-linecap="round"/>'
+  }[key];
+  var eyeR = (key === "scared" || key === "surprised") ? 8 : 6;
+  return '<svg viewBox="0 0 100 100" class="feel-svg" aria-hidden="true">'
+    + '<circle cx="50" cy="50" r="46" fill="' + f.face + '"/>'
+    + brows
+    + '<circle cx="36" cy="45" r="' + eyeR + '" fill="#2E3A3F"/>'
+    + '<circle cx="64" cy="45" r="' + eyeR + '" fill="#2E3A3F"/>'
+    + mouth
+    + '</svg>';
+}
 
 
 /* ========================= PIP'S TURN — routines =========================
@@ -490,7 +675,7 @@ let state = {
   level: null,             // colors | counting | shapes
   question: null,
   sessionStart: null,
-  sessionCorrectByLevel: { colors:0, counting:0, shapes:0 },
+  sessionCorrectByLevel: { colors:0, counting:0, shapes:0, letters:0, feelings:0 },
   awaitingNext: false,
   missOnQuestion: 0,
   collected: [],           // for shapes collect-mode
@@ -523,7 +708,7 @@ function shuffle(arr){
 }
 function el(html){ const t=document.createElement("template"); t.innerHTML=html.trim(); return t.content.firstElementChild; }
 function totalMastered(){
-  return ["colors","counting","shapes"].filter(k=>progress[k].best>=3).length;
+  return ["colors","counting","shapes","letters","feelings"].filter(k=>progress[k].best>=3).length;
 }
 function leavesForCount(n){ return Math.max(1, Math.min(4, n+1)); }
 
@@ -698,6 +883,11 @@ function promptClip(){
   if(q.type === "counting")       return "prompt-count";
   if(q.type === "shapes-pick")    return "prompt-shape-" + q.target;
   if(q.type === "shapes-collect") return "prompt-collect-" + q.target;
+  if(q.type === "letters")        return "prompt-letter-" + String(q.target).toLowerCase();
+  if(q.type === "feelings-face")  return "prompt-feeling-" + q.target;
+  // The story IS the prompt: a pre-reader cannot read the situation off the
+  // card, so the clip id is the story id and every story has its own line.
+  if(q.type === "feelings-story") return q.story.id;
   return null;
 }
 
@@ -715,7 +905,9 @@ function gardenVocab(){
   return [
     { key:"colors",   value:"colors" },
     { key:"counting", value:"counting" },
-    { key:"shapes",   value:"shapes" }
+    { key:"shapes",   value:"shapes" },
+    { key:"letters",  value:"letters" },
+    { key:"feelings", value:"feelings" }
   ];
 }
 
@@ -725,6 +917,8 @@ function listenHintClip(){
   if(state.question.type === "colors")      return "listen-color";
   if(state.question.type === "counting")    return "listen-count";
   if(state.question.type === "shapes-pick") return "listen-shape";
+  if(state.question.type === "letters")     return "listen-letter";
+  if(state.question.type === "feelings-face" || state.question.type === "feelings-story") return "listen-feeling";
   return null;
 }
 
@@ -984,7 +1178,9 @@ function screenGarden(){
   const cards = [
     { key:"colors", label:"Colors", sub:"Find the color Pip names", emoji:"🎨", bg:"#FFE1D6" },
     { key:"counting", label:"Counting", sub:"How many does Pip see?", emoji:"⭐", bg:"#DFF3FF" },
-    { key:"shapes", label:"Shapes", sub:"Circles, squares & triangles", emoji:"🔺", bg:"#E8E1FA" }
+    { key:"shapes", label:"Shapes", sub:"Circles, squares & triangles", emoji:"🔺", bg:"#E8E1FA" },
+    { key:"letters", label:"Letters", sub:"Find the letter Pip names", emoji:"🔤", bg:"#FFF0D6" },
+    { key:"feelings", label:"Feelings", sub:"How would they feel?", emoji:"💛", bg:"#E6F3EA" }
   ];
   c.innerHTML =
     '<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Back">🏠</button><div class="spacer"></div><button class="icon-btn" data-act="parents" aria-label="Parents">⚙️</button></div>'+
@@ -1052,6 +1248,45 @@ function newQuestion(levelKey){
       if(d>=1) optSet.add(d);
     }
     state.question = { type:"counting", target, item, options: shuffle([...optSet]) };
+  }else if(levelKey==="letters"){
+    const tier = LETTER_TIERS[lv.tier] || LETTER_TIERS[4];
+    // Tier 1 leads with the letters of the name the child chose, when there is
+    // one — the own-name advantage is the single largest effect available here
+    // and it costs nothing to use. Everything the child's name does not cover
+    // falls back to the tier pool.
+    const own = lv.tier === 1 ? ownNameLetters().filter(function(l){ return ALL_LETTERS.indexOf(l) > -1; }) : [];
+    const pool = tier.pool;
+    const target = (own.length && Math.random() < 0.6) ? pick(own) : pick(pool);
+    // Distractors come from the tier pool, minus anything a child of this age
+    // confuses with the target by shape while still learning what it is.
+    let candidates = pool.concat(own).filter(function(l){ return l !== target; });
+    candidates = candidates.filter(function(l, i, a){ return a.indexOf(l) === i; });
+    if(tier.avoidConfusable){
+      const bad = LETTER_CONFUSABLE[target] || [];
+      const safe = candidates.filter(function(l){ return bad.indexOf(l) === -1; });
+      if(safe.length >= tier.choices - 1) candidates = safe;
+    }
+    const distractors = shuffle(candidates).slice(0, tier.choices - 1);
+    state.question = { type:"letters", target, options: shuffle([target, ...distractors]),
+                       fromName: own.indexOf(target) > -1 ? readCompanionName() : null };
+  }else if(levelKey==="feelings"){
+    const tier = FEELING_TIERS[lv.tier] || FEELING_TIERS[4];
+    // Situations before faces: children read emotions from what happened before
+    // they can read them off a face, so tier 1 is stories only and faces are
+    // eased in afterwards.
+    const useStory = tier.storyOnly || Math.random() < 0.5;
+    const pool = tier.pool;
+    if(useStory){
+      const inPool = FEELING_STORIES.filter(function(s){ return pool.indexOf(s.feel) > -1; });
+      const story = pick(inPool);
+      const distractors = shuffle(pool.filter(function(f){ return f !== story.feel; })).slice(0, tier.choices - 1);
+      state.question = { type:"feelings-story", target: story.feel, story,
+                         options: shuffle([story.feel, ...distractors]) };
+    }else{
+      const target = pick(pool);
+      const distractors = shuffle(pool.filter(function(f){ return f !== target; })).slice(0, tier.choices - 1);
+      state.question = { type:"feelings-face", target, options: shuffle([target, ...distractors]) };
+    }
   }else if(levelKey==="shapes"){
     const tier = SHAPE_TIERS[lv.tier];
     if(tier.collect){
@@ -1104,6 +1339,31 @@ function screenPlay(){
           let dots=""; for(let i=0;i<n;i++) dots+='<span></span>';
           return '<button class="opt" data-val="'+n+'"><span class="oemoji">'+n+'</span><span class="dotwrap">'+dots+'</span></button>';
         }).join("")+
+      '</div>';
+  }else if(q.type==="letters"){
+    // When the target came out of the companion's name, say so. "The letter
+    // that starts Momo's name" is a different and much better question than
+    // "the letter B", and it is the reason tier 1 is built the way it is.
+    const nameNote = q.fromName
+      ? '<div style="margin-top:6px;font-size:15px;font-weight:700;opacity:.8">It\'s in '+esc(q.fromName)+'\'s name!</div>'
+      : '';
+    body =
+      '<div class="prompt-card" data-replay data-act="replay" role="status" aria-live="polite"><div class="p-eyebrow">Letters</div><div class="p-main">Find the letter <span style="color:var(--coral-deep)">'+q.target+'</span>!</div>'+nameNote+replayHint()+'</div>'+
+      '<div class="options '+(q.options.length<=2?"cols2":"cols3")+'" id="optWrap">'+
+        q.options.map(l=>'<button class="opt" data-val="'+l+'"><span class="oletter">'+l+'</span></button>').join("")+
+      '</div>';
+  }else if(q.type==="feelings-story" || q.type==="feelings-face"){
+    const isStory = q.type==="feelings-story";
+    const main = isStory
+      ? esc(q.story.text)
+      : 'Who feels '+FEELINGS[q.target].word.toUpperCase()+'?';
+    const sub = isStory
+      ? '<div style="margin-top:8px;font-size:17px;font-weight:800">How do they feel?</div>'
+      : '';
+    body =
+      '<div class="prompt-card" data-replay data-act="replay" role="status" aria-live="polite"><div class="p-eyebrow">Feelings</div><div class="p-main" style="font-size:22px;line-height:1.35">'+main+'</div>'+sub+replayHint()+'</div>'+
+      '<div class="options '+(q.options.length<=2?"cols2":"cols3")+'" id="optWrap">'+
+        q.options.map(f=>'<button class="opt" data-val="'+f+'">'+feelingSvg(f)+'<span class="oword">'+FEELINGS[f].word+'</span></button>').join("")+
       '</div>';
   }else if(q.type==="shapes-pick"){
     body =
@@ -1273,7 +1533,7 @@ function startRoutine(key){
 function screenGoodbye(){
   const c = document.createElement("div");
   c.style.width="100%"; c.style.display="flex"; c.style.flexDirection="column"; c.style.alignItems="center"; c.style.flex="1";
-  const rows = [["colors","Colors"],["counting","Counting"],["shapes","Shapes"]].map(([k,label])=>{
+  const rows = [["colors","Colors"],["counting","Counting"],["shapes","Shapes"],["letters","Letters"],["feelings","Feelings"]].map(([k,label])=>{
     const n = state.sessionCorrectByLevel[k];
     const stars = n>0 ? "⭐".repeat(Math.min(5,n)) : "—";
     return '<div class="recap-row"><span>'+label+'</span><span class="recap-stars">'+stars+'</span></div>';
@@ -1743,7 +2003,7 @@ function startSessionIfNeeded(){
   if(!state.sessionStart){
     state.sessionStart = Date.now();
     pausedSessionStart = null;
-    state.sessionCorrectByLevel = { colors:0, counting:0, shapes:0 };
+    state.sessionCorrectByLevel = { colors:0, counting:0, shapes:0, letters:0, feelings:0 };
     inviteShown = false; lastInviteAt = 0;
     // Record the handoff. Starts unresolved; goToGoodbye marks it.
     if(!Array.isArray(progress.handoffs)) progress.handoffs = [];
