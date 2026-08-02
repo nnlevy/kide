@@ -167,8 +167,24 @@ export function jeffreysInterval(successes, n, mass = CI_MASS) {
  * @param {object} opts
  * @param {number} opts.now  ms timestamp, injectable for deterministic tests.
  */
+/** A target key this file is willing to believe in.
+ *
+ *  The record can arrive from `?data=` -- a base64 blob in a URL a parent
+ *  forwards and a clinician clicks. `target` is split into `phoneme` and
+ *  `position` below and both are rendered into the report, so an unvalidated
+ *  target is a script-injection vector on kide.us with nothing but a shared
+ *  link required to deliver it. That mattered less when this page held only a
+ *  local record; it matters now that the same origin stores a clinician's
+ *  name, credentials, licence number and a child's chart reference.
+ *
+ *  Validated here rather than escaped at the point of render, because there is
+ *  exactly one place records are built and several places they are displayed,
+ *  and the rule "a phoneme target is letters and one underscore" is true of
+ *  every legitimate value the engine has ever produced. */
+const VALID_TARGET = /^[a-z]{1,4}_[a-z]{1,10}$/i;
+
 export function buildRecord(log, { now = Date.now() } = {}) {
-  const events = (log || []).filter((r) => r && r.target);
+  const events = (log || []).filter((r) => r && r.target && VALID_TARGET.test(String(r.target)));
 
   // THE TWO EXCLUSIONS THAT DECIDE WHETHER THIS REPORT IS HONEST.
   //

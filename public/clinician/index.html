@@ -161,18 +161,21 @@
         <li>The full method appendix — intervals, thresholds, exclusions and known limitations, stated so a colleague or a funder can check them</li>
         <li>An attestation and signature block that says plainly what this is and is not</li>
       </ul>
+      <p style="margin-top:12px"><b>$39 once. No subscription, no per-report charge, no account.</b>
+      One licence covers every child on your caseload, on this device and any other you sign in
+      from with the same email. <a href="/terms/">Terms</a> · <a href="/privacy/">Privacy</a></p>
       <div class="row" style="margin-top:14px">
         <input id="proEmail" type="email" placeholder="you@clinic.com" autocomplete="email"
                style="flex:1;min-width:200px;font:inherit;font-size:15px;padding:11px 16px;
                       border-radius:999px;border:2px solid var(--line);color:var(--ink);background:#fff">
-        <button id="btnUse">Use a report</button>
-        <button class="primary" id="btnBuy">Buy reports</button>
+        <button id="btnUse">Check my licence</button>
+        <button class="primary" id="btnBuy">Buy a licence — $39</button>
       </div>
       <p class="status" id="proStatus"></p>
     </div>
 
     <div class="pro-lock hidden" id="proUnlocked">
-      <h3>Report unlocked <span id="proRemaining" style="font-weight:400;color:var(--ink-faint)"></span></h3>
+      <h3>Licence active</h3>
       <p>These stay on this device and prefill your next report. Nothing here is sent anywhere.</p>
       <div class="grid2" style="margin-top:12px">
         <label class="field">Your name<input id="fName" placeholder="Alex Moreno"></label>
@@ -260,15 +263,16 @@ $('btnJson').addEventListener('click', async () => {
 /* ── Professional edition ──────────────────────────────────────────────────
  *
  * The rule this code exists under: THE CHILD'S RECORD NEVER LEAVES THIS PAGE.
- * Three things are sent to the Worker and they are exhaustive -- the
- * clinician's own email address, a random opaque reference this browser
- * generated, and (on purchase) an offering id. No phoneme, no count, no date,
- * no name, and nothing derived from any of them. test-billing.mjs asserts it.
+ * Two things are sent to the Worker and they are exhaustive -- the clinician's
+ * own email address, and (on purchase) an offering id. No phoneme, no count,
+ * no date, no name, and nothing derived from any of them. test-billing.mjs
+ * asserts it, including against transports nobody has used here yet.
  *
- * The unlock is therefore an entitlement check, not DRM: the document is
- * rendered here, in the page, because rendering it on a server would mean
- * uploading a child's practice history to one. That trade is made knowingly
- * and is written up in src/worker/index.ts.
+ * The licence is an entitlement check, not DRM: the document is rendered here,
+ * in the page, because rendering it on a server would mean uploading a child's
+ * practice history to one. Anybody who opens devtools can set the licence flag;
+ * that is understood and accepted, and is written up in src/worker/index.ts
+ * alongside the reason the alternative is worse.
  *
  * What is unlocked is documentation scaffolding -- header, method appendix,
  * attestation. Not one measurement is withheld from the free view, because a
@@ -277,59 +281,32 @@ $('btnJson').addEventListener('click', async () => {
 
 const LS_IDENTITY = 'kide.clinician.identity';
 const LS_EMAIL = 'kide.clinician.email';
-const LS_REFS = 'kide.clinician.refs';
-const LS_UNLOCKED = 'kide.clinician.unlocked';
+const LS_LICENSED = 'kide.clinician.licensed';
 
+/* localStorage is a convenience here and never load-bearing. In private
+ * browsing, or with site data blocked, every read returns the fallback and
+ * every write is a no-op -- so the licence state also lives in memory for the
+ * session. The earlier credit-metered version got this wrong in a way that
+ * cost real money: it spent a credit, failed to persist the unlock, showed no
+ * error, and re-spent on the next click. */
+const memory = { licensed: false };
 const lsGet = (k, fallback) => {
   try { return JSON.parse(localStorage.getItem(k)) ?? fallback; } catch { return fallback; }
 };
-const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
-
-/** A stable local key for "this report", computed from aggregate shape only and
- *  never transmitted. It exists solely to look up the random ref below, so that
- *  reprinting the same report cannot charge a second credit. */
-function fingerprint(rec) {
-  const a = rec.adherence || {};
-  const parts = [rec.methodVersion, rec.totalAttempts, rec.scoredAttempts,
-    a.firstPractice || '', a.lastPractice || '', a.sessions || 0,
-    (rec.targets || []).map((t) => `${t.phoneme}${t.position}${t.attempts}`).join(',')].join('|');
-  let h = 0x811c9dc5;
-  for (let i = 0; i < parts.length; i++) { h ^= parts.charCodeAt(i); h = Math.imul(h, 0x01000193); }
-  return (h >>> 0).toString(36);
-}
-
-/** The only per-report token that ever reaches the server. Random, generated
- *  here, and carrying no information about the child by construction. */
-function refFor(fp) {
-  const refs = lsGet(LS_REFS, {});
-  if (!refs[fp]) {
-    const r = new Uint8Array(12);
-    (globalThis.crypto || {}).getRandomValues?.(r);
-    refs[fp] = Array.from(r, (b) => b.toString(16).padStart(2, '0')).join('') ||
-      `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
-    lsSet(LS_REFS, refs);
-  }
-  return refs[fp];
-}
+const lsSet = (k, v) => {
+  try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; }
+};
 
 const identity = () => lsGet(LS_IDENTITY, {});
 const FIELDS = { fName: 'name', fCreds: 'creds', fClinic: 'clinic', fLicence: 'licence', fChild: 'child' };
 
-function isUnlocked() {
-  if (!record) return false;
-  return lsGet(LS_UNLOCKED, []).includes(fingerprint(record));
-}
-
-function markUnlocked() {
-  const fp = fingerprint(record);
-  const all = lsGet(LS_UNLOCKED, []);
-  if (!all.includes(fp)) { all.push(fp); lsSet(LS_UNLOCKED, all); }
-}
+const isLicensed = () => memory.licensed || lsGet(LS_LICENSED, false) === true;
+const markLicensed = () => { memory.licensed = true; lsSet(LS_LICENSED, true); };
 
 /** Paints the professional blocks. Called after every render so that loading
  *  the worked example, or arriving with new ?data=, keeps the right state. */
 function applyPro() {
-  const on = isUnlocked();
+  const on = isLicensed();
   $('proHeader').classList.toggle('hidden', !on);
   $('proAppendix').classList.toggle('hidden', !on);
   $('proLocked').classList.toggle('hidden', on);
@@ -377,49 +354,35 @@ async function api(path, options) {
   return res.json().catch(() => ({ ok: false, error: 'Unexpected response from billing.' }));
 }
 
-/** Spend one report credit on this record. */
-async function useReport(email, { quiet = false } = {}) {
-  if (!record) return false;
-  if (isUnlocked()) { applyPro(); return true; }
-  // Resolved to an opaque random token here, deliberately, so that the request
-  // body below can be read at a glance and by a test: what goes on the wire is
-  // an email and a random string, and nothing else.
-  const reportRef = refFor(fingerprint(record));
-  const out = await api('/api/clinician/unlock', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, reportRef }),
-  });
-  if (out.ok) {
-    lsSet(LS_EMAIL, email);
-    markUnlocked();
-    applyPro();
-    $('proRemaining').textContent =
-      typeof out.remaining === 'number' ? `· ${out.remaining} report${out.remaining === 1 ? '' : 's'} left` : '';
-    return true;
-  }
-  if (!quiet) {
-    say(out.error === 'no_reports_left'
-      ? 'No reports left on that address — buy a pack below and it will unlock straight away.'
-      : (out.error || 'Could not verify that address just now.'), true);
-  }
-  return false;
+/** Check the licence for an address. Read-only: nothing here can spend, so a
+ *  retry, a double-click or a stale tab costs nobody anything. Returns
+ *  'yes' | 'no' | 'unreachable' -- the third is deliberately NOT folded into
+ *  'no', because telling somebody who already paid that they have not paid is
+ *  how you take their money twice. */
+async function checkLicence(email) {
+  const out = await api(`/api/clinician/licence?email=${encodeURIComponent(email)}`);
+  if (!out.ok) return 'unreachable';
+  if (!out.licensed) return 'no';
+  lsSet(LS_EMAIL, email);
+  markLicensed();
+  applyPro();
+  return 'yes';
 }
 
 $('proEmail').value = lsGet(LS_EMAIL, '') || '';
 
 $('btnUse').addEventListener('click', async () => {
   const email = $('proEmail').value.trim();
-  if (!email.includes('@')) return say('Enter the email you bought reports with.', true);
+  if (!email.includes('@')) return say('Enter the email you bought your licence with.', true);
   $('btnUse').disabled = true;
   say('Checking…');
   try {
-    const ent = await api(`/api/clinician/entitlement?email=${encodeURIComponent(email)}`);
-    if (!ent.ok) return say(ent.error || 'Could not reach billing just now.', true);
-    if (!ent.reports) return say('No reports left on that address — buy a pack below.', true);
-    if (await useReport(email)) say('');
+    const state = await checkLicence(email);
+    if (state === 'yes') return say('');
+    if (state === 'no') return say('No licence on that address yet — buy one below.', true);
+    say('Could not reach billing just now — try again shortly. Nothing was charged.', true);
   } catch {
-    say('Could not reach billing just now — try again shortly.', true);
+    say('Could not reach billing just now — try again shortly. Nothing was charged.', true);
   } finally {
     $('btnUse').disabled = false;
   }
@@ -427,7 +390,7 @@ $('btnUse').addEventListener('click', async () => {
 
 $('btnBuy').addEventListener('click', async () => {
   const email = $('proEmail').value.trim();
-  if (!email.includes('@')) return say('Enter your email so we can attach the reports to it.', true);
+  if (!email.includes('@')) return say('Enter your email so the licence can be attached to it.', true);
   $('btnBuy').disabled = true;
   say('Opening secure checkout…');
   try {
@@ -445,21 +408,39 @@ $('btnBuy').addEventListener('click', async () => {
   }
 });
 
-/** Coming back from Stripe. Success auto-spends one credit on the report that
- *  was open, so a clinician who just paid does not have to work out what to
- *  press next. */
+/** Coming back from Stripe.
+ *
+ *  Note what is NOT here: the success URL cannot carry ?data=, because that is
+ *  the child's record and it must not go to the hub or to Stripe. So a
+ *  clinician lands back on an EMPTY report. The credit-metered version spent a
+ *  credit here regardless and unlocked a blank page -- $39 for five reports,
+ *  one destroyed on arrival. A licence has no such failure mode: the check is
+ *  free and idempotent, and the clinician reopens the parent's link with the
+ *  licence already active. */
 async function resumeFromCheckout() {
   const q = new URLSearchParams(location.search);
   const state = q.get('checkout');
   if (!state) return;
   history.replaceState(null, '', location.pathname + (q.get('data') ? `?data=${q.get('data')}` : ''));
   if (state === 'cancel') return say('Checkout cancelled — nothing was charged.');
+
   const email = (q.get('email') || lsGet(LS_EMAIL, '') || '').trim();
-  if (!email.includes('@')) return say('Payment received. Enter that email above to use a report.');
+  if (!email.includes('@')) return say('Payment received. Enter that email above to activate your licence.');
   $('proEmail').value = email;
-  say('Payment received — unlocking…');
-  if (await useReport(email, { quiet: true })) say('');
-  else say('Payment received. Press "Use a report" in a moment — the hub can take a few seconds.');
+  say('Payment received — activating…');
+
+  // The hub can take a moment to record the purchase, so give it a few tries
+  // rather than telling a clinician who just paid that they have not.
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const s = await checkLicence(email);
+    if (s === 'yes') {
+      return say(record && record.totalAttempts
+        ? ''
+        : 'Licence active. Reopen the record link the parent sent you — it will be chart-ready.');
+    }
+    if (attempt < 3) await new Promise((r) => setTimeout(r, 1500));
+  }
+  say('Payment received. Press "Check my licence" in a moment — the hub can take a few seconds.');
 }
 
 /** A worked example, so the artifact can be evaluated before a real child has

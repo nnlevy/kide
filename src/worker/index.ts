@@ -15,11 +15,8 @@ const DOMAIN = "kide.us";
 // this Worker to open checkout for an arbitrary portfolio offering, and so
 // test-billing.mjs can assert both repos still agree on the ids -- a mismatch
 // would only ever surface as a 502 at the moment a clinician tried to pay.
-const OFFERINGS = new Set(["clinician_report", "clinician_caseload"]);
+const OFFERINGS = new Set(["clinician_report"]);
 const DEFAULT_OFFERING = "clinician_report";
-
-// One credit unlocks one chart-ready report.
-const CREDITS_PER_REPORT = 1;
 
 type PortfolioAiServiceBinding = {
   createChatCompletion: (input: Record<string, unknown>) => Promise<{
@@ -43,12 +40,7 @@ type PortfolioBillingServiceBinding = {
     exists: boolean;
     email: string;
     creditsBalance: number;
-  }>;
-  consumeCredits: (input: Record<string, unknown>) => Promise<{
-    ok: boolean;
-    reason: string | null;
-    creditsBalance: number;
-    email: string;
+    summaries?: { domain: string; creditsPurchased: number | null }[];
   }>;
 };
 
@@ -261,116 +253,124 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
 
 // ── The clinician billing surface ────────────────────────────────────────────
 //
-// Three endpoints, and one rule that governs all of them: THE CHILD'S RECORD
-// NEVER CROSSES THIS BOUNDARY. Not to this Worker, not to the billing hub, not
-// to Stripe. The only thing that leaves the clinician's browser is their own
-// email address and an opaque reference string they generated themselves.
+// Two endpoints, and one rule that governs both: THE CHILD'S RECORD NEVER
+// CROSSES THIS BOUNDARY. Not to this Worker, not to the billing hub, not to
+// Stripe. The only thing that leaves the clinician's browser is their own email
+// address and an offering id.
 //
-// That constraint is why entitlement is checked here but the professional
-// document is rendered in the page. A server-rendered PDF would be trivially
-// harder to bypass -- and would require posting a child's phoneme history to a
+// That constraint is why the licence is checked here but the professional
+// document is rendered in the page. Server-rendering it would be marginally
+// harder to bypass and would require posting a child's phoneme history to a
 // server, which is the one promise this product cannot break (docs/WEDGE.md,
 // docs/VOICE.md, and the amended COPPA Rule's treatment of biometric and
 // behavioural records). So this is a professional licence enforced by an
-// entitlement check, not DRM, and it is deliberately the weaker of the two.
-// Anyone determined enough to read the page source can render the document
-// unpaid. A licensed clinician putting a document in a patient chart is not
-// that person, and designing for that person would cost the privacy guarantee
-// that is the entire reason this record can exist at all.
+// entitlement check, not DRM, and it is knowingly the weaker of the two. A
+// licensed clinician putting a document in a patient chart is not the person
+// who defeats it, and designing for that person would cost the privacy
+// guarantee that is the entire reason this record can exist.
 //
-// Every hub call goes through the PORTFOLIO_BILLING_SERVICE RPC binding. Do
-// not replace any of them with fetch() to riskfreetrial.org: a Worker-to-Worker
-// HTTP POST at the public hub URL is what trips Cloudflare error 1010.
+// WHY A LICENCE AND NOT METERED CREDITS. The first version of this sold packs
+// of report credits and spent one per unlock. Adversarial review killed it, for
+// two independently fatal reasons:
+//
+//   1. Portfolio credits are ONE fungible balance per person, not a per-domain
+//      one (riskfreetrial's fetchLedgerBalance keys on global_user_id alone).
+//      trycrm.co sells 100 of the same credits for $9. So a clinician could buy
+//      100 reports for $9 instead of 5 for $39, and -- far worse -- an unlocked
+//      POST here could drain credits somebody bought on a completely different
+//      domain.
+//   2. There is no session on this domain by design (no accounts, that is the
+//      product). An endpoint that spends money on the strength of an emailed-in
+//      string is a remote unauthenticated financial-loss bug, and CSRF-able
+//      besides, since request.json() ignores Content-Type.
+//
+// Entitlement is now derived from PURCHASE HISTORY, which is read-only: has
+// this address ever bought the kide.us clinician licence? Nothing this Worker
+// does can decrease anybody's balance, so there is no longer anything to steal.
+// The remaining exposure is an oracle -- you can ask whether an address holds a
+// licence -- which is a boolean about a professional's own purchase, not about
+// any child.
+//
+// Every hub call goes through the PORTFOLIO_BILLING_SERVICE RPC binding. Do not
+// replace either with fetch() to riskfreetrial.org: a Worker-to-Worker HTTP
+// POST at the public hub URL is what trips Cloudflare error 1010.
 async function handleClinicianApi(request: Request, env: Env, url: URL): Promise<Response> {
-  const json = (data: unknown, status = 200) =>
+  const json = (data: unknown, status = 200, extra: Record<string, string> = {}) =>
     new Response(JSON.stringify(data), {
       status,
-      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...extra },
     });
+
+  const route = url.pathname.slice("/api/clinician/".length);
+  const ROUTES: Record<string, string> = { licence: "GET", checkout: "POST" };
+
+  // Dispatch before checking the binding, so a genuinely wrong path says so
+  // instead of blaming billing configuration.
+  if (!(route in ROUTES)) return json({ ok: false, error: "not_found" }, 404);
+  if (request.method !== ROUTES[route]) {
+    return json({ ok: false, error: "method_not_allowed" }, 405, { Allow: ROUTES[route] });
+  }
 
   const billing = env.PORTFOLIO_BILLING_SERVICE;
   if (!billing) {
     return json({ ok: false, error: "Billing is not configured for this deploy." }, 503);
   }
 
-  const route = url.pathname.slice("/api/clinician/".length);
-
-  // How many reports this clinician has left. Read-only, and the honest answer
-  // for an address that has never purchased is zero rather than an error.
-  if (route === "entitlement" && request.method === "GET") {
+  // Read-only. "Has this address bought the kide.us clinician licence?"
+  if (route === "licence") {
     const email = normalizeEmail(url.searchParams.get("email"));
     if (!email) return json({ ok: false, error: "invalid_email" }, 400);
     try {
       const out = await billing.getCredits(email);
-      return json({ ok: true, email, reports: Math.max(0, Number(out?.creditsBalance) || 0) });
-    } catch (e) {
-      console.warn("clinician entitlement rpc failed", e);
-      return json({ ok: false, error: "Billing service unavailable — try again shortly" }, 503);
-    }
-  }
-
-  if (route === "checkout" && request.method === "POST") {
-    const body = await readJson(request);
-    if (!body) return json({ ok: false, error: "bad_request" }, 400);
-
-    const email = normalizeEmail(body.email);
-    if (!email) return json({ ok: false, error: "Valid email required to start checkout." }, 400);
-
-    // Closed set: a caller cannot name an arbitrary portfolio offering here.
-    const requested = typeof body.offeringId === "string" ? body.offeringId.trim() : "";
-    const offeringId = OFFERINGS.has(requested) ? requested : DEFAULT_OFFERING;
-
-    const origin = new URL(request.url).origin;
-    try {
-      const out = await billing.createCheckout({
-        domain: DOMAIN,
-        offeringId,
-        email,
-        fullName: typeof body.fullName === "string" ? body.fullName.slice(0, 200) : undefined,
-        successUrl: `${origin}/clinician/?checkout=success&email=${encodeURIComponent(email)}`,
-        cancelUrl: `${origin}/clinician/?checkout=cancel`,
-        sourceDomain: DOMAIN,
-      });
-      if (out?.url) return json({ ok: true, id: out.id, url: out.url });
-      return json({ ok: false, error: out?.error || "Checkout failed" }, 502);
-    } catch (e) {
-      console.warn("clinician checkout rpc failed", e);
-      return json({ ok: false, error: "Billing service unavailable — try again shortly" }, 503);
-    }
-  }
-
-  // Spend one report credit. `reportRef` is an opaque id the page generated and
-  // stored locally; it carries no information about the child and exists so
-  // that re-opening or reprinting the same report never charges twice.
-  if (route === "unlock" && request.method === "POST") {
-    const body = await readJson(request);
-    if (!body) return json({ ok: false, error: "bad_request" }, 400);
-
-    const email = normalizeEmail(body.email);
-    if (!email) return json({ ok: false, error: "invalid_email" }, 400);
-
-    const reportRef = String(body.reportRef || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64);
-    if (!reportRef) return json({ ok: false, error: "reportRef required" }, 400);
-
-    try {
-      const out = await billing.consumeCredits({
-        email,
-        domain: DOMAIN,
-        credits: CREDITS_PER_REPORT,
-        actionType: "clinician_report",
-        idempotencyKey: `clinician_report:${reportRef}`,
-      });
-      if (out?.ok) {
-        return json({ ok: true, remaining: Math.max(0, Number(out.creditsBalance) || 0) });
+      // A hub that answered but has never seen this address is a real "no".
+      // A hub that did not answer is NOT a "no" -- reporting it as one would
+      // push a clinician who already paid into paying again.
+      if (!out?.ok) {
+        return json({ ok: false, error: "Billing service unavailable — try again shortly" }, 503);
       }
-      return json({ ok: false, error: "no_reports_left", reason: out?.reason || null }, 402);
+      const licensed = (out.summaries || []).some(
+        (s) => s?.domain === DOMAIN && Number(s.creditsPurchased || 0) > 0,
+      );
+      return json({ ok: true, email, licensed });
     } catch (e) {
-      console.warn("clinician unlock rpc failed", e);
+      console.warn("clinician licence rpc failed", e);
       return json({ ok: false, error: "Billing service unavailable — try again shortly" }, 503);
     }
   }
 
-  return json({ ok: false, error: "not_found" }, 404);
+  // route === "checkout"
+  const body = await readJson(request);
+  if (!body) return json({ ok: false, error: "bad_request" }, 400);
+
+  const email = normalizeEmail(body.email);
+  if (!email) return json({ ok: false, error: "Valid email required to start checkout." }, 400);
+
+  // Closed set, and an unknown id is refused rather than quietly swapped for
+  // the default: silently substituting a differently-priced product on a
+  // payment path is not a thing this should ever do.
+  const requested = typeof body.offeringId === "string" ? body.offeringId.trim() : "";
+  const offeringId = requested || DEFAULT_OFFERING;
+  if (!OFFERINGS.has(offeringId)) {
+    return json({ ok: false, error: "unknown_offering" }, 400);
+  }
+
+  const origin = new URL(request.url).origin;
+  try {
+    const out = await billing.createCheckout({
+      domain: DOMAIN,
+      offeringId,
+      email,
+      fullName: typeof body.fullName === "string" ? body.fullName.slice(0, 200) : undefined,
+      successUrl: `${origin}/clinician/?checkout=success&email=${encodeURIComponent(email)}`,
+      cancelUrl: `${origin}/clinician/?checkout=cancel`,
+      sourceDomain: DOMAIN,
+    });
+    if (out?.url) return json({ ok: true, id: out.id, url: out.url });
+    return json({ ok: false, error: out?.error || "Checkout failed" }, 502);
+  } catch (e) {
+    console.warn("clinician checkout rpc failed", e);
+    return json({ ok: false, error: "Billing service unavailable — try again shortly" }, 503);
+  }
 }
 
 function normalizeEmail(input: unknown): string | null {
