@@ -10,8 +10,48 @@ const path = require("path");
 const crypto = require("crypto");
 const M = require("./manifest");
 
-const KEY = process.env.OPENAI_API_KEY;
-if (!KEY) { console.error("OPENAI_API_KEY not set"); process.exit(1); }
+/* The key, from the environment or from the credential store.
+ *
+ * Same convention the GitHub PAT already uses: ~/.openclaw/.credentials, one
+ * secret per file, 0600. The point is that rendering a voice pack stops
+ * requiring the key to be typed onto a command line, where it lands in shell
+ * history and in the scrollback of whatever terminal it was run in.
+ *
+ * The file is outside every git repo, so it cannot be committed by accident.
+ * Nothing here ever prints it: on failure the message names the file, never
+ * the contents. */
+const os = require("os");
+
+// Two credential conventions exist in this workspace and both are checked,
+// because guessing wrong just means an unhelpful "key not set":
+//   ~/.openclaw/.credentials/<name>.txt   plain text, one secret per file
+//                                         (github-pat.txt lives here)
+//   ~/.openclaw/credentials/<name>.json   JSON with .apiKey
+//                                         (elevenlabs.json, used by the words renderer)
+// The first is preferred: it is the one a Cowork session can be given access
+// to, so a render can be run from a session rather than only from a terminal.
+const KEY_LOCATIONS = [
+  { file: [".openclaw", ".credentials", "openai-key.txt"], read: (s) => s.trim() },
+  { file: [".openclaw", "credentials", "openai.json"], read: (s) => JSON.parse(s).apiKey },
+];
+
+function loadKey() {
+  const fromEnv = (process.env.OPENAI_API_KEY || "").trim();
+  if (fromEnv) return fromEnv;
+  for (const loc of KEY_LOCATIONS) {
+    try {
+      const v = (loc.read(fs.readFileSync(path.join(os.homedir(), ...loc.file), "utf8")) || "").trim();
+      if (v) return v;
+    } catch { /* try the next one */ }
+  }
+  const primary = path.join(os.homedir(), ...KEY_LOCATIONS[0].file);
+  console.error("No OpenAI key found.\n"
+    + "  Either: OPENAI_API_KEY=... npm run voice:render\n"
+    + `  Or put it in ${primary} (chmod 600) and it will be picked up automatically.`);
+  process.exit(1);
+}
+
+const KEY = loadKey();
 
 const force = process.argv.includes("--force");
 const vIdx = process.argv.indexOf("--voice");

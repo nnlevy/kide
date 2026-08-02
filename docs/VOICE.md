@@ -72,11 +72,46 @@ off-by-one shipped once already.
 
 ## Rendering the pack
 
+There are **two packs** and they are easy to confuse. The *words* pack
+(`public/voice/words/v1`) is what `/words` speaks, rendered with ElevenLabs.
+The *game* pack (`public/voice/v1`) is what Pip speaks in `/play`, rendered
+with OpenAI from `tools/voice/manifest.js`. Different scripts, different
+providers, different tests — `test-voice-pack` covers the first,
+`test-voice-game` the second.
+
 ```
 npm run voice:words          # write the script (tools/voice/words-script.json)
 npm run voice:words:render   # render it -- reads the key from ~/.openclaw/credentials
 npm run test:voice-pack      # measure what nobody will listen for
+
+npm run voice:render         # the GAME pack: render + publish in one step
+npm run test:voice-game      # every line rendered, every prompt the game can ask for
 ```
+
+### Keys
+
+Either export `OPENAI_API_KEY`, or drop it in a file and forget about it:
+
+```
+mkdir -p ~/.openclaw/.credentials
+printf 'Paste key: ' && read -rs k && printf '%s' "$k" > ~/.openclaw/.credentials/openai-key.txt && unset k
+chmod 600 ~/.openclaw/.credentials/openai-key.txt
+```
+
+Typed at a `read` prompt rather than passed as an argument, so it never enters
+shell history. The directory sits outside every git repo, so it cannot be
+committed. Nothing in the render pipeline prints the key — failures name the
+file, never its contents.
+
+### Publishing is a real step, not a copy
+
+`generate.js` writes what the API returns: 128 kbps mono. What ships is 48 kbps
+mono — the same audio at a third of the size — plus trailing silence trimmed,
+because that silence counts against the player's ceiling on how long it waits
+for Pip and can cause a line to be cut off for being quiet rather than long.
+`tools/voice/publish.mjs` does both, refuses to finish over the 3 MB a family
+downloads before the game will speak, and drops clips the manifest no longer
+asks for. `npm run voice:render` runs both stages.
 
 **Rendered with ElevenLabs, not OpenAI**, and the reason is the splice.
 ElevenLabs takes `previous_text` and `next_text` — context the model conditions
