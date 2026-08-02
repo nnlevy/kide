@@ -127,7 +127,11 @@ p.lead{font-size:19px;color:var(--ink-soft);text-align:center;margin:0 0 18px;ma
 .pip-bob{width:100%;height:100%;animation:bob 3.2s ease-in-out infinite;transform-origin:bottom center;}
 @keyframes bob{0%,100%{transform:translateY(0) rotate(0deg);}50%{transform:translateY(-4%) rotate(-1.5deg);}}
 .pip-body{position:absolute;left:8%;right:8%;bottom:4%;top:14%;background:linear-gradient(160deg,var(--grass),var(--grass-deep));border-radius:48% 48% 46% 46% / 58% 58% 42% 42%;box-shadow:inset 0 -10px 18px rgba(0,0,0,.10),inset 0 8px 14px rgba(255,255,255,.35);}
-.pip-belly{position:absolute;left:26%;right:26%;bottom:8%;height:38%;background:var(--grass-dark);opacity:.28;border-radius:50%;}
+/* .pip-belly is gone. It was a dark ellipse at 28% opacity across the lower
+   half of Pip, drawn as a belly — but Pip is a face, not a body, so at every
+   size it actually shipped at it read as a shadow smudge under the mouth
+   rather than as form. The sphere still reads as round: that comes from the
+   gradient and the inset shading on .pip-body, which stay. */
 .pip-cheek{position:absolute;width:13%;height:8%;background:var(--berry);opacity:.55;border-radius:50%;top:56%;}
 .pip-cheek.l{left:14%;}.pip-cheek.r{right:14%;}
 .pip-eye{position:absolute;width:19%;height:22%;background:#fff;border-radius:50%;top:32%;box-shadow:0 2px 3px rgba(0,0,0,.08);transition:height .15s,top .15s;}
@@ -1094,7 +1098,7 @@ function pipHTML(opts){
           '<div class="pip-stem"></div>'+ leafHtml +
         '</div>'+
         '<div class="pip-body">'+
-          '<div class="pip-belly"></div>'+
+          ''+
           '<div class="pip-cheek l"></div><div class="pip-cheek r"></div>'+
           '<div class="pip-eye l"><div class="pip-pupil"></div></div>'+
           '<div class="pip-eye r"><div class="pip-pupil"></div></div>'+

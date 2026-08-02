@@ -495,7 +495,35 @@ function renderGift(url: URL): Response {
 <style>
   body{background:linear-gradient(180deg,#56C6E6,#BDEBFF);min-height:100vh}
   .gift{max-width:560px;margin:0 auto;padding:38px 22px 60px;text-align:center;color:#fff}
-  .gift .sprout{font-size:64px;line-height:1}
+  /* Pip, drawn exactly as the homepage and the game draw him rather than
+     substituted with the 🌱 emoji that used to sit here. This card is the first
+     thing a family ever sees of Kide, and it was introducing the product with a
+     character the product does not contain — the emoji is a seedling, Pip is a
+     face. No image request either, so it renders instantly inside a message
+     preview and cannot 404. */
+  .gift .pip{width:132px;height:132px;margin:0 auto;position:relative;
+             filter:drop-shadow(0 10px 12px rgba(0,0,0,.16))}
+  .gift .pip-body{position:absolute;left:8%;right:8%;bottom:4%;top:14%;
+    background:linear-gradient(160deg,#6FD08C,#4FB874);
+    border-radius:48% 48% 46% 46% / 58% 58% 42% 42%;
+    box-shadow:inset 0 -10px 18px rgba(0,0,0,.10),inset 0 8px 14px rgba(255,255,255,.35)}
+  .gift .pip-cheek{position:absolute;width:13%;height:8%;background:#FF8FA8;opacity:.55;
+    border-radius:50%;top:56%}
+  .gift .pip-cheek.l{left:14%}.gift .pip-cheek.r{right:14%}
+  .gift .pip-eye{position:absolute;width:19%;height:22%;background:#fff;border-radius:50%;top:32%;
+    box-shadow:0 2px 3px rgba(0,0,0,.08)}
+  .gift .pip-eye.l{left:22%}.gift .pip-eye.r{right:22%}
+  .gift .pip-pupil{position:absolute;width:52%;height:52%;background:#2E3A3F;border-radius:50%;
+    top:26%;left:26%}
+  .gift .pip-mouth{position:absolute;left:32%;right:32%;top:60%;height:16%}
+  .gift .pip-sprout{position:absolute;top:-6%;left:50%;transform:translateX(-50%);width:34%;height:26%}
+  .gift .pip-stem{position:absolute;bottom:0;left:50%;width:6%;height:70%;background:#3D9C63;
+    transform:translateX(-50%);border-radius:3px}
+  .gift .pip-leaf{position:absolute;width:46%;height:32%;
+    background:linear-gradient(160deg,#8CE3A9,#4FB874);border-radius:0% 100% 0% 100%;bottom:32%}
+  .gift .pip-leaf.n1{left:2%;transform:rotate(-18deg)}
+  .gift .pip-leaf.n2{right:2%;transform:rotate(18deg) scaleX(-1);bottom:46%}
+  .gift .hello{font-size:17px;font-weight:800;color:#fff;margin:16px 0 0;opacity:.95}
   .gift h1{font-size:clamp(28px,7vw,42px);margin:10px 0 4px;color:#fff;text-shadow:0 3px 0 rgba(0,0,0,.08)}
   .gift .from{font-size:19px;font-weight:800;opacity:.95;margin:0}
   .gift .note{background:rgba(255,255,255,.92);color:#2E3A3F;border-radius:20px;padding:18px 20px;
@@ -513,9 +541,24 @@ function renderGift(url: URL): Response {
 </head>
 <body>
 <div class="gift">
-  <div class="sprout">🌱</div>
+  <div class="pip" aria-hidden="true">
+    <div class="pip-sprout"><div class="pip-stem"></div><div class="pip-leaf n1"></div><div class="pip-leaf n2"></div></div>
+    <div class="pip-body">
+      <div class="pip-cheek l"></div><div class="pip-cheek r"></div>
+      <div class="pip-eye l"><div class="pip-pupil"></div></div>
+      <div class="pip-eye r"><div class="pip-pupil"></div></div>
+      <div class="pip-mouth"><svg viewBox="0 0 40 20" width="100%" height="100%"><path d="M4,4 Q20,20 36,4" stroke="#2E3A3F" stroke-width="4" fill="none" stroke-linecap="round"/></svg></div>
+    </div>
+  </div>
   <h1>${escHtml(headline)}</h1>
   ${sub ? `<p class="from">${escHtml(sub)}</p>` : ""}
+  <!-- Pip greets the child by name. The page was addressed entirely to the
+       adult — it talked ABOUT the child in the third person — but the person
+       most likely to be looking at the screen when it opens is the child, and
+       Pip saying their name is the whole reason a two-year-old leans in. Falls
+       back to a nameless hello when no name was given, rather than rendering an
+       awkward gap. -->
+  ${to ? `<p class="hello">&ldquo;Hello, ${escHtml(to)}! I'm Pip.&rdquo;</p>` : `<p class="hello">&ldquo;Hello! I'm Pip.&rdquo;</p>`}
   ${note ? `<p class="note">${escHtml(note)}</p>` : ""}
 
   <div class="what">

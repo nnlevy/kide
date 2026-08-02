@@ -40,7 +40,7 @@ function pipHTML(o) {
   return '<div class="pip-wrap"><div class="pip' + (o.sleepy ? " sleepy" : "") + '">' +
     '<div class="pip-shadow"></div><div class="pip-bob">' +
       '<div class="pip-sprout"><div class="pip-stem"></div>' + leaf + '</div>' +
-      '<div class="pip-body"><div class="pip-belly"></div>' +
+      '<div class="pip-body">' +
         '<div class="pip-cheek l"></div><div class="pip-cheek r"></div>' +
         '<div class="pip-eye l"><div class="pip-pupil"></div></div>' +
         '<div class="pip-eye r"><div class="pip-pupil"></div></div>' +
