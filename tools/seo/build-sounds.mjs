@@ -21,7 +21,7 @@
 
 import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { LEX } from '../../public/engine/lexicon.js';
-import { NORMS, STAGES, CITATION, ageWords, ageLabel } from '../../public/engine/norms.js';
+import { NORMS, STAGES, CITATION, SUBSTITUTIONS, ageWords, ageLabel } from '../../public/engine/norms.js';
 
 const OUT = 'public/sounds';
 const ORIGIN = 'https://kide.us';
@@ -150,13 +150,43 @@ for (const code of codes) {
   const positions = [...new Set(rows.map((r) => r.pos))];
   const wordsByPos = positions.map((p) => [p, rows.filter((r) => r.pos === p).map((r) => r.w)]);
 
-  const title = `The "${L}" sound: when children learn it, and words to practise`;
+  // Don't promise "words to practise" on a page that has three of them. The
+  // substance of a thin page is the age answer and the substitution pattern,
+  // so the title says that instead of overselling a short list.
+  const title = rows.length >= 5
+    ? `The "${L}" sound: when children learn it, and words to practise`
+    : `The "${L}" sound: when should my child be saying it?`;
   const description =
     `Most children have "${L}" by about ${ageWords(n.mastery)} (${CITATION.short}). `
     + `If your child isn't saying it yet, here's whether that's on time — and `
     + `${rows.length} words to practise it with, with no pressure and no scoring.`;
 
+  // The higher-intent half of the search: what a parent actually HEARS. This
+  // also carries the pages whose word list is short -- the reassurance and the
+  // named pattern are the substance, and they do not depend on how many words
+  // the game happens to practise for this sound.
+  const sub = SUBSTITUTIONS[code];
+  const subBlock = sub ? `
+  <h2>If your child says &ldquo;${esc(sub.eg[1])}&rdquo; instead of &ldquo;${esc(sub.eg[0])}&rdquo;</h2>
+  <p>Swapping &ldquo;${sub.says}&rdquo; in for &ldquo;${L}&rdquo; is not a random mistake. It has a
+     name — <b>${sub.name}</b> — and it is one of the most common and best documented patterns in
+     young children's speech. Nearly every child does some version of it.</p>
+  <p>It usually sorts itself out by around <b>${ageWords(sub.by)}</b>. Before then it is a normal
+     stage, not an error to be corrected. ${
+       sub.by > 60
+         ? 'This one lasts longer than parents expect, which is exactly why it causes so much unnecessary worry.'
+         : 'If it is still there well after that, it is worth mentioning — not because something is wrong, but because that is when someone should take a proper look.'
+     }</p>
+  <p><b>Don't correct it in the moment.</b> Saying &ldquo;no, say ${esc(sub.eg[0])}&rdquo; teaches a
+     child that talking is a test they can fail, and a child who thinks that talks less. Say the
+     word yourself, warmly, and carry on — they get the model without the verdict.</p>
+` : '';
+
   const faqs = [
+    ...(sub ? [[`My child says "${sub.eg[1]}" instead of "${sub.eg[0]}". Is that normal?`,
+      `Yes — very. Substituting "${sub.says}" for "${L}" is a documented pattern called `
+      + `${sub.name}, and it typically resolves on its own by around ${ageWords(sub.by)}. `
+      + `Don't correct it in the moment; just say the word yourself and move on.`]] : []),
     [`When should my child be able to say "${L}"?`,
      `Around ${ageWords(n.mastery)}. That figure is the 90% mastery age from ${CITATION.short}, `
      + `meaning 90% of typically developing children produce "${L}" correctly in every `
@@ -205,6 +235,7 @@ for (const code of codes) {
      earlier ages and flag ordinary late acquisition as a delay. We use the conservative number on
      purpose: an earlier one would manufacture worry rather than answer it.</p>
 
+  ${subBlock}
   <h2>Words to practise, and where the sound falls</h2>
   <p>Every word below was checked at build time to confirm the &ldquo;${L}&rdquo; sound really does
      occur where we claim it does — and that it's a word a two- to seven-year-old can picture.</p>

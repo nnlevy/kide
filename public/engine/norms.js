@@ -119,3 +119,39 @@ export const STAGES = [
   { name: 'Later sounds', by: 66, codes: ['l', 'v', 'sh', 'ch', 'j', 's', 'z'] },
   { name: 'Latest sounds', by: 84, codes: ['r', 'th', 'dh', 'zh'] },
 ];
+
+/**
+ * What a child says INSTEAD, and what that pattern is called.
+ *
+ * This is the higher-intent half of the search. A worried parent does not type
+ * "the k sound" -- they type what they actually hear: "my child says tat for
+ * cat", "says wabbit instead of rabbit". Those searches carry more worry and
+ * far less competition than the sound name.
+ *
+ * They are also the easiest worry to answer honestly, because these are not
+ * random errors. They are named, documented developmental patterns that
+ * resolve on their own at known ages, and telling a parent "that has a name,
+ * it's extremely common, and it usually goes by about four" is both true and
+ * the most useful sentence they will read that night.
+ *
+ * `by` is the age (in months) by which the pattern has typically resolved.
+ * Sources: standard phonological process descriptions as used in clinical
+ * practice, consistent with the acquisition ages above.
+ */
+export const SUBSTITUTIONS = {
+  k:  { says: 't',      name: 'velar fronting',  by: 42, eg: ['cat', 'tat'] },
+  g:  { says: 'd',      name: 'velar fronting',  by: 42, eg: ['go', 'doe'] },
+  r:  { says: 'w',      name: 'gliding',         by: 72, eg: ['rabbit', 'wabbit'] },
+  l:  { says: 'w or y', name: 'gliding',         by: 60, eg: ['leaf', 'weaf'] },
+  s:  { says: 't',      name: 'stopping',        by: 42, eg: ['sun', 'tun'] },
+  f:  { says: 'p',      name: 'stopping',        by: 42, eg: ['fish', 'pish'] },
+  sh: { says: 's',      name: 'palatal fronting', by: 54, eg: ['shoe', 'soo'] },
+  ch: { says: 't',      name: 'stopping',        by: 54, eg: ['chip', 'tip'] },
+  v:  { says: 'b',      name: 'stopping',        by: 42, eg: ['van', 'ban'] },
+  z:  { says: 'd',      name: 'stopping',        by: 42, eg: ['zoo', 'doo'] },
+  th: { says: 'f',      name: 'stopping',        by: 84, eg: ['thumb', 'fumb'] },
+  dh: { says: 'd or v', name: 'stopping',        by: 84, eg: ['this', 'dis'] },
+  j:  { says: 'd',      name: 'stopping',        by: 54, eg: ['jump', 'dump'] },
+  t:  { says: 'd',      name: 'voicing',         by: 36, eg: ['top', 'dop'] },
+  p:  { says: 'b',      name: 'voicing',         by: 36, eg: ['pig', 'big'] },
+};
