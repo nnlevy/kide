@@ -680,6 +680,21 @@ console.log('--- the naming flow ---');
        .every((v) => !!describe(v, 'n')));
 
     const page = fs.readFileSync('public/make/index.html', 'utf8');
+
+    // ---- dictation, on the same terms as the rest of the product -----------
+    // voice.js states the rule: set processLocally, read it BACK, and refuse if
+    // it did not take -- because on a browser with no on-device mode, starting
+    // anyway ships audio to a server. A parent-facing screen does not get a
+    // weaker version of that check.
+    ok('the mic is gated on on-device availability',
+       /localDictationAvailable/.test(page) && /processLocally: true/.test(page));
+    ok('the gate reads the property back rather than trusting the assignment',
+       /rec\.processLocally !== true/.test(page));
+    ok('a browser without a local mode is told why, not offered a cloud one',
+       /does not offer a microphone here/.test(page));
+    ok('the mic is hidden until availability is confirmed', /mic\.hidden = true/.test(page));
+    // The typed path must never depend on the mic existing.
+    ok('typing works with no mic at all', /id: 'describe'/.test(page) && /describeInput/.test(page));
     ok('the builder opens with the description field', /id: 'describe'/.test(page));
     ok('the builder names its swatches', /o\.name/.test(page) && /sw-name/.test(page));
     // The promise on this domain is that nothing leaves the device. A

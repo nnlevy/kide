@@ -95,6 +95,11 @@
     align-items:center;justify-content:center}
   .btn.go{background:linear-gradient(180deg,var(--coral),var(--coral-deep));color:#fff}
   .btn.ghost{background:rgba(255,255,255,.35);color:#fff;box-shadow:none}
+  .btn.mic{margin:12px auto 0;display:flex}
+  .btn.mic.live{background:linear-gradient(180deg,var(--coral),var(--coral-deep));color:#fff;
+                animation:pulse 1.2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.62}}
+  @media (prefers-reduced-motion: reduce){ .btn.mic.live{animation:none} }
   .stage{display:flex;align-items:flex-end;justify-content:center;gap:8px;min-height:170px;margin:4px 0}
   .actor{width:120px;max-width:30vw;flex:0 0 auto;background:none;border:0;padding:0;cursor:pointer;
     animation:breathe 3.4s ease-in-out infinite;transform-origin:bottom center}
@@ -397,6 +402,53 @@ function textInput(key, placeholder, max = 44) {
   return wrap;
 }
 
+/* DICTATION, ON THE SAME TERMS AS THE REST OF THE PRODUCT.
+   ========================================================
+   voice.js already states the rule and enforces it: set processLocally, read it
+   BACK, and if the property did not take, this browser has no on-device mode
+   and starting anyway would ship audio to a server — so refuse. That check is
+   the whole reason kide can claim what it claims, and a parent-facing screen
+   does not get a weaker version of it. Describing your own mother out loud is
+   not the child's voice, but "it's only the adult" is exactly the distinction
+   that erodes, and the site says flatly that there is no cloud option to switch
+   on anywhere.
+
+   So: where the browser can transcribe locally, there is a mic. Where it
+   cannot, there is no mic and the page says why rather than silently offering a
+   worse thing. The typed field always works, and the phone keyboard's own
+   dictation key has always worked — this is for the parent who never finds it. */
+async function localDictationAvailable() {
+  const SR = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
+  if (!SR || typeof SR.available !== 'function') return false;
+  try { return (await SR.available({ processLocally: true, langs: ['en-US'] })) === 'available'; }
+  catch { return false; }
+}
+
+function startLocalDictation(onText, onEnd) {
+  const SR = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
+  let rec;
+  try {
+    rec = new SR();
+    rec.lang = 'en-US';
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+    rec.processLocally = true;
+    // The assignment silently does nothing on a browser without on-device
+    // support. Reading it back is the only honest check.
+    if (rec.processLocally !== true) { onEnd('nolocal'); return null; }
+  } catch { onEnd('error'); return null; }
+  rec.onresult = (e) => {
+    let text = '';
+    for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
+    onText(text.trim());
+  };
+  rec.onerror = (e) => onEnd(e.error === 'not-allowed' ? 'denied' : 'error');
+  rec.onend = () => onEnd('done');
+  try { rec.start(); } catch { onEnd('error'); return null; }
+  return rec;
+}
+
 function describeInput() {
   const wrap = document.createElement('label');
   wrap.className = 'field';
@@ -429,7 +481,42 @@ function describeInput() {
   wrap.appendChild(input);
   requestAnimationFrame(() => input.focus({ preventScroll: true }));
   const frag = document.createDocumentFragment();
-  frag.appendChild(wrap); frag.appendChild(read);
+  frag.appendChild(wrap);
+
+  const mic = document.createElement('button');
+  mic.type = 'button';
+  mic.className = 'btn mic';
+  mic.hidden = true;
+  mic.textContent = '🎤  Say it instead';
+  let rec = null;
+  mic.addEventListener('click', () => {
+    if (rec) { try { rec.stop(); } catch {} rec = null; return; }
+    mic.classList.add('live');
+    mic.textContent = '● Listening — tap to stop';
+    rec = startLocalDictation(
+      (text) => { input.value = text.slice(0, 120); apply(); },
+      (why) => {
+        rec = null;
+        mic.classList.remove('live');
+        mic.textContent = '🎤  Say it instead';
+        if (why === 'denied') read.textContent = 'The microphone is blocked for this site — typing works just as well.';
+        else if (why === 'nolocal') { mic.hidden = true; note.hidden = false; }
+      });
+  });
+  frag.appendChild(mic);
+
+  const note = document.createElement('p');
+  note.className = 'hint';
+  note.hidden = true;
+  note.style.cssText = 'margin:10px auto 0;font-size:13px;opacity:.85';
+  note.textContent = 'This browser can only transcribe speech by sending it to a company\u2019s '
+    + 'servers, so Kide does not offer a microphone here. Your phone keyboard\u2019s own '
+    + 'dictation key still works.';
+  frag.appendChild(note);
+  frag.appendChild(read);
+
+  localDictationAvailable().then((ok) => { if (ok) mic.hidden = false; else note.hidden = false; });
+
   if (input.value) apply();
   return frag;
 }
