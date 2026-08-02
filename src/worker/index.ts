@@ -1,11 +1,42 @@
 // Sitemap and robots are GENERATED from the pages that actually exist -- the
 // hand-written version silently went stale and was missing five live pages.
 import { SITEMAP, ROBOTS } from "./seo-generated";
+
+// kide.us is a leaf on the Quizbiz portfolio billing hub (riskfreetrial) and
+// growth control plane (newgrowthbusiness) -- see wrangler.json "services".
+// Always call PORTFOLIO_BILLING_SERVICE through this RPC binding. Never
+// fetch() the hub's public URL directly from a Worker: riskfreetrial.org's
+// bot-fight mode answers a server-to-server POST with Cloudflare error 1010,
+// which a service binding call never touches.
+const DOMAIN = "kide.us";
+
+type PortfolioAiServiceBinding = {
+  createChatCompletion: (input: Record<string, unknown>) => Promise<{
+    ok?: boolean;
+    status?: number;
+    data?: { choices?: { message?: { content?: string } }[] };
+    error?: string;
+  }>;
+};
+
+type PortfolioBillingServiceBinding = {
+  getCatalog: (domain: string) => Promise<unknown>;
+  createCheckout: (input: Record<string, unknown>) => Promise<{
+    ok?: boolean;
+    id?: string;
+    url?: string;
+    error?: string;
+  }>;
+};
+
 export interface Env {
   DB?: D1Database;
   ASSETS: Fetcher;
   KIDE_LEADS: KVNamespace;
   MODELS?: R2Bucket;
+  PORTFOLIO_AI_SERVICE?: PortfolioAiServiceBinding;
+  PORTFOLIO_BILLING_SERVICE?: PortfolioBillingServiceBinding;
+  PORTFOLIO_GROWTH_SERVICE?: unknown;
 }
 
 
@@ -74,6 +105,9 @@ export default {
             kideLeads: !!env.KIDE_LEADS,
             db: !!env.DB,
             models: !!env.MODELS,
+            portfolioBilling: !!env.PORTFOLIO_BILLING_SERVICE,
+            portfolioAi: !!env.PORTFOLIO_AI_SERVICE,
+            portfolioGrowth: !!env.PORTFOLIO_GROWTH_SERVICE,
           },
         }),
         { headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
@@ -82,6 +116,14 @@ export default {
 
     if (url.pathname === "/api/notify" && request.method === "POST") {
       return handleNotify(request, env);
+    }
+
+    // The one paid offering on kide.us: the clinician report at /clinician,
+    // sold as a professional tool (clinician_report, registered in
+    // riskfreetrial's DOMAIN_CATALOG_OVERRIDES for kide.us). Everything else
+    // on this domain stays free -- see docs/WEDGE.md for why.
+    if (url.pathname === "/api/clinician/checkout" && request.method === "POST") {
+      return handleClinicianCheckout(request, env);
     }
 
     // Model weights for the on-device pronunciation-scoring benchmark
@@ -193,4 +235,55 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
   await env.KIDE_LEADS.put(`lead:${email}`, JSON.stringify(record));
 
   return json({ ok: true });
+}
+
+// Checkout for the /clinician professional report -- the one thing on
+// kide.us that costs money (docs/WEDGE.md: "the entire B2B wedge"). Routes
+// through the PORTFOLIO_BILLING_SERVICE RPC binding only. Do not replace
+// this with a fetch() to riskfreetrial.org: a Worker-to-Worker HTTP POST at
+// the public hub URL is exactly what trips Cloudflare error 1010 there.
+async function handleClinicianCheckout(request: Request, env: Env): Promise<Response> {
+  const json = (data: unknown, status = 200) =>
+    new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
+
+  const billing = env.PORTFOLIO_BILLING_SERVICE;
+  if (!billing?.createCheckout) {
+    return json({ ok: false, error: "Billing is not configured for this deploy." }, 503);
+  }
+
+  let body: any;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ ok: false, error: "bad_request" }, 400);
+  }
+
+  const email = String(body?.email || "").trim().toLowerCase();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) {
+    return json({ ok: false, error: "Valid email required to start checkout." }, 400);
+  }
+  const fullName = typeof body?.fullName === "string" ? body.fullName.slice(0, 200) : undefined;
+
+  const origin = new URL(request.url).origin;
+  const successUrl = `${origin}/clinician/?checkout=success`;
+  const cancelUrl = `${origin}/clinician/?checkout=cancel`;
+
+  try {
+    const out = await billing.createCheckout({
+      domain: DOMAIN,
+      offeringId: "clinician_report",
+      email,
+      fullName,
+      successUrl,
+      cancelUrl,
+      sourceDomain: DOMAIN,
+    });
+    if (out?.url) {
+      return json({ ok: true, id: out.id, url: out.url });
+    }
+    return json({ ok: false, error: out?.error || "Checkout failed" }, 502);
+  } catch (e) {
+    console.warn("clinician checkout rpc failed", e);
+    return json({ ok: false, error: "Billing service unavailable — try again shortly" }, 503);
+  }
 }

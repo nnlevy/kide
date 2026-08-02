@@ -42,5 +42,25 @@
       "binding": "MODELS",
       "bucket_name": "kide-models"
     }
+  ],
+  "services": [
+    {
+      "binding": "PORTFOLIO_AI_SERVICE",
+      "service": "riskfreetrial",
+      "entrypoint": "PortfolioAIService",
+      "remote": true
+    },
+    {
+      "binding": "PORTFOLIO_BILLING_SERVICE",
+      "service": "riskfreetrial",
+      "entrypoint": "PortfolioBillingService",
+      "remote": true
+    },
+    {
+      "binding": "PORTFOLIO_GROWTH_SERVICE",
+      "service": "newgrowthbusiness",
+      "entrypoint": "PortfolioGrowthService",
+      "remote": true
+    }
   ]
 }
