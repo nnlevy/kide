@@ -406,7 +406,12 @@ async function handleClinicianApi(request: Request, env: Env, url: URL): Promise
 //     and it leaves again with the response. There is no reason for us to keep
 //     it and every reason not to.
 //   - noindex. A personal link is not a page for a search engine.
-const GIFT_NAME_MAX = 24;
+// 24 was enough for one name. A card is very often from two people -- "Kaleigh
+// and Nir", "Grandma & Grandpa" -- and truncating the second sender is a
+// nastier failure than it looks, because the person cut off is the one reading
+// it. 44 fits two full names and a joiner.
+const GIFT_NAME_MAX = 44;
+const GIFT_CAST_MAX = 3;
 const GIFT_NOTE_MAX = 140;
 
 const escHtml = (s: string) =>
@@ -416,7 +421,11 @@ const escHtml = (s: string) =>
 /** Letters (any alphabet), spaces, apostrophes, hyphens. Nothing else survives. */
 function giftName(raw: string | null): string {
   if (!raw) return "";
-  return raw.normalize("NFC").replace(/[^\p{L}\p{M} '’-]/gu, "").replace(/\s+/g, " ")
+  // & is allowed because people type it. It was being stripped silently, so
+  // "Kaleigh & Nir" arrived as "Kaleigh  Nir" -- the joiner deleted and the two
+  // names run together. Everything here is HTML-escaped at render, so widening
+  // the allow-list by one character costs nothing.
+  return raw.normalize("NFC").replace(/[^\p{L}\p{M} '’&-]/gu, "").replace(/\s+/g, " ")
             .trim().slice(0, GIFT_NAME_MAX);
 }
 
@@ -446,6 +455,12 @@ function renderGift(url: URL): Response {
   const to = giftName(url.searchParams.get("to"));
   const from = giftName(url.searchParams.get("from"));
   const note = giftNote(url.searchParams.get("note"));
+  // Who appears on the card. Explicit rather than inferred from `to`/`from`,
+  // because the interesting cast is usually not the same as the signatories --
+  // "from Kaleigh and Nir" is two adults, but the card a child wants shows
+  // Kaleigh and the dog. Names only; cast.js resolves them to characters.
+  const cast = (url.searchParams.get("cast") || "")
+    .split(",").map((n) => giftName(n)).filter(Boolean).slice(0, GIFT_CAST_MAX);
   const dest = giftDestination(url.searchParams.get("t"));
 
   const headline = to ? `A little gift for ${to}` : "A little gift";
@@ -523,7 +538,42 @@ function renderGift(url: URL): Response {
     background:linear-gradient(160deg,#8CE3A9,#4FB874);border-radius:0% 100% 0% 100%;bottom:32%}
   .gift .pip-leaf.n1{left:2%;transform:rotate(-18deg)}
   .gift .pip-leaf.n2{right:2%;transform:rotate(18deg) scaleX(-1);bottom:46%}
-  .gift .hello{font-size:17px;font-weight:800;color:#fff;margin:16px 0 0;opacity:.95}
+  .gift .hello{font-size:17px;font-weight:800;color:#fff;margin:14px 0 0;opacity:.95}
+  /* The stage. min-height reserves the space before the cast resolves, so the
+     text underneath does not jump when the characters arrive -- the card is
+     very often opened on a slow phone over cellular. */
+  .gift .stage{display:flex;align-items:flex-end;justify-content:center;gap:6px;
+               min-height:190px;margin-bottom:2px}
+  .gift .stage .pip{margin:0}
+  .gift .actor{width:132px;max-width:31vw;flex:0 0 auto;cursor:pointer;
+               background:none;border:0;padding:0;-webkit-tap-highlight-color:transparent;
+               animation:breathe 3.4s ease-in-out infinite;transform-origin:bottom center}
+  .gift .actor:nth-child(2){animation-delay:-1.1s}
+  .gift .actor:nth-child(3){animation-delay:-2.2s}
+  .gift .actor svg{width:100%;height:auto;display:block;overflow:visible}
+  .gift .actor .blinker{animation:blink 5.5s ease-in-out infinite;transform-origin:center}
+  .gift .actor:nth-child(2) .blinker{animation-delay:-2.3s}
+  .gift .actor:nth-child(3) .blinker{animation-delay:-3.9s}
+  @keyframes breathe{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-5px) rotate(-1.2deg)}}
+  @keyframes blink{0%,93%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}97%{transform:scaleY(1)}}
+  /* The tap reaction. One short, obvious, non-scoring wiggle -- the card is not
+     a game and must not start competing with the button underneath it. */
+  @keyframes wiggle{
+    0%{transform:translateY(0) rotate(0) scale(1)}
+    25%{transform:translateY(-16px) rotate(-7deg) scale(1.05)}
+    50%{transform:translateY(0) rotate(5deg) scale(.98)}
+    75%{transform:translateY(-7px) rotate(-3deg) scale(1.02)}
+    100%{transform:translateY(0) rotate(0) scale(1)}
+  }
+  .gift .actor.tapped{animation:wiggle .62s ease-in-out}
+  .gift .cast-name{display:block;font-size:13px;font-weight:800;color:#fff;
+                   opacity:.9;margin-top:2px;text-shadow:0 1px 2px rgba(0,0,0,.15)}
+  /* Anyone who has asked their system not to animate things gets a still card.
+     This is a children's product, but the parent holding the phone is the one
+     who set that preference. */
+  @media (prefers-reduced-motion: reduce){
+    .gift .actor,.gift .actor .blinker,.gift .actor.tapped{animation:none}
+  }
   .gift h1{font-size:clamp(28px,7vw,42px);margin:10px 0 4px;color:#fff;text-shadow:0 3px 0 rgba(0,0,0,.08)}
   .gift .from{font-size:19px;font-weight:800;opacity:.95;margin:0}
   .gift .note{background:rgba(255,255,255,.92);color:#2E3A3F;border-radius:20px;padding:18px 20px;
@@ -541,24 +591,33 @@ function renderGift(url: URL): Response {
 </head>
 <body>
 <div class="gift">
-  <div class="pip" aria-hidden="true">
-    <div class="pip-sprout"><div class="pip-stem"></div><div class="pip-leaf n1"></div><div class="pip-leaf n2"></div></div>
-    <div class="pip-body">
-      <div class="pip-cheek l"></div><div class="pip-cheek r"></div>
-      <div class="pip-eye l"><div class="pip-pupil"></div></div>
-      <div class="pip-eye r"><div class="pip-pupil"></div></div>
-      <div class="pip-mouth"><svg viewBox="0 0 40 20" width="100%" height="100%"><path d="M4,4 Q20,20 36,4" stroke="#2E3A3F" stroke-width="4" fill="none" stroke-linecap="round"/></svg></div>
+  <!-- THE CAST, ON TOP; THE WORDS, UNDERNEATH.
+       The card used to open with a headline addressed to an adult, and the
+       picture was a decoration beside it. That is the right order for a page
+       somebody reads and the wrong one for a page a small child is looking at
+       over their parent's shoulder. The characters now hold the top of the
+       screen and the text sits below them, where it is still perfectly
+       readable by the person who came for the words.
+
+       Server-rendered as an empty stage and filled by /scene/cast.js on the
+       client. The card that appears in an iMessage preview is built by a
+       crawler that runs no JavaScript, which is why the HEADLINE and the note
+       are still server-rendered above -- the words survive with or without
+       scripting, and so does the fallback Pip below. -->
+  <div class="stage" id="stage" data-cast="${escHtml(cast.join(","))}">
+    <div class="pip" id="stageFallback" aria-hidden="true">
+      <div class="pip-sprout"><div class="pip-stem"></div><div class="pip-leaf n1"></div><div class="pip-leaf n2"></div></div>
+      <div class="pip-body">
+        <div class="pip-cheek l"></div><div class="pip-cheek r"></div>
+        <div class="pip-eye l"><div class="pip-pupil"></div></div>
+        <div class="pip-eye r"><div class="pip-pupil"></div></div>
+        <div class="pip-mouth"><svg viewBox="0 0 40 20" width="100%" height="100%"><path d="M4,4 Q20,20 36,4" stroke="#2E3A3F" stroke-width="4" fill="none" stroke-linecap="round"/></svg></div>
+      </div>
     </div>
   </div>
+  <p class="hello" id="hello">${to ? `&ldquo;Hello, ${escHtml(to)}!&rdquo;` : "&ldquo;Hello!&rdquo;"}</p>
   <h1>${escHtml(headline)}</h1>
   ${sub ? `<p class="from">${escHtml(sub)}</p>` : ""}
-  <!-- Pip greets the child by name. The page was addressed entirely to the
-       adult — it talked ABOUT the child in the third person — but the person
-       most likely to be looking at the screen when it opens is the child, and
-       Pip saying their name is the whole reason a two-year-old leans in. Falls
-       back to a nameless hello when no name was given, rather than rendering an
-       awkward gap. -->
-  ${to ? `<p class="hello">&ldquo;Hello, ${escHtml(to)}! I'm Pip.&rdquo;</p>` : `<p class="hello">&ldquo;Hello! I'm Pip.&rdquo;</p>`}
   ${note ? `<p class="note">${escHtml(note)}</p>` : ""}
 
   <div class="what">
@@ -577,6 +636,57 @@ function renderGift(url: URL): Response {
   <a class="go" href="${escHtml(dest.path)}">Open ${escHtml(dest.label)}</a>
   <p class="fine">Made by <a href="/">kide.us</a> · <a href="/privacy">privacy</a></p>
 </div>
+<script type="module">
+/* NOTE ON INDENTATION: the closing braces below are indented on purpose.
+   test-gift.mjs finds the end of renderGift() by matching up to the first
+   newline-then-brace at column 0, and a top-level `}` inside this template
+   literal truncates that match early -- which silently dropped the X-Robots-Tag
+   assertion rather than failing loudly. Keeping braces off column 0 keeps the
+   test measuring the whole function.
+
+   Fills the stage with the cast. Everything here is local: cast.js resolves a
+   name to one of the product's own rigs and recolours it, and no request of any
+   kind is made. If this module fails to load, the server-rendered Pip above
+   stays exactly where it is and the card still reads correctly -- which is why
+   the fallback is real markup rather than a spinner. */
+import { castFrom } from '/scene/cast.js';
+
+const stage = document.getElementById('stage');
+const names = (stage?.dataset.cast || '').split(',').map((n) => n.trim()).filter(Boolean);
+if (stage && names.length) {
+  let cast = [];
+  try { cast = castFrom(names); } catch { cast = []; }
+  if (cast.length) {
+    stage.innerHTML = cast.map((c) => {
+      /* The rigs carry ids (a-eyeL, a-root...) that are unique within one
+         character and duplicated the moment two are on the page. Scoped away
+         here rather than in actors.js, because inside the game exactly one
+         actor is ever mounted and the ids are correct as they stand. */
+      const svg = c.svg.replace(/id="a-/g, 'data-a="');
+      return '<button class="actor" type="button" aria-label="' + c.name + ', ' + c.species + '">'
+        /* Measured from the rigs themselves rather than guessed: the widest
+           (the dog, ears out) spans x 40-170 and both span y 25-186, so this
+           frames every rig with a little air and no cropped ear. */
+        + '<svg viewBox="36 20 138 170" role="img" aria-hidden="true">' + svg + '</svg>'
+        + '<span class="cast-name">' + c.name + '</span></button>';
+    }).join('');
+    /* Blinking is applied after mounting so it targets whatever the rig calls
+       its eyes, without cast.js needing to know the anatomy of four rigs. */
+    stage.querySelectorAll('[data-a="eyeL"],[data-a="eyeR"]')
+         .forEach((el) => el.classList.add('blinker'));
+    stage.querySelectorAll('.actor').forEach((el) => {
+      el.addEventListener('click', () => {
+        el.classList.remove('tapped');
+        void el.offsetWidth;          // restart the animation on a repeat tap
+        el.classList.add('tapped');
+      });
+      el.addEventListener('animationend', (e) => {
+        if (e.animationName === 'wiggle') el.classList.remove('tapped');
+      });
+    });
+  }
+  }
+</script>
 </body>
 </html>`;
 

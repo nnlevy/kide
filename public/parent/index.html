@@ -192,9 +192,15 @@
       card that shows up properly when you text it. Nothing you type here is stored anywhere — it
       travels in the link itself and we never see it.</p>
     <div class="grid2" style="margin-top:12px">
-      <label class="field">For<input id="giftTo" placeholder="Elie" maxlength="24" autocomplete="off"></label>
-      <label class="field">From<input id="giftFrom" placeholder="Kaleigh" maxlength="24" autocomplete="off"></label>
+      <label class="field">For<input id="giftTo" placeholder="Elie" maxlength="44" autocomplete="off"></label>
+      <label class="field">From<input id="giftFrom" placeholder="Kaleigh &amp; Nir" maxlength="44" autocomplete="off"></label>
     </div>
+    <label class="field" style="margin-top:10px">Who's on the card (optional)
+      <input id="giftCast" placeholder="Kaleigh, Butterbean" maxlength="60" autocomplete="off">
+    </label>
+    <p class="muted" style="font-size:12.5px;margin-top:4px">Up to three, separated by commas.
+      Butterbean, Marmalade, Rosie and Pip are drawn as themselves; any other name is drawn as a
+      person, and the same name always makes the same person.</p>
     <label class="field" style="margin-top:10px">A short note (optional)
       <input id="giftNote" placeholder="Thought Elie might love this one." maxlength="140" autocomplete="off">
     </label>
@@ -267,7 +273,7 @@ window.__kideParent = () => ({ record, events: Journal.count() });
    The live preview is not decoration. The reason to build a gift page rather
    than paste kide.us into a text is the card the other parent sees, so a
    parent should be able to see that card before they send it. */
-const giftFields = ['giftTo', 'giftFrom', 'giftNote', 'giftDest'].map($);
+const giftFields = ['giftTo', 'giftFrom', 'giftCast', 'giftNote', 'giftDest'].map($);
 
 function giftUrl() {
   const u = new URL('/gift', location.origin);
@@ -275,9 +281,11 @@ function giftUrl() {
   const from = $('giftFrom').value.trim();
   const note = $('giftNote').value.trim();
   const dest = $('giftDest').value;
+  const cast = $('giftCast').value.trim();
   if (to) u.searchParams.set('to', to);
   if (from) u.searchParams.set('from', from);
   if (note) u.searchParams.set('note', note);
+  if (cast) u.searchParams.set('cast', cast);
   if (dest && dest !== '/play') u.searchParams.set('t', dest);
   return u.toString();
 }

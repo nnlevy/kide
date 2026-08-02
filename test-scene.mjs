@@ -448,6 +448,49 @@ console.log('--- the naming flow ---');
 }
 
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// cast.js -- names to characters on the share card.
+// ---------------------------------------------------------------------------
+{
+  const { characterFor, castFrom } = await import('./public/scene/cast.js');
+
+  // A name the product knows is that character, not a lookalike.
+  eq('Butterbean is the goldendoodle', characterFor('Butterbean').rig, 'goldendoodle');
+  eq('Marmalade is the cat', characterFor('Marmalade').rig, 'cat');
+  eq('Pip is the toy', characterFor('Pip').rig, 'toy');
+  eq('case and spacing do not matter', characterFor('  bUtTeRbEaN ').rig, 'goldendoodle');
+
+  // Everyone else is a PERSON. Hashing an arbitrary name onto a random species
+  // would eventually render somebody's grandmother as a cat, so the species is
+  // fixed and only the appearance varies.
+  eq('an unknown name is drawn as a person', characterFor('Kaleigh').rig, 'friend');
+  eq('and so is any other', characterFor('Grandma').rig, 'friend');
+
+  // The same name must give the same character forever, or a card regenerated
+  // next year stops matching the card that was sent.
+  eq('the same name always makes the same character',
+     characterFor('Kaleigh').svg, characterFor('kaleigh').svg);
+  ok('two different names look different',
+     characterFor('Kaleigh').svg !== characterFor('Nir').svg);
+
+  // A card with two adults on it has to show two visibly different adults.
+  const people = ['Kaleigh', 'Nir', 'Grandma', 'Sam', 'Ari', 'Jo'].map((n) => characterFor(n).svg);
+  ok('six names give at least four distinguishable people', new Set(people).size >= 4);
+
+  eq('the cast is capped at three', castFrom('a,b,c,d,e').length, 3);
+  eq('a name repeated is only drawn once', castFrom('Kaleigh,kaleigh,Nir').length, 2);
+  eq('empty entries are dropped', castFrom('Kaleigh,,  ,Nir').length, 2);
+  eq('nothing in, nothing out', castFrom('').length, 0);
+  eq('a blank name has no character', characterFor('   '), null);
+
+  // The card renders these inline with no request of any kind.
+  const src = fs.readFileSync('public/scene/cast.js', 'utf8');
+  ok('cast.js fetches nothing',
+     !/fetch\(|XMLHttpRequest|sendBeacon|new Image|import\(/.test(src));
+}
+
+console.log('--- the share card cast ---');
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) {
   console.log('\nFAILURES:');
