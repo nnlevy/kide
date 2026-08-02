@@ -176,7 +176,15 @@ t('every offering the worker can request exists in riskfreetrial\'s catalog', ()
   const block = candidates
     .map((p) => (readFileSync(p, 'utf8').match(/"kide\.us":\s*\{[\s\S]*?\n  \},/) || [''])[0])
     .find(Boolean);
-  assert(block, 'riskfreetrial has no DOMAIN_CATALOG_OVERRIDES entry for kide.us — checkout would 503');
+  assert(block, [
+    'no riskfreetrial checkout here has a DOMAIN_CATALOG_OVERRIDES entry for kide.us.',
+    '',
+    '       If the hub genuinely lacks it, kide checkout returns 503 and no clinician can pay.',
+    '       If it was merged and this checkout is just stale, pull it:',
+    '         git -C ../riskfreetrial pull --ff-only',
+    '',
+    `       looked in: ${candidates.join(', ') || '(nothing found)'}`,
+  ].join('\n'));
 
   const ours = [...(worker.match(/const OFFERINGS = new Set\(\[([^\]]*)\]/) || [, ''])[1]
     .matchAll(/"([^"]+)"/g)].map((m) => m[1]);
