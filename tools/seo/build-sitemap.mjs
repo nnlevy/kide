@@ -38,6 +38,10 @@ const PRIORITY = [
   [/^\/play$/,      '0.8', 'weekly'],
   [/^\/guides$/,    '0.8', 'monthly'],
   [/^\/guides\//,   '0.7', 'monthly'],
+  // The only page aimed at the customer who pays. Low volume, high intent --
+  // one clinician is worth more here than a hundred parents, and there are far
+  // fewer of them searching.
+  [/^\/for-slps$/,  '0.9', 'monthly'],
   [/^\/(privacy|terms)$/, '0.3', 'yearly'],
 ];
 

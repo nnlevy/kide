@@ -164,6 +164,8 @@
       <p style="margin-top:12px"><b>$39 once. No subscription, no per-report charge, no account.</b>
       One licence covers every child on your caseload, on this device and any other you sign in
       from with the same email. <a href="/terms/">Terms</a> · <a href="/privacy/">Privacy</a></p>
+      <p style="margin-top:8px;font-size:13px"><a href="/for-slps">What this is, what it refuses to
+      claim, and why nothing leaves the family's device →</a></p>
       <div class="row" style="margin-top:14px">
         <input id="proEmail" type="email" placeholder="you@clinic.com" autocomplete="email"
                style="flex:1;min-width:200px;font:inherit;font-size:15px;padding:11px 16px;
@@ -452,7 +454,7 @@ async function resumeFromCheckout() {
  *  half the intervals still overlap. Showing a month is what demonstrates the
  *  capability honestly, and the fact that a fortnight is not enough is itself
  *  something a clinician should know before relying on it. */
-$('btnDemo').addEventListener('click', () => {
+function loadWorkedExample() {
   const t0 = Date.parse('2026-07-14T09:00:00Z');
   const log = [];
   const push = (day, n, target, word, rate) => {
@@ -475,14 +477,25 @@ $('btnDemo').addEventListener('click', () => {
   log.push({ target: 'r_initial', word: 'rope', tier: 'tap', forced: false, verdict: 'clear', at: t0, level: 2 });
   log.push({ target: 'r_initial', word: 'rope', tier: 'gop-webgpu', forced: true, verdict: 'unsure', at: t0, level: 2 });
   render(buildRecord(log, { now: t0 + 28 * 86400000 }));
-});
+}
+
+$('btnDemo').addEventListener('click', loadWorkedExample);
 
 // Real data arrives via ?data= (base64 JSON of the engine log) so a parent can
 // hand a clinician a link without an account or a server round-trip.
-const param = new URLSearchParams(location.search).get('data');
+//
+// ?demo=1 loads the worked example directly, so /for-slps can link a clinician
+// straight at a populated report. Judging this artifact from an empty page is
+// impossible, and "press the button marked worked example" is a step at which
+// people leave.
+const query = new URLSearchParams(location.search);
+const param = query.get('data');
 if (param) {
   try { render(buildRecord(JSON.parse(atob(param)))); }
   catch { render(buildRecord([])); }
+} else if (query.get('demo')) {
+  render(buildRecord([]));
+  loadWorkedExample();
 } else {
   render(buildRecord([]));
 }
