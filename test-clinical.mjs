@@ -242,6 +242,78 @@ console.log('--- the artifact never diagnoses ---');
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// The appointment card on /parent: reassurance is the default, worry is earned.
+//
+// docs/norms.js states the principle -- "reassurance is the acquisition
+// strategy, not a footnote to it" -- and HABITS.md forbids implying a delay in
+// order to sell something. The card that turns a record into an appointment
+// page is therefore the single easiest place on this site to start farming
+// parental anxiety by accident, so the gate is asserted here rather than left
+// to a code review.
+//
+// These tests execute the page's own gate expression against the same norms
+// module the page imports, so they fail if either the thresholds or the norms
+// table moves.
+// ---------------------------------------------------------------------------
+{
+  const src = fs.readFileSync('public/parent/index.html', 'utf8');
+  const { verdictFor } = await import('./public/engine/norms.js');
+
+  ok('the appointment card exists on the parent page', /id="visitCard"/.test(src));
+
+  // The gate, lifted from the page: state === 'late' AND accuracy < 0.5.
+  const raises = (code, ageYears, point) => {
+    const v = verdictFor(code, ageYears * 12);
+    return v?.state === 'late' && point < 0.5;
+  };
+
+  // A four-year-old who cannot say R. The single most common 11pm search in
+  // this category, and the answer is "that is on time" -- R is not expected
+  // until about six. A product that books an appointment for this parent is
+  // selling worry.
+  ok('a 4-year-old missing /r/ is never flagged', !raises('r', 4, 0.05));
+  ok('a 5-year-old missing /r/ is never flagged', !raises('r', 5, 0.0));
+
+  // 'due' must never qualify: that is the ordinary case being mistaken for a
+  // problem. /l/ masters at 60 months, so a 5;06 child sits squarely in 'due'.
+  eq('a sound at exactly its mastery age reads as due, not late',
+     verdictFor('l', 66)?.state, 'due');
+  ok('a "due" sound is not flagged even at 0% accuracy', !raises('l', 5.5, 0.0));
+
+  // Past the age AND still failing more than half the time -- the one case
+  // that earns a mention.
+  ok('an 8-year-old still missing /r/ at 20% is flagged', raises('r', 8, 0.2));
+
+  // Past the age but doing fine is not a reason to send anyone anywhere.
+  ok('an 8-year-old producing /r/ at 80% is not flagged', !raises('r', 8, 0.8));
+
+  // With no age there is nothing to compare against, so nothing may be claimed.
+  ok('no age means nothing is ever flagged',
+     !(verdictFor('r', null)?.state === 'late'));
+
+  // The reassurance branch has to exist as literal copy, not as an implied
+  // absence -- saying nothing is not the same as saying "this is fine".
+  ok('the card states the no-appointment case in words',
+     /Nothing here needs an/.test(src) && /appointment\.<\/b>/.test(src));
+
+  // HABITS.md section 4: these are medical, not motivational, and they are
+  // stated whatever the sounds say.
+  ok('the medical escalation lines are present',
+     /pain, blood/.test(src) && /pediatrician/.test(src));
+
+  // The card must not appear on four attempts and a guess.
+  ok('the card is gated on a minimum number of scored attempts',
+     /VISIT_MIN_ATTEMPTS\s*=\s*\d+/.test(src));
+
+  // Nothing new may leave the device. The age is the only added input and it
+  // belongs in localStorage, not in a request.
+  const block = src.slice(src.indexOf('function renderVisit'), src.indexOf('function render()'));
+  ok('the appointment card sends nothing to a server',
+     !/fetch\(|sendBeacon|XMLHttpRequest|new Image/.test(block));
+}
+
+console.log('--- the appointment card: reassurance is the default ---');
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) { console.log('\nFAILURES:'); for (const f of failures) console.log('  x ' + f); process.exit(1); }
 console.log('OK\n');

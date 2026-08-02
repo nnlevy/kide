@@ -18,6 +18,17 @@
   .wrap{max-width:680px;margin:0 auto}
   h1{font-size:23px;margin:0 0 4px}
   .sub{color:var(--ink-soft);font-size:14.5px;margin:0 0 20px}
+  /* Printing exists so a parent can walk in holding something. Everything that
+     is a control rather than evidence comes off the page: the sharing tools,
+     the settings, the gift form, the delete button and the age input the parent
+     has already answered. What is left is the record and the questions. */
+  @media print{
+    body{background:#fff}
+    .card{box-shadow:none;border:1px solid #DDD;break-inside:avoid}
+    .card:not(#visitCard), .sub, .row, #visitAge, label.field{display:none !important}
+    #visitCard{display:block !important}
+    #visitCard .row{display:none !important}
+  }
   .card{background:var(--card);border-radius:var(--radius-md);padding:20px 20px;margin-bottom:14px;
         box-shadow:0 5px 0 rgba(0,0,0,.05)}
   .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);margin:0 0 10px}
@@ -83,6 +94,34 @@
       choose next, so saying them in the car is practice that lines up with
       tomorrow's session.
     </div>
+  </div>
+
+  <!-- BEFORE YOUR NEXT APPOINTMENT
+       ============================
+       docs/HABITS.md: parents in this category "consistently report having been
+       dismissed by clinicians", and "being the thing that takes them seriously
+       and points them correctly is worth more than pretending to solve it".
+       This card is that. It turns the record into the thing a parent can put in
+       front of a doctor who has fifteen minutes and a waiting room.
+
+       THE RULE THAT KEEPS THIS HONEST, and it is not negotiable: this card is
+       only allowed to suggest raising something when the child's own age and
+       the McLeod norms say there is something to raise. If every sound they
+       have practised is on time, it says exactly that and recommends nothing.
+       norms.js states the principle outright — "reassurance is the acquisition
+       strategy, not a footnote to it" — and a card that told every parent to
+       book an appointment would be selling worry, which is the one thing this
+       product exists not to do. -->
+  <div class="card" id="visitCard" hidden>
+    <h2>Before your next appointment</h2>
+    <p class="muted" id="visitIntro"></p>
+    <label class="field" style="margin-top:12px;max-width:260px">How old is your child?
+      <input id="visitAge" type="number" inputmode="numeric" min="1" max="9" step="1"
+             placeholder="4" autocomplete="off">
+    </label>
+    <p class="muted" style="margin-top:4px;font-size:12.5px">Years. Stays on this device,
+      like everything else here — it is only used to compare against the research.</p>
+    <div id="visitOut" style="margin-top:14px"></div>
   </div>
 
   <div class="card">
@@ -209,6 +248,7 @@ import * as Consent from '../engine/consent.js';
 import * as Speech from '../engine/speech.js';
 import { buildRecord, narrativeFor, MIN_ATTEMPTS_PER_TARGET } from '../engine/clinical.js';
 import { LEX, keyOf } from '../engine/lexicon.js';
+import { NORMS, verdictFor, ageWords } from '../engine/norms.js';
 
 const $ = (id) => document.getElementById(id);
 let record = null;
@@ -315,6 +355,121 @@ $('notifyForm').addEventListener('submit', async (e) => {
   }
 });
 
+/* ---- before your next appointment --------------------------------------
+   The child's age is the only new input, it is a single integer, and it is
+   kept in the same local store as everything else. It never reaches a server:
+   the comparison against the McLeod norms runs here, in the page, exactly like
+   the /sounds pages do it. */
+const VISIT_AGE_KEY = 'kide_child_age_years_v1';
+const readAge = () => {
+  try {
+    const n = Number(localStorage.getItem(VISIT_AGE_KEY));
+    return Number.isFinite(n) && n >= 1 && n <= 9 ? n : null;
+  } catch { return null; }
+};
+
+/* Enough practice that the record says something. Below this the honest answer
+   to "what should I tell the doctor" is "not much yet", so the card stays shut
+   rather than inventing a story from four attempts. */
+const VISIT_MIN_ATTEMPTS = 12;
+
+function renderVisit() {
+  const card = $('visitCard');
+  const enough = record && record.scoredAttempts >= VISIT_MIN_ATTEMPTS;
+  card.hidden = !enough;
+  if (!enough) return;
+
+  $('visitIntro').textContent =
+    'Fifteen-minute appointments go better with something written down. This turns '
+    + "what Pip has actually heard into a page you can hand over — and tells you "
+    + 'plainly when there is nothing here worth raising.';
+
+  const age = readAge();
+  if ($('visitAge').value === '' && age) $('visitAge').value = String(age);
+  const months = age ? age * 12 : null;
+
+  // One row per sound with enough evidence, sorted worst-first, each carrying
+  // the norms verdict for THIS child's age.
+  const rows = record.targets
+    .filter((t) => !t.insufficientEvidence && NORMS[t.phoneme])
+    .map((t) => ({ ...t, verdict: verdictFor(t.phoneme, months) }))
+    .sort((x, y) => x.producedCorrectly.point - y.producedCorrectly.point);
+
+  if (!rows.length) {
+    $('visitOut').innerHTML = '<p class="muted">Once a sound has '
+      + `${MIN_ATTEMPTS_PER_TARGET} spoken tries behind it, it will show up here with `
+      + 'what the research expects at your child\'s age.</p>';
+    return;
+  }
+
+  // "Worth raising" is deliberately narrow: the sound is PAST the age by which
+  // 90% of children have it (state 'late'), AND this child is still getting it
+  // wrong more often than right. Either alone is not a reason to send a parent
+  // to a clinic. 'due' never qualifies — that is the ordinary case being
+  // mistaken for a problem, which is the error this whole file exists to avoid.
+  const raise = months
+    ? rows.filter((r) => r.verdict?.state === 'late' && r.producedCorrectly.point < 0.5)
+    : [];
+
+  const pct = (r) => `${Math.round(r.producedCorrectly.point * 100)}%`;
+  const list = rows.slice(0, 6).map((r) => {
+    const n = NORMS[r.phoneme];
+    const tone = r.verdict?.state === 'late' ? 'var(--ink)' : 'var(--ink-faint)';
+    return `<li style="margin:6px 0"><b>"${n.letters}"</b> — clear on ${pct(r)} of `
+      + `${r.producedCorrectly.n} spoken tries. <span style="color:${tone}">`
+      + `${r.verdict ? r.verdict.line : ''}</span></li>`;
+  }).join('');
+
+  let verdictBlock;
+  if (!months) {
+    verdictBlock = '<div class="note" style="margin-top:12px">Add your child\'s age above '
+      + 'and each sound gets checked against the age the research expects it — which is '
+      + 'usually the answer to the question you actually have.</div>';
+  } else if (!raise.length) {
+    // The reassurance case, and it must be the loud one.
+    verdictBlock = '<div class="note" style="margin-top:12px"><b>Nothing here needs an '
+      + `appointment.</b> Every sound your child has practiced is either on time for `
+      + `${ageWords(months)} or close enough that the research would still call it `
+      + 'typical. If something else is worrying you, that is its own good reason to go — '
+      + 'but this record is not it.</div>';
+  } else {
+    const names = raise.map((r) => `"${NORMS[r.phoneme].letters}"`).join(' and ');
+    verdictBlock = '<div class="note" style="margin-top:12px"><b>Worth mentioning: '
+      + `${names}.</b> Past the age most children have it, and still coming out clear `
+      + 'less than half the time here. That is not a diagnosis and it is not an '
+      + 'emergency — it is the specific thing to say out loud so the person in front '
+      + 'of you can decide.<br><br><b>What to ask.</b> "Kide has heard my child try '
+      + `${names} ${raise.reduce((s, r) => s + r.producedCorrectly.n, 0)} times over `
+      + `${record.adherence.spanDays || record.adherence.days} days, and it comes out `
+      + 'clear less than half the time. Is that where you would expect them to be, and '
+      + 'if not, what would you like to see next?"</div>';
+  }
+
+  $('visitOut').innerHTML = `<ul style="margin:0;padding-left:18px">${list}</ul>`
+    + verdictBlock
+    + '<div class="row" style="margin-top:14px">'
+    + '<button class="primary" id="btnVisitPrint">Print this page</button>'
+    + '<a class="btn" href="/sounds">Read the research</a></div>'
+    /* HABITS.md §4, "escalate, don't treat". These are medical rather than
+       motivational and do not wait for an appointment slot, so they are stated
+       whatever the sounds say — including in the reassurance case above. */
+    + '<div class="note" style="margin-top:12px">Separately, and whatever the sounds '
+      + 'say: pain, blood, going several days without a poo, or soiling after previously '
+      + 'being dry are medical rather than motivational. Those are worth a call to your '
+      + 'pediatrician now, and worth pushing if you feel brushed off.</div>';
+
+  $('btnVisitPrint').addEventListener('click', () => window.print());
+}
+
+$('visitAge').addEventListener('input', (e) => {
+  const n = Number(e.target.value);
+  try {
+    if (Number.isFinite(n) && n >= 1 && n <= 9) localStorage.setItem(VISIT_AGE_KEY, String(n));
+    else localStorage.removeItem(VISIT_AGE_KEY);
+  } catch { /* private mode — the card still works, it just won't remember */ }
+  renderVisit();
+});
+
 function render() {
   const events = Journal.all();
   record = buildRecord(events);
@@ -343,6 +498,8 @@ function render() {
       if (keyOf(x) === t.target && x.lvl <= 2 && !words.includes(x.w)) { words.push(x.w); break; }
     }
   }
+  renderVisit();
+
   $('carlist').innerHTML = words.map((w) => `<span class="carword">${w}</span>`).join('');
   $('carIntro').textContent = words.length
     ? 'Say these together — they are what the game would choose next.'
