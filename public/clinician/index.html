@@ -45,10 +45,31 @@
   button{font:inherit;font-size:16px;font-weight:700;padding:13px 20px;min-height:48px;
          border-radius:999px;border:2px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
   button.primary{background:var(--sunstone);color:var(--ink);border-color:var(--sunstone)}
+  /* Professional edition. Everything here is documentation scaffolding around
+     the same numbers -- it never changes, hides or adds a single measurement. */
+  .hidden{display:none !important}
+  .pro-lock{border:1px dashed var(--line);border-radius:10px;padding:16px 18px;background:#FBFCFD}
+  .pro-lock h3{margin:0 0 4px;font-size:15px}
+  .pro-lock p{margin:0;font-size:13.5px;color:var(--ink-soft)}
+  .pro-lock ul{margin:10px 0 0;padding-left:18px;font-size:13.5px;color:var(--ink-soft)}
+  .pro-lock li{margin:3px 0}
+  .field{display:flex;flex-direction:column;gap:4px;font-size:11px;text-transform:uppercase;
+         letter-spacing:.05em;color:var(--ink-faint);font-weight:700}
+  .field input{font:inherit;font-size:15px;text-transform:none;letter-spacing:0;font-weight:400;
+               color:var(--ink);padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:#fff}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .hdr{display:grid;grid-template-columns:auto 1fr;gap:3px 18px;font-size:14px}
+  .hdr dt{color:var(--ink-faint);font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+          font-weight:700;align-self:center}
+  .hdr dd{margin:0;font-weight:600}
+  .sig .line{margin-top:30px;border-bottom:1px solid var(--ink-faint);max-width:300px}
+  .appendix td:first-child{font-weight:700;width:38%}
+  .status{font-size:12.5px;color:var(--ink-soft);margin:10px 0 0;min-height:1em}
+  .status.err{color:var(--sunstone-ink)}
   @media print{
     body{background:#fff;padding:0}
     .sheet{box-shadow:none;max-width:none;border-radius:0;padding:0}
-    .row{display:none}
+    .row, .no-print{display:none !important}
   }
 </style>
 <link rel="stylesheet" href="../mobile.css">
@@ -57,6 +78,15 @@
 <div class="sheet" id="sheet">
   <h1>Practice record</h1>
   <p class="meta" id="meta">—</p>
+
+  <section id="proHeader" class="hidden">
+    <dl class="hdr">
+      <dt>Prepared by</dt><dd id="hdrClinician">—</dd>
+      <dt>Setting</dt><dd id="hdrClinic">—</dd>
+      <dt>Child reference</dt><dd id="hdrChild">—</dd>
+      <dt>Period</dt><dd id="hdrPeriod">—</dd>
+    </dl>
+  </section>
 
   <h2>Summary</h2>
   <div class="narrative" id="narrative"></div>
@@ -79,24 +109,82 @@
   </table>
   <div class="note" id="method"></div>
 
+  <section id="proAppendix" class="hidden">
+    <h2>Method appendix</h2>
+    <table class="appendix"><tbody>
+      <tr><td>Interval</td><td>Jeffreys, Beta(x+½, n−x+½), <span id="apxMass">90</span>% credible</td></tr>
+      <tr><td>Why Jeffreys</td><td>Wald intervals are badly wrong at small n and near 0% or 100% —
+        exactly where a struggling phoneme sits — and can return a zero-width interval at 0/n.</td></tr>
+      <tr><td>Why 90%, not 95%</td><td>At the sample sizes a home programme actually produces, a 95%
+        interval is so wide it reads as "we know nothing", which is its own kind of misleading.</td></tr>
+      <tr><td>Minimum to report a rate</td><td><span id="apxMinAttempts">8</span> attempts</td></tr>
+      <tr><td>Minimum to claim a direction</td><td>20 attempts, <em>and</em> non-overlapping intervals,
+        <em>and</em> ≥ 0.15 absolute change. Separated intervals alone admitted a false direction in
+        2.5% of simulated pure-noise learners; adding a minimum effect size was not cosmetic.</td></tr>
+      <tr><td>Measured false-positive rate</td><td>3.0% over 200 simulated coin-flip learners</td></tr>
+      <tr><td>Excluded from all rates</td><td>Taps (the child produced no speech) and attempts resolved
+        on the encouragement cap (the scene resolved regardless of what was heard). Both counts are
+        disclosed above rather than silently dropped.</td></tr>
+      <tr><td>Known limitation</td><td>Scoring thresholds are calibrated on adult speech. Every figure
+        inherits that limitation.</td></tr>
+      <tr><td>Method version</td><td id="apxVersion">—</td></tr>
+    </tbody></table>
+
+    <h2>Attestation</h2>
+    <div class="sig">
+      <p>This record was generated from a child's own home practice on a family device. It describes
+      what was practised and what happened, with uncertainty attached. <b>It does not diagnose and
+      does not replace clinical judgement.</b></p>
+      <div class="line"></div>
+      <p style="margin-top:4px">Signature · <span id="sigName">—</span><span id="sigLicence"></span></p>
+      <div class="line"></div>
+      <p style="margin-top:4px">Date</p>
+    </div>
+  </section>
+
   <div class="row">
     <button class="primary" onclick="window.print()">Print / save as PDF</button>
     <button id="btnJson">Copy underlying data</button>
     <button id="btnDemo">Load a worked example</button>
   </div>
 
-  <h2>Clinician Report — Professional Edition</h2>
-  <div class="note">
-    A one-time $39 professional purchase, for a clinician who wants this record on file
-    as part of formal clinical documentation.
-    <div class="row" style="margin-top:10px">
-      <input id="clinicianEmail" type="email" placeholder="you@clinic.com" autocomplete="email"
-             style="flex:1;min-width:180px;font:inherit;font-size:15px;padding:11px 16px;
-                    border-radius:999px;border:2px solid var(--line);color:var(--ink);background:#fff">
-      <button class="primary" id="btnClinicianCheckout">Get professional access — $39</button>
+  <section class="no-print" style="margin-top:26px">
+    <h2>Professional edition</h2>
+
+    <div class="pro-lock" id="proLocked">
+      <h3>Put this record in a chart</h3>
+      <p>The figures above are free and always will be — a parent can hand you this link and you can
+      read all of it. The professional edition wraps the same numbers in the document a chart
+      actually needs:</p>
+      <ul>
+        <li>A header identifying you, the setting, the child by <em>your</em> chart reference, and the period covered</li>
+        <li>The full method appendix — intervals, thresholds, exclusions and known limitations, stated so a colleague or a funder can check them</li>
+        <li>An attestation and signature block that says plainly what this is and is not</li>
+      </ul>
+      <div class="row" style="margin-top:14px">
+        <input id="proEmail" type="email" placeholder="you@clinic.com" autocomplete="email"
+               style="flex:1;min-width:200px;font:inherit;font-size:15px;padding:11px 16px;
+                      border-radius:999px;border:2px solid var(--line);color:var(--ink);background:#fff">
+        <button id="btnUse">Use a report</button>
+        <button class="primary" id="btnBuy">Buy reports</button>
+      </div>
+      <p class="status" id="proStatus"></p>
     </div>
-    <p id="clinicianCheckoutStatus" style="font-size:12.5px;color:var(--ink-soft);margin:8px 0 0"></p>
-  </div>
+
+    <div class="pro-lock hidden" id="proUnlocked">
+      <h3>Report unlocked <span id="proRemaining" style="font-weight:400;color:var(--ink-faint)"></span></h3>
+      <p>These stay on this device and prefill your next report. Nothing here is sent anywhere.</p>
+      <div class="grid2" style="margin-top:12px">
+        <label class="field">Your name<input id="fName" placeholder="Alex Moreno"></label>
+        <label class="field">Credentials<input id="fCreds" placeholder="MS, CCC-SLP"></label>
+        <label class="field">Setting / clinic<input id="fClinic" placeholder="Riverside Paediatric Therapy"></label>
+        <label class="field">Licence no. (optional)<input id="fLicence" placeholder=""></label>
+        <label class="field">Child chart reference<input id="fChild" placeholder="e.g. chart 4471 — not a full name"></label>
+      </div>
+      <p class="status" id="proStatus2">Use your own chart identifier. This page deliberately does not
+      ask for the child's full name or date of birth.</p>
+    </div>
+  </section>
 </div>
 
 <script type="module">
@@ -159,6 +247,8 @@ function render(rec) {
     + `at small samples and near 0% or 100% where a struggling sound sits. A change is only reported `
     + `when the earlier and later intervals do not overlap. `
     + `<br><br><b>${rec.disclaimer}</b>`;
+
+  applyPro();
 }
 
 $('btnJson').addEventListener('click', async () => {
@@ -167,34 +257,210 @@ $('btnJson').addEventListener('click', async () => {
   setTimeout(() => { $('btnJson').textContent = 'Copy underlying data'; }, 1600);
 });
 
-$('btnClinicianCheckout').addEventListener('click', async () => {
-  const status = $('clinicianCheckoutStatus');
-  const email = $('clinicianEmail').value.trim();
-  if (!email || !email.includes('@')) {
-    status.textContent = 'Enter a valid email to continue.';
-    return;
+/* ── Professional edition ──────────────────────────────────────────────────
+ *
+ * The rule this code exists under: THE CHILD'S RECORD NEVER LEAVES THIS PAGE.
+ * Three things are sent to the Worker and they are exhaustive -- the
+ * clinician's own email address, a random opaque reference this browser
+ * generated, and (on purchase) an offering id. No phoneme, no count, no date,
+ * no name, and nothing derived from any of them. test-billing.mjs asserts it.
+ *
+ * The unlock is therefore an entitlement check, not DRM: the document is
+ * rendered here, in the page, because rendering it on a server would mean
+ * uploading a child's practice history to one. That trade is made knowingly
+ * and is written up in src/worker/index.ts.
+ *
+ * What is unlocked is documentation scaffolding -- header, method appendix,
+ * attestation. Not one measurement is withheld from the free view, because a
+ * clinician being asked to pay to see whether a child improved is exactly the
+ * dark pattern this portfolio's monetization rules forbid.  */
+
+const LS_IDENTITY = 'kide.clinician.identity';
+const LS_EMAIL = 'kide.clinician.email';
+const LS_REFS = 'kide.clinician.refs';
+const LS_UNLOCKED = 'kide.clinician.unlocked';
+
+const lsGet = (k, fallback) => {
+  try { return JSON.parse(localStorage.getItem(k)) ?? fallback; } catch { return fallback; }
+};
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
+
+/** A stable local key for "this report", computed from aggregate shape only and
+ *  never transmitted. It exists solely to look up the random ref below, so that
+ *  reprinting the same report cannot charge a second credit. */
+function fingerprint(rec) {
+  const a = rec.adherence || {};
+  const parts = [rec.methodVersion, rec.totalAttempts, rec.scoredAttempts,
+    a.firstPractice || '', a.lastPractice || '', a.sessions || 0,
+    (rec.targets || []).map((t) => `${t.phoneme}${t.position}${t.attempts}`).join(',')].join('|');
+  let h = 0x811c9dc5;
+  for (let i = 0; i < parts.length; i++) { h ^= parts.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(36);
+}
+
+/** The only per-report token that ever reaches the server. Random, generated
+ *  here, and carrying no information about the child by construction. */
+function refFor(fp) {
+  const refs = lsGet(LS_REFS, {});
+  if (!refs[fp]) {
+    const r = new Uint8Array(12);
+    (globalThis.crypto || {}).getRandomValues?.(r);
+    refs[fp] = Array.from(r, (b) => b.toString(16).padStart(2, '0')).join('') ||
+      `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+    lsSet(LS_REFS, refs);
   }
-  const btn = $('btnClinicianCheckout');
-  btn.disabled = true;
-  status.textContent = 'Opening secure checkout…';
+  return refs[fp];
+}
+
+const identity = () => lsGet(LS_IDENTITY, {});
+const FIELDS = { fName: 'name', fCreds: 'creds', fClinic: 'clinic', fLicence: 'licence', fChild: 'child' };
+
+function isUnlocked() {
+  if (!record) return false;
+  return lsGet(LS_UNLOCKED, []).includes(fingerprint(record));
+}
+
+function markUnlocked() {
+  const fp = fingerprint(record);
+  const all = lsGet(LS_UNLOCKED, []);
+  if (!all.includes(fp)) { all.push(fp); lsSet(LS_UNLOCKED, all); }
+}
+
+/** Paints the professional blocks. Called after every render so that loading
+ *  the worked example, or arriving with new ?data=, keeps the right state. */
+function applyPro() {
+  const on = isUnlocked();
+  $('proHeader').classList.toggle('hidden', !on);
+  $('proAppendix').classList.toggle('hidden', !on);
+  $('proLocked').classList.toggle('hidden', on);
+  $('proUnlocked').classList.toggle('hidden', !on);
+  if (!on || !record) return;
+
+  const id = identity();
+  const dash = (v) => (v && String(v).trim()) || '—';
+  $('hdrClinician').textContent =
+    [dash(id.name), id.creds && String(id.creds).trim()].filter(Boolean).join(', ');
+  $('hdrClinic').textContent = dash(id.clinic);
+  $('hdrChild').textContent = dash(id.child);
+  const a = record.adherence || {};
+  $('hdrPeriod').textContent = a.firstPractice
+    ? `${a.firstPractice.slice(0, 10)} → ${a.lastPractice.slice(0, 10)} (${a.spanDays} days)`
+    : 'No practice recorded';
+
+  $('apxMass').textContent = Math.round(CI_MASS * 100);
+  $('apxMinAttempts').textContent = MIN_ATTEMPTS_PER_TARGET;
+  $('apxVersion').textContent = record.methodVersion || METHOD_VERSION;
+  $('sigName').textContent = [dash(id.name), id.creds && String(id.creds).trim()]
+    .filter(Boolean).join(', ');
+  $('sigLicence').textContent = id.licence ? ` · Licence ${id.licence}` : '';
+}
+
+// Identity fields: local-only, saved as typed, and reflected straight into the
+// document so a clinician can see what will print.
+for (const [el, key] of Object.entries(FIELDS)) {
+  const input = $(el);
+  input.value = identity()[key] || '';
+  input.addEventListener('input', () => {
+    lsSet(LS_IDENTITY, { ...identity(), [key]: input.value });
+    applyPro();
+  });
+}
+
+const say = (msg, isErr = false) => {
+  const s = $('proStatus');
+  s.textContent = msg;
+  s.classList.toggle('err', isErr);
+};
+
+async function api(path, options) {
+  const res = await fetch(path, options);
+  return res.json().catch(() => ({ ok: false, error: 'Unexpected response from billing.' }));
+}
+
+/** Spend one report credit on this record. */
+async function useReport(email, { quiet = false } = {}) {
+  if (!record) return false;
+  if (isUnlocked()) { applyPro(); return true; }
+  // Resolved to an opaque random token here, deliberately, so that the request
+  // body below can be read at a glance and by a test: what goes on the wire is
+  // an email and a random string, and nothing else.
+  const reportRef = refFor(fingerprint(record));
+  const out = await api('/api/clinician/unlock', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, reportRef }),
+  });
+  if (out.ok) {
+    lsSet(LS_EMAIL, email);
+    markUnlocked();
+    applyPro();
+    $('proRemaining').textContent =
+      typeof out.remaining === 'number' ? `· ${out.remaining} report${out.remaining === 1 ? '' : 's'} left` : '';
+    return true;
+  }
+  if (!quiet) {
+    say(out.error === 'no_reports_left'
+      ? 'No reports left on that address — buy a pack below and it will unlock straight away.'
+      : (out.error || 'Could not verify that address just now.'), true);
+  }
+  return false;
+}
+
+$('proEmail').value = lsGet(LS_EMAIL, '') || '';
+
+$('btnUse').addEventListener('click', async () => {
+  const email = $('proEmail').value.trim();
+  if (!email.includes('@')) return say('Enter the email you bought reports with.', true);
+  $('btnUse').disabled = true;
+  say('Checking…');
   try {
-    const res = await fetch('/api/clinician/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    });
-    const out = await res.json();
-    if (out && out.url) {
-      location.href = out.url;
-      return;
-    }
-    status.textContent = (out && out.error) || 'Checkout is not available right now — try again shortly.';
+    const ent = await api(`/api/clinician/entitlement?email=${encodeURIComponent(email)}`);
+    if (!ent.ok) return say(ent.error || 'Could not reach billing just now.', true);
+    if (!ent.reports) return say('No reports left on that address — buy a pack below.', true);
+    if (await useReport(email)) say('');
   } catch {
-    status.textContent = 'Checkout is not available right now — try again shortly.';
+    say('Could not reach billing just now — try again shortly.', true);
   } finally {
-    btn.disabled = false;
+    $('btnUse').disabled = false;
   }
 });
+
+$('btnBuy').addEventListener('click', async () => {
+  const email = $('proEmail').value.trim();
+  if (!email.includes('@')) return say('Enter your email so we can attach the reports to it.', true);
+  $('btnBuy').disabled = true;
+  say('Opening secure checkout…');
+  try {
+    const out = await api('/api/clinician/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, offeringId: 'clinician_report' }),
+    });
+    if (out.url) { lsSet(LS_EMAIL, email); location.href = out.url; return; }
+    say(out.error || 'Checkout is not available right now — try again shortly.', true);
+  } catch {
+    say('Checkout is not available right now — try again shortly.', true);
+  } finally {
+    $('btnBuy').disabled = false;
+  }
+});
+
+/** Coming back from Stripe. Success auto-spends one credit on the report that
+ *  was open, so a clinician who just paid does not have to work out what to
+ *  press next. */
+async function resumeFromCheckout() {
+  const q = new URLSearchParams(location.search);
+  const state = q.get('checkout');
+  if (!state) return;
+  history.replaceState(null, '', location.pathname + (q.get('data') ? `?data=${q.get('data')}` : ''));
+  if (state === 'cancel') return say('Checkout cancelled — nothing was charged.');
+  const email = (q.get('email') || lsGet(LS_EMAIL, '') || '').trim();
+  if (!email.includes('@')) return say('Payment received. Enter that email above to use a report.');
+  $('proEmail').value = email;
+  say('Payment received — unlocking…');
+  if (await useReport(email, { quiet: true })) say('');
+  else say('Payment received. Press "Use a report" in a moment — the hub can take a few seconds.');
+}
 
 /** A worked example, so the artifact can be evaluated before a real child has
  *  used it.
@@ -239,6 +505,8 @@ if (param) {
 } else {
   render(buildRecord([]));
 }
+
+resumeFromCheckout();
 </script>
 </body>
 </html>

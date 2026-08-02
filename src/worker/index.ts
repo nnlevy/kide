@@ -10,6 +10,17 @@ import { SITEMAP, ROBOTS } from "./seo-generated";
 // which a service binding call never touches.
 const DOMAIN = "kide.us";
 
+// The offerings registered for kide.us in riskfreetrial's
+// DOMAIN_CATALOG_OVERRIDES. Kept as a closed set here so a caller cannot ask
+// this Worker to open checkout for an arbitrary portfolio offering, and so
+// test-billing.mjs can assert both repos still agree on the ids -- a mismatch
+// would only ever surface as a 502 at the moment a clinician tried to pay.
+const OFFERINGS = new Set(["clinician_report", "clinician_caseload"]);
+const DEFAULT_OFFERING = "clinician_report";
+
+// One credit unlocks one chart-ready report.
+const CREDITS_PER_REPORT = 1;
+
 type PortfolioAiServiceBinding = {
   createChatCompletion: (input: Record<string, unknown>) => Promise<{
     ok?: boolean;
@@ -26,6 +37,18 @@ type PortfolioBillingServiceBinding = {
     id?: string;
     url?: string;
     error?: string;
+  }>;
+  getCredits: (email: string) => Promise<{
+    ok: true;
+    exists: boolean;
+    email: string;
+    creditsBalance: number;
+  }>;
+  consumeCredits: (input: Record<string, unknown>) => Promise<{
+    ok: boolean;
+    reason: string | null;
+    creditsBalance: number;
+    email: string;
   }>;
 };
 
@@ -118,12 +141,11 @@ export default {
       return handleNotify(request, env);
     }
 
-    // The one paid offering on kide.us: the clinician report at /clinician,
-    // sold as a professional tool (clinician_report, registered in
-    // riskfreetrial's DOMAIN_CATALOG_OVERRIDES for kide.us). Everything else
-    // on this domain stays free -- see docs/WEDGE.md for why.
-    if (url.pathname === "/api/clinician/checkout" && request.method === "POST") {
-      return handleClinicianCheckout(request, env);
+    // The only paid surface on kide.us: the chart-ready practice record at
+    // /clinician, sold to clinicians (docs/WEDGE.md). Everything a child or
+    // parent touches is free and always will be.
+    if (url.pathname.startsWith("/api/clinician/")) {
+      return handleClinicianApi(request, env, url);
     }
 
     // Model weights for the on-device pronunciation-scoring benchmark
@@ -217,8 +239,8 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
     return json({ ok: false, error: "bad_request" }, 400);
   }
 
-  const email = String(body?.email || "").trim().toLowerCase();
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) {
+  const email = normalizeEmail(body?.email);
+  if (!email) {
     return json({ ok: false, error: "invalid_email" }, 400);
   }
 
@@ -237,53 +259,131 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
   return json({ ok: true });
 }
 
-// Checkout for the /clinician professional report -- the one thing on
-// kide.us that costs money (docs/WEDGE.md: "the entire B2B wedge"). Routes
-// through the PORTFOLIO_BILLING_SERVICE RPC binding only. Do not replace
-// this with a fetch() to riskfreetrial.org: a Worker-to-Worker HTTP POST at
-// the public hub URL is exactly what trips Cloudflare error 1010 there.
-async function handleClinicianCheckout(request: Request, env: Env): Promise<Response> {
+// ── The clinician billing surface ────────────────────────────────────────────
+//
+// Three endpoints, and one rule that governs all of them: THE CHILD'S RECORD
+// NEVER CROSSES THIS BOUNDARY. Not to this Worker, not to the billing hub, not
+// to Stripe. The only thing that leaves the clinician's browser is their own
+// email address and an opaque reference string they generated themselves.
+//
+// That constraint is why entitlement is checked here but the professional
+// document is rendered in the page. A server-rendered PDF would be trivially
+// harder to bypass -- and would require posting a child's phoneme history to a
+// server, which is the one promise this product cannot break (docs/WEDGE.md,
+// docs/VOICE.md, and the amended COPPA Rule's treatment of biometric and
+// behavioural records). So this is a professional licence enforced by an
+// entitlement check, not DRM, and it is deliberately the weaker of the two.
+// Anyone determined enough to read the page source can render the document
+// unpaid. A licensed clinician putting a document in a patient chart is not
+// that person, and designing for that person would cost the privacy guarantee
+// that is the entire reason this record can exist at all.
+//
+// Every hub call goes through the PORTFOLIO_BILLING_SERVICE RPC binding. Do
+// not replace any of them with fetch() to riskfreetrial.org: a Worker-to-Worker
+// HTTP POST at the public hub URL is what trips Cloudflare error 1010.
+async function handleClinicianApi(request: Request, env: Env, url: URL): Promise<Response> {
   const json = (data: unknown, status = 200) =>
-    new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
+    new Response(JSON.stringify(data), {
+      status,
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    });
 
   const billing = env.PORTFOLIO_BILLING_SERVICE;
-  if (!billing?.createCheckout) {
+  if (!billing) {
     return json({ ok: false, error: "Billing is not configured for this deploy." }, 503);
   }
 
-  let body: any;
-  try {
-    body = await request.json();
-  } catch {
-    return json({ ok: false, error: "bad_request" }, 400);
-  }
+  const route = url.pathname.slice("/api/clinician/".length);
 
-  const email = String(body?.email || "").trim().toLowerCase();
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) {
-    return json({ ok: false, error: "Valid email required to start checkout." }, 400);
-  }
-  const fullName = typeof body?.fullName === "string" ? body.fullName.slice(0, 200) : undefined;
-
-  const origin = new URL(request.url).origin;
-  const successUrl = `${origin}/clinician/?checkout=success`;
-  const cancelUrl = `${origin}/clinician/?checkout=cancel`;
-
-  try {
-    const out = await billing.createCheckout({
-      domain: DOMAIN,
-      offeringId: "clinician_report",
-      email,
-      fullName,
-      successUrl,
-      cancelUrl,
-      sourceDomain: DOMAIN,
-    });
-    if (out?.url) {
-      return json({ ok: true, id: out.id, url: out.url });
+  // How many reports this clinician has left. Read-only, and the honest answer
+  // for an address that has never purchased is zero rather than an error.
+  if (route === "entitlement" && request.method === "GET") {
+    const email = normalizeEmail(url.searchParams.get("email"));
+    if (!email) return json({ ok: false, error: "invalid_email" }, 400);
+    try {
+      const out = await billing.getCredits(email);
+      return json({ ok: true, email, reports: Math.max(0, Number(out?.creditsBalance) || 0) });
+    } catch (e) {
+      console.warn("clinician entitlement rpc failed", e);
+      return json({ ok: false, error: "Billing service unavailable — try again shortly" }, 503);
     }
-    return json({ ok: false, error: out?.error || "Checkout failed" }, 502);
-  } catch (e) {
-    console.warn("clinician checkout rpc failed", e);
-    return json({ ok: false, error: "Billing service unavailable — try again shortly" }, 503);
+  }
+
+  if (route === "checkout" && request.method === "POST") {
+    const body = await readJson(request);
+    if (!body) return json({ ok: false, error: "bad_request" }, 400);
+
+    const email = normalizeEmail(body.email);
+    if (!email) return json({ ok: false, error: "Valid email required to start checkout." }, 400);
+
+    // Closed set: a caller cannot name an arbitrary portfolio offering here.
+    const requested = typeof body.offeringId === "string" ? body.offeringId.trim() : "";
+    const offeringId = OFFERINGS.has(requested) ? requested : DEFAULT_OFFERING;
+
+    const origin = new URL(request.url).origin;
+    try {
+      const out = await billing.createCheckout({
+        domain: DOMAIN,
+        offeringId,
+        email,
+        fullName: typeof body.fullName === "string" ? body.fullName.slice(0, 200) : undefined,
+        successUrl: `${origin}/clinician/?checkout=success&email=${encodeURIComponent(email)}`,
+        cancelUrl: `${origin}/clinician/?checkout=cancel`,
+        sourceDomain: DOMAIN,
+      });
+      if (out?.url) return json({ ok: true, id: out.id, url: out.url });
+      return json({ ok: false, error: out?.error || "Checkout failed" }, 502);
+    } catch (e) {
+      console.warn("clinician checkout rpc failed", e);
+      return json({ ok: false, error: "Billing service unavailable — try again shortly" }, 503);
+    }
+  }
+
+  // Spend one report credit. `reportRef` is an opaque id the page generated and
+  // stored locally; it carries no information about the child and exists so
+  // that re-opening or reprinting the same report never charges twice.
+  if (route === "unlock" && request.method === "POST") {
+    const body = await readJson(request);
+    if (!body) return json({ ok: false, error: "bad_request" }, 400);
+
+    const email = normalizeEmail(body.email);
+    if (!email) return json({ ok: false, error: "invalid_email" }, 400);
+
+    const reportRef = String(body.reportRef || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64);
+    if (!reportRef) return json({ ok: false, error: "reportRef required" }, 400);
+
+    try {
+      const out = await billing.consumeCredits({
+        email,
+        domain: DOMAIN,
+        credits: CREDITS_PER_REPORT,
+        actionType: "clinician_report",
+        idempotencyKey: `clinician_report:${reportRef}`,
+      });
+      if (out?.ok) {
+        return json({ ok: true, remaining: Math.max(0, Number(out.creditsBalance) || 0) });
+      }
+      return json({ ok: false, error: "no_reports_left", reason: out?.reason || null }, 402);
+    } catch (e) {
+      console.warn("clinician unlock rpc failed", e);
+      return json({ ok: false, error: "Billing service unavailable — try again shortly" }, 503);
+    }
+  }
+
+  return json({ ok: false, error: "not_found" }, 404);
+}
+
+function normalizeEmail(input: unknown): string | null {
+  const email = String(input || "").trim().toLowerCase();
+  if (!email || email.length > 200) return null;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
+}
+
+async function readJson(request: Request): Promise<Record<string, any> | null> {
+  try {
+    const body = await request.json();
+    return body && typeof body === "object" ? (body as Record<string, any>) : null;
+  } catch {
+    return null;
   }
 }

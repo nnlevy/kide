@@ -168,11 +168,62 @@ The report is shareable as a link with the data encoded in the URL — a parent
 can hand a clinician a record without an account, a login, or the data touching
 a server.
 
+## What is actually sold, and what is not
+
+**Live:** `/clinician` · **Tests:** `npm run test:billing` (16)
+
+Every measurement is free, permanently. A parent hands over a link and a
+clinician reads every number in it without paying, without an account, and
+without anything reaching a server. Charging to see whether a child improved
+would be the exact dark pattern the portfolio's monetization rules forbid, and
+it would also destroy the distribution: the free record is what gets this in
+front of an SLP at all.
+
+What is sold is the **documentation wrapper** — the header identifying the
+clinician, the setting, the child by *their* chart reference and the period
+covered; the full method appendix; and an attestation and signature block. That
+is the gap between a page a clinician can read and a document a clinician can
+file, and it is worth money precisely because documentation time is the scarcest
+thing an SLP has.
+
+**One credit, one report. $39 for five, $129 for twenty-five.** The unit is a
+caseload, not a document: one clinician carries about forty families, so a
+per-child price is absurd and a per-seat subscription is a procurement
+conversation nobody has agreed to have. At $7.80 a report it repays itself
+against a billable hour if it saves fifteen minutes. Every full SLP practice-
+management tool starts at $39–49 *per month*, most at $150–200 per provider, so
+this sits below the threshold where anyone has to ask permission to try it.
+
+### The paywall is deliberately the weak kind
+
+Entitlement is checked on the server; the document is rendered in the page.
+Server-rendering it would be marginally harder to bypass and would require
+posting a child's phoneme history to a server — the one promise this product
+cannot break. So this is a professional licence enforced by an entitlement
+check, not DRM. Anyone who reads the page source can render the document
+unpaid; a licensed clinician putting a document in a patient chart is not that
+person, and designing for that person would cost the privacy guarantee that is
+the only reason this record can exist.
+
+Three things reach the network, and they are exhaustive: the clinician's own
+email, an opaque random token this browser generated, and an offering id. No
+phoneme, no count, no date, no name, nothing derived from any of them.
+`test-billing.mjs` asserts it, and asserts it against the request shape rather
+than the transport — the first version matched on `fetch(` and was therefore
+vacuous, which mutation-testing found by leaking `record.targets` past a green
+suite.
+
 ## What is still required
 
 - **Show it to real SLPs.** Everything above is a hypothesis about a customer
   who has not yet been asked. The artifact exists so that conversation can be
-  had with something concrete rather than a description.
+  had with something concrete rather than a description — and now the
+  conversation can end in a transaction rather than a thank-you.
+- **Nothing routes an SLP here yet.** `/clinician` is `noindex` and always will
+  be, because it renders a child's record. There is no public page that explains
+  this to a clinician who has never met the product, so the only current path in
+  is a parent handing over a link. That is the next revenue constraint, and it
+  is a content problem, not a billing one.
 - **Calibrate against labelled child speech.** The scoring thresholds behind
   these figures are measured but on adult speech (docs/BENCH.md). Every number
   on the report inherits that limitation, and the disclaimer says so.
