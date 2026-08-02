@@ -81,6 +81,9 @@
   .sw{height:72px;border-radius:18px;border:4px solid #fff;cursor:pointer;padding:0;
       box-shadow:0 5px 0 rgba(0,0,0,.10)}
   .sw[aria-pressed="true"]{border-color:var(--grass-deep);transform:translateY(2px)}
+  .sw{position:relative;display:flex;align-items:flex-end;justify-content:center;padding:0 0 4px}
+  .sw-name{font-size:10px;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.65);
+           letter-spacing:.01em;pointer-events:none;line-height:1.1;padding:0 3px}
   .field{display:block;text-align:left;max-width:360px;margin:0 auto}
   .field input{font:inherit;font-size:17px;width:100%;padding:15px 18px;border:3px solid #fff;
     border-radius:16px;min-height:56px;color:var(--ink);background:#fff}
@@ -141,7 +144,7 @@
 </main>
 
 <script type="module">
-import { characterFor, toSpec, OPTIONS, TRAITS_FOR } from '/scene/cast.js';
+import { characterFor, toSpec, OPTIONS, TRAITS_FOR, WORDS, describe } from '/scene/cast.js';
 import * as Speech from '/engine/speech.js';
 
 const $ = (id) => document.getElementById(id);
@@ -154,7 +157,7 @@ const state = {
   step: 0,
   sound: true,
   stepId: 'who',
-  draft: { name: '', kind: null, species: null, relation: '',
+  draft: { name: '', described: '', kind: null, species: null, relation: '',
            skin: null, hair: null, eye: null, knit: null, coat: null },
   cast: [],
   to: '',
@@ -223,6 +226,21 @@ const STEPS = [
     say: 'Who shall we put on the card?',
     body: () => textInput('draftName', 'Kaleigh'),
     next: () => state.draft.name.trim().length > 0,
+  },
+  {
+    /* THE FRONT DOOR. Every real request for a character arrives as a sentence
+       — "my mum, grey hair", "our black cat" — and eleven tap-screens is the
+       right fallback but a poor first move. Whatever this matches pre-fills the
+       screens that follow, so they become confirmations rather than work; what
+       it does not match is simply left for them. Parsed on this device, on each
+       keystroke, with no request of any kind: see describe() in cast.js for why
+       that is a deliberate choice and not a missing feature. */
+    id: 'describe',
+    q: () => `Tell me about ${state.draft.name || 'them'}`,
+    hint: 'In your own words — or skip this and pick everything yourself.',
+    say: 'Tell me about them, in your own words.',
+    body: () => describeInput(),
+    next: () => true,
   },
   {
     id: 'kind',
@@ -329,7 +347,7 @@ const current = () => {
 const goTo = (id) => { state.stepId = id; render(); };
 
 function resetDraft() {
-  state.draft = { name: '', kind: null, species: null, relation: '',
+  state.draft = { name: '', described: '', kind: null, species: null, relation: '',
                   skin: null, hair: null, eye: null, knit: null, coat: null };
 }
 
@@ -379,6 +397,43 @@ function textInput(key, placeholder, max = 44) {
   return wrap;
 }
 
+function describeInput() {
+  const wrap = document.createElement('label');
+  wrap.className = 'field';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'a smiling blonde blue-eyed woman';
+  input.maxLength = 120;
+  input.autocomplete = 'off';
+  input.value = state.draft.described || '';
+  const read = document.createElement('p');
+  read.className = 'hint';
+  read.style.cssText = 'margin:12px auto 0;font-size:14px;min-height:20px';
+
+  const apply = () => {
+    state.draft.described = input.value;
+    const d = describe(input.value, state.draft.name);
+    /* Only what was actually recognised is written. A word the parser did not
+       understand must not silently overwrite something already chosen. */
+    const kind = { friend: 'person', goldendoodle: 'dog', cat: 'cat', toy: 'toy' }[d.species];
+    if (d.matched.includes('species')) { state.draft.kind = kind; state.draft.species = d.species; }
+    for (const k of ['skin', 'hair', 'eye', 'coat']) if (d[k] !== null) state.draft[k] = d[k];
+    read.textContent = d.matched.length
+      ? 'Got: ' + d.matched.map((k) => (k === 'species'
+          ? kind : `${k === 'eye' ? 'eyes' : k} — ${WORDS[k][state.draft[k]]}`)).join(', ')
+      : (input.value.trim() ? "I didn't catch anything yet — the next screens will ask." : '');
+    renderStage();
+  };
+  input.addEventListener('input', apply);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); advance(); } });
+  wrap.appendChild(input);
+  requestAnimationFrame(() => input.focus({ preventScroll: true }));
+  const frag = document.createDocumentFragment();
+  frag.appendChild(wrap); frag.appendChild(read);
+  if (input.value) apply();
+  return frag;
+}
+
 function choices(items, toggle = false) {
   const grid = document.createElement('div');
   grid.className = 'opts';
@@ -409,8 +464,18 @@ function swatches(kind) {
     b.type = 'button';
     b.className = 'sw';
     b.style.background = o.swatch;
-    b.setAttribute('aria-label', `${kind} option ${o.i + 1}`);
+    /* NAMED, not "option 3". A grid of pure colour with an index for a label is
+       the control the avatar-accessibility literature singles out, and it is
+       unusable to anyone with low vision or colour blindness — which includes a
+       tired parent glancing at a phone in the dark. The name is on the swatch
+       and in the label. */
+    b.setAttribute('aria-label', o.name);
+    b.setAttribute('title', o.name);
     b.setAttribute('aria-pressed', String(state.draft[kind] === o.i));
+    const cap = document.createElement('span');
+    cap.className = 'sw-name';
+    cap.textContent = o.name;
+    b.appendChild(cap);
     b.addEventListener('click', () => { state.draft[kind] = o.i; render(); });
     grid.appendChild(b);
   });

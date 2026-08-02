@@ -44,6 +44,36 @@ function hash(str) {
   return h >>> 0;
 }
 
+/* THE MONK SKIN TONE SCALE, appended as indices 6-15.
+ *
+ * The six above were picked by eye. MST is the current standard for this
+ * exact problem: ten tones, developed by Dr Ellis Monk with Google
+ * specifically because the older Fitzpatrick scale was built to predict
+ * sunburn risk in white skin and is not a representation tool. Its finer
+ * distinctions sit at the DARK end (7-10), which is where an eyeballed
+ * six-tone ramp is always thinnest and where most of the world's population
+ * actually is.
+ *
+ * The original six stay because their indices are already inside links people
+ * have sent. New cards offer the MST range; old cards keep rendering exactly
+ * as they were sent. That is the whole reason this file appends and never
+ * reorders.
+ *
+ * deep/cheek are derived rather than hand-picked, so adding a tone cannot
+ * quietly ship a mismatched shadow. */
+const MST = ['#f6ede4', '#f3e7db', '#f7ead0', '#eadaba', '#d7bd96',
+             '#a07e56', '#825c43', '#604134', '#3a312a', '#292420'];
+
+const hexToRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const rgbToHex = (c) => '#' + c.map((v) =>
+  Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+/** A shadow is the same colour with the light taken out of it, never a
+ *  different hue — mixing in grey is what makes recoloured skin look plastic. */
+const shade = (hex, f) => rgbToHex(hexToRgb(hex).map((v) => v * f));
+/** A blush is the tone carried toward a warm rose, so it reads on every tone
+ *  rather than vanishing on the dark end the way a fixed pink does. */
+const blush = (hex) => rgbToHex(hexToRgb(hex).map((v, i) => v * 0.75 + [232, 138, 122][i] * 0.25));
+
 /* Deliberately warm, mid-tone and non-exhaustive. These are not a claim to
    represent anybody accurately -- they are enough variation that a card with
    two adults on it shows two visibly different adults, which is the whole job.
@@ -55,6 +85,7 @@ const SKINS = [
   ['#8D5524', '#71421B', '#8A4B33'],
   ['#5C3317', '#452409', '#6B3A24'],
   ['#FADCBC', '#E6C3A0', '#F0B49A'],
+  ...MST.map((t) => [t, shade(t, 0.86), blush(t)]),
 ];
 /* APPENDED, NEVER REORDERED. These indices are encoded into links that have
    already been sent; inserting a colour in the middle would repaint somebody's
@@ -88,8 +119,23 @@ const COATS = [
    rigs stay a pure description of a character that knows nothing about being
    recoloured. Dog and cat differ because they are built from different
    palettes (COAT vs COAT_ALT in palette.js). */
-/** Spoken/written names for the coats, used in the alt text and the builder. */
+/* NAMES FOR EVERY SWATCH.
+ *
+ * The grid was colour and nothing else, labelled "skin option 3" — which is
+ * exactly the control the accessibility literature on avatar builders warns
+ * about, and useless to anyone with low vision or colour blindness. Every
+ * swatch now says what it is, to a screen reader and in the voice line. */
 const COAT_WORDS = ['cream', 'ginger', 'black', 'white', 'golden', 'grey', 'brown'];
+const HAIR_WORDS = ['auburn', 'dark brown', 'chestnut', 'black', 'brown', 'golden blonde',
+                    'ash brown', 'blonde', 'pale blonde', 'ginger', 'silver'];
+const EYE_WORDS  = ['blue grey', 'blue', 'green', 'brown', 'dark brown', 'grey'];
+const KNIT_WORDS = ['sage green', 'slate blue', 'taupe', 'heather purple', 'dusty rose',
+                    'teal', 'coral', 'mustard', 'navy', 'light grey'];
+const SKIN_WORDS = ['light', 'light warm', 'medium', 'deep', 'darkest', 'palest',
+                    ...MST.map((_, i) => `Monk tone ${i + 1}`)];
+
+export const WORDS = { skin: SKIN_WORDS, hair: HAIR_WORDS, eye: EYE_WORDS,
+                       knit: KNIT_WORDS, coat: COAT_WORDS };
 
 const RIG_LITERALS = {
   goldendoodle: ['#F0DCC0', '#DFC4A0', '#CBA57C', '#6B5648'],
@@ -123,12 +169,19 @@ const CONTRAST_FLOOR = 0.06;
 /* The palettes, exported so the builder at /make can show a parent the actual
    swatches rather than an abstract "option 3". The builder and the renderer
    must read the same arrays or the preview stops predicting the card. */
+const opt = (arr, words, pick) => arr.map((v, i) => ({
+  i, swatch: pick ? pick(v) : v, name: words[i] || `option ${i + 1}`,
+}));
+
 export const OPTIONS = {
-  skin: SKINS.map((s, i) => ({ i, swatch: s[0] })),
-  hair: HAIRS.map((h, i) => ({ i, swatch: h })),
-  eye:  EYES.map((e, i) => ({ i, swatch: e })),
-  knit: KNITS.map((k, i) => ({ i, swatch: k })),
-  coat: COATS.map((c, i) => ({ i, swatch: c[0] })),
+  /* Only the MST range is offered to new cards. The six eyeballed tones above
+     it still RENDER, because they are in links already sent — they are just no
+     longer something new work can be built on. */
+  skin: opt(SKINS, SKIN_WORDS, (v) => v[0]).slice(6),
+  hair: opt(HAIRS, HAIR_WORDS),
+  eye:  opt(EYES, EYE_WORDS),
+  knit: opt(KNITS, KNIT_WORDS),
+  coat: opt(COATS, COAT_WORDS, (v) => v[0]),
 };
 
 /** Which questions a species can answer. The builder reads this rather than
@@ -279,6 +332,111 @@ export function castFrom(list, max = 3) {
     seen.add(key);
     const c = characterFor(n);
     if (c) out.push(c);
+  }
+  return out;
+}
+
+/* ---------------------------------------------------------------------------
+   describe() -- "a smiling blonde blue eyed woman" -> a character.
+
+   WHY THIS EXISTS. Every real request for a character arrives as a sentence.
+   Nobody thinks "skin 8, hair 7, eyes 1"; they think "my mum, grey hair, glasses"
+   or "our black cat". Eleven tap-screens is the right FALLBACK and a poor front
+   door, so a parent can now just say it and correct whatever came out wrong.
+
+   WHY IT IS NOT AN LLM CALL, which is the obvious 2026 answer. The current
+   pattern is deterministic tools doing the extraction and a model doing only
+   the parts that need reasoning -- and this needs none. It is a closed
+   vocabulary mapping onto five enumerations. A model here would buy nothing and
+   cost the three things that matter most on this domain:
+
+     - the promise. kide.us tells every parent nothing leaves the device. A
+       description of a named family member is exactly the kind of thing that
+       must not become an API request, and "it is only the adult, not the child"
+       is the sort of distinction that erodes.
+     - latency. This runs on each keystroke to drive a live preview.
+     - working at all. No network, no key, no rate limit, no outage, no cost,
+       and identical output forever -- which is the same property the rest of
+       this file is built on.
+
+   Unmatched words are ignored rather than guessed at, so a sentence this does
+   not understand degrades to the hash default and the tap-screens are still
+   there behind it. It is a shortcut, never the only road.
+--------------------------------------------------------------------------- */
+
+const SPECIES_WORDS = [
+  [/\b(dog|puppy|pup|doggy|doodle|retriever|labrador|terrier|hound)\b/, 'goldendoodle'],
+  [/\b(cat|kitten|kitty|tabby|moggy|chatul\w*)\b/, 'cat'],
+  [/\b(toy|teddy|bear|plush|stuffed|doll|sprout)\b/, 'toy'],
+  [/\b(woman|man|lady|girl|boy|person|grandma|grandpa|granny|nan|mum|mom|dad|aunt\w*|uncle|cousin|sister|brother|friend|human|she|he|they)\b/, 'friend'],
+];
+
+/* Colour words -> index, per trait. Kept as words a person would actually use,
+   including the ones that are not colours at all ("redhead", "brunette"). */
+const HAIR_WORDS_IN = [
+  [/\b(blonde?|blond|golden.?hair\w*|fair.?hair\w*)\b/, 7],
+  [/\b(platinum|bleached|very light|pale blonde?)\b/, 8],
+  [/\b(silver|white.?hair\w*|grey.?hair\w*|gray.?hair\w*)\b/, 10],
+  [/\b(redhead|ginger.?hair\w*|red.?hair\w*|auburn)\b/, 9],
+  [/\b(black.?hair\w*|jet.?black)\b/, 3],
+  [/\b(brunette|dark.?hair\w*|dark brown hair)\b/, 1],
+  [/\b(brown.?hair\w*|chestnut)\b/, 4],
+];
+const EYE_WORDS_IN = [
+  [/\bblue[- ]?eye\w*|\beyes? (?:are |of )?blue\b/, 1],
+  [/\bgreen[- ]?eye\w*|\beyes? (?:are |of )?green\b/, 2],
+  [/\bhazel[- ]?eye\w*|\bhazel\b/, 3],
+  [/\bbrown[- ]?eye\w*|\beyes? (?:are |of )?brown\b/, 3],
+  [/\bdark[- ]?eye\w*|\bblack[- ]?eye\w*/, 4],
+  [/\bgrey[- ]?eye\w*|\bgray[- ]?eye\w*/, 5],
+];
+/* Skin maps onto the MST range (offset 6), not the legacy six. */
+const SKIN_WORDS_IN = [
+  [/\b(palest|very (?:pale|fair)|porcelain)\b/, 6],
+  [/\b(pale|fair)[- ]?skin\w*|\b(pale|fair)\b/, 7],
+  [/\b(light)[- ]?skin\w*/, 8],
+  [/\b(olive|medium|tan|tanned)[- ]?skin\w*|\b(olive|tanned)\b/, 10],
+  [/\b(brown)[- ]?skin\w*/, 12],
+  [/\b(dark|deep)[- ]?skin\w*|\b(dark.?skinned)\b/, 13],
+  [/\b(very dark|darkest)[- ]?skin\w*/, 15],
+  [/\b(black)[- ]?skin\w*/, 14],
+];
+const COAT_WORDS_IN = [
+  [/\bblack\b/, 2], [/\bwhite\b/, 3], [/\b(golden|gold)\b/, 4],
+  [/\b(grey|gray|silver)\b/, 5], [/\b(brown|chocolate)\b/, 6],
+  [/\b(ginger|orange|marmalade|tabby)\b/, 1], [/\b(cream|blonde?|fawn)\b/, 0],
+];
+
+const firstMatch = (text, table) => {
+  for (const [re, val] of table) if (re.test(text)) return val;
+  return null;
+};
+
+/**
+ * @param {string} text  a free-text description
+ * @param {string} [name]
+ * @returns {{name:string, species:string, skin:number|null, hair:number|null,
+ *            eye:number|null, knit:number|null, coat:number|null, matched:string[]}}
+ */
+export function describe(text, name = '') {
+  const t = String(text || '').toLowerCase().normalize('NFC');
+  const matched = [];
+  const species = firstMatch(t, SPECIES_WORDS) || 'friend';
+  if (firstMatch(t, SPECIES_WORDS)) matched.push('species');
+
+  const out = { name: String(name || '').trim(), species,
+                skin: null, hair: null, eye: null, knit: null, coat: null, matched };
+
+  if (species === 'friend') {
+    out.hair = firstMatch(t, HAIR_WORDS_IN);
+    out.eye = firstMatch(t, EYE_WORDS_IN);
+    out.skin = firstMatch(t, SKIN_WORDS_IN);
+    if (out.hair !== null) matched.push('hair');
+    if (out.eye !== null) matched.push('eye');
+    if (out.skin !== null) matched.push('skin');
+  } else if (species !== 'toy') {
+    out.coat = firstMatch(t, COAT_WORDS_IN);
+    if (out.coat !== null) matched.push('coat');
   }
   return out;
 }

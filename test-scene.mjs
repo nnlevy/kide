@@ -633,6 +633,62 @@ console.log('--- the naming flow ---');
     ok('a known name pre-selects its rig instead', /seedKindFromName/.test(page));
   }
 
+
+  // ---- the Monk Skin Tone Scale, and why the old six still render ----------
+  {
+    const { OPTIONS, WORDS, describe } = await import('./public/scene/cast.js');
+    eq('ten skin tones are offered', OPTIONS.skin.length, 10);
+    eq('the offered range starts at the MST block, not the eyeballed six',
+       OPTIONS.skin[0].i, 6);
+    ok('the lightest MST tone renders', characterFor('X~p6000').svg.includes('#f6ede4'));
+    ok('the darkest MST tone renders', characterFor('X~pf000').svg.includes('#292420'));
+    // Links already sent encode the original indices. They must keep working
+    // forever even though nothing new is built on them.
+    for (let i = 0; i < 6; i++) {
+      ok(`legacy skin index ${i} still renders`, !!characterFor(`X~p${i}000`));
+    }
+    // Every swatch must say what it is: a grid of pure colour labelled
+    // "option 3" is unusable without colour vision.
+    for (const k of ['skin', 'hair', 'eye', 'knit', 'coat']) {
+      ok(`every ${k} swatch is named`,
+         OPTIONS[k].every((o) => typeof o.name === 'string' && o.name.length > 2
+                                 && !/^option /.test(o.name)));
+    }
+
+    // ---- describe(): the sentence a parent actually says -------------------
+    const d = (t) => describe(t, 'X');
+    eq('"a smiling blonde blue eyed woman" is a person', d('a smiling blonde blue eyed woman').species, 'friend');
+    eq('...and is blonde', WORDS.hair[d('a smiling blonde blue eyed woman').hair], 'blonde');
+    eq('...with blue eyes', WORDS.eye[d('a smiling blonde blue eyed woman').eye], 'blue');
+    eq('"our black cat" is a cat', d('our black cat').species, 'cat');
+    eq('...and is black', WORDS.coat[d('our black cat').coat], 'black');
+    eq('"a golden doodle" is the dog', d('a golden doodle').species, 'goldendoodle');
+    eq('"teddy bear" is the toy', d('teddy bear').species, 'toy');
+    eq('"grandma with silver hair" is a person', d('grandma with silver hair').species, 'friend');
+    eq('...with silver hair', WORDS.hair[d('grandma with silver hair').hair], 'silver');
+    eq('"a redhead" is ginger', WORDS.hair[d('a redhead').hair], 'ginger');
+    eq('"dark skinned" maps into the MST range', d('dark skinned').skin >= 6, true);
+    // An unrecognised sentence must leave everything unset rather than guess.
+    const none = d('just some words that mean nothing');
+    ok('an unmatched sentence sets nothing',
+       none.hair === null && none.eye === null && none.skin === null && none.coat === null);
+    ok('an unmatched sentence reports matching nothing', none.matched.length === 0);
+    // A cat is never given hair, whatever the sentence says.
+    eq('a black cat with blonde hair is still just a black cat',
+       d('our black cat with blonde hair').hair, null);
+    ok('describe() never throws', ['', null, undefined, '   ', 'x'.repeat(500)]
+       .every((v) => !!describe(v, 'n')));
+
+    const page = fs.readFileSync('public/make/index.html', 'utf8');
+    ok('the builder opens with the description field', /id: 'describe'/.test(page));
+    ok('the builder names its swatches', /o\.name/.test(page) && /sw-name/.test(page));
+    // The promise on this domain is that nothing leaves the device. A
+    // description of a named family member must not become a request.
+    const cast = fs.readFileSync('public/scene/cast.js', 'utf8');
+    ok('cast.js still makes no network call of any kind',
+       !/fetch\(|XMLHttpRequest|sendBeacon|new Image|import\(/.test(cast));
+  }
+
   eq('the cast is capped at three', castFrom('a,b,c,d,e').length, 3);
   eq('a name repeated is only drawn once', castFrom('Kaleigh,kaleigh,Nir').length, 2);
   eq('empty entries are dropped', castFrom('Kaleigh,,  ,Nir').length, 2);
