@@ -28,7 +28,7 @@
   button to hunt for on a choice screen.
 
   THE QUESTIONS ARE NOT A FIXED LIST. What gets asked depends on what has been
-  answered: a dog is never asked about hair colour, and a person is never asked
+  answered: a dog is never asked about hair color, and a person is never asked
   what breed they are. STEPS below is a list of screens each of which declares
   when it applies, so adding a question is adding one entry rather than editing
   a flow.
@@ -75,7 +75,7 @@
   .opt[aria-pressed="true"]{border-color:var(--grass-deep)}
   .opt .sub{font-size:12.5px;font-weight:600;color:var(--ink-faint)}
   .opt .em{font-size:28px}
-  /* Colour choices are the colour, at a size a thumb can hit. A swatch grid is
+  /* Color choices are the color, at a size a thumb can hit. A swatch grid is
      the one place where showing the answer beats naming it. */
   .swatches{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:12px;margin-top:6px}
   .sw{height:72px;border-radius:18px;border:4px solid #fff;cursor:pointer;padding:0;
@@ -256,7 +256,7 @@ const STEPS = [
   /* THE APPEARANCE QUESTIONS ARE GENERATED FROM THE RIG, NOT LISTED HERE.
      cast.js exports TRAITS_FOR — which traits each rig actually declares — and
      these screens are built from it. That is what makes the form adaptive in
-     the real sense: a dog cannot be asked its hair colour because the
+     the real sense: a dog cannot be asked its hair color because the
      goldendoodle rig has no hair, and giving a rig a new trait adds its
      question here with no edit to this flow. The version this replaces
      hard-coded `kind === 'person'` on three screens and then needed a special

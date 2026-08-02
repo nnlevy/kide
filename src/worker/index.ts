@@ -484,7 +484,20 @@ function renderGift(url: URL): Response {
   const headline = to ? `A little gift for ${to}` : "A little gift";
   const sub = from ? `from ${from}` : "";
   const cardTitle = sub ? `${headline}, ${sub}` : headline;
+  /* The preview in the message is a TEXT card — the portfolio OG renderer draws
+     type, not art — so the cast that now holds the top of the page cannot
+     appear in it as a picture. It can at least be named. A parent's own note
+     always wins; this only replaces the generic fallback, which said nothing
+     about what was actually inside. */
+  const castNames = cast.map((c) => c.split("~")[0].trim()).filter(Boolean);
+  const castLine = castNames.length === 1
+    ? `${castNames[0]} is waiting inside.`
+    : castNames.length > 1
+      ? `${castNames.slice(0, -1).join(", ")} and ${castNames[castNames.length - 1]} are waiting inside.`
+      : "";
   const description = note
+    || (castLine && `${castLine} It's free, there are no accounts and no ads, and nothing a `
+        + "child says ever leaves the device.")
     || `${to || "Someone little"} can play this on any phone or tablet. It's free, there are no `
      + "accounts and no ads, and nothing a child says ever leaves the device.";
 
