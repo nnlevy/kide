@@ -32,8 +32,16 @@ const POS_LABEL = { initial: 'at the start', medial: 'in the middle', final: 'at
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;');
 
-const ogUrl = (title, path) =>
+/* The portfolio OG renderer takes a description, and if you do not send one it
+   falls back to the brand tagline for the domain. kide.us is not in that
+   registry, so the fallback was the generic "Part of the Growth.Business
+   portfolio" — which is what every share of every Kide page has been showing
+   underneath the headline. Sending the page's own description costs nothing
+   and is the difference between a card that reads like this product and one
+   that reads like a directory listing. */
+const ogUrl = (title, path, description) =>
   `https://www.growth.business/api/og?domain=kide.us&title=${encodeURIComponent(title)}`
+  + (description ? `&description=${encodeURIComponent(description)}` : '')
   + `&template=page&path=${encodeURIComponent(path)}`;
 
 /** The @graph every page in the portfolio carries. */
@@ -72,14 +80,14 @@ ${keywords ? `<meta name="keywords" content="${esc(keywords)}">\n` : ''}<link re
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:url" content="${url}">
-<meta property="og:image" content="${ogUrl(title, path)}">
+<meta property="og:image" content="${ogUrl(title, path, description)}">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${esc(title)}">
 <meta name="twitter:description" content="${esc(description)}">
-<meta name="twitter:image" content="${ogUrl(title, path)}">
+<meta name="twitter:image" content="${ogUrl(title, path, description)}">
 <script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@graph': jsonLd })}</script>
 <style>
   .verdict{background:#F2FBF5;border-left:4px solid var(--grass-dark);padding:18px 20px;

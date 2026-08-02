@@ -457,8 +457,16 @@ function renderGift(url: URL): Response {
 
   // Same portfolio OG renderer every other page on this domain uses, so the
   // message preview looks like Kide rather than like a bare link.
+  //
+  // The description is sent explicitly and that matters more here than
+  // anywhere. Without it the renderer falls back to the brand tagline for the
+  // domain, and kide.us is not in that registry, so the card under "A little
+  // gift for Elie" read "Part of the Growth.Business portfolio" — which is the
+  // opposite of a gift from one parent to another.
   const og = "https://www.growth.business/api/og?domain=kide.us"
-    + `&title=${encodeURIComponent(cardTitle)}&template=page&path=${encodeURIComponent("/gift")}`;
+    + `&title=${encodeURIComponent(cardTitle)}`
+    + `&description=${encodeURIComponent(description)}`
+    + `&template=page&path=${encodeURIComponent("/gift")}`;
 
   const body = `<!DOCTYPE html>
 <html lang="en">

@@ -43,7 +43,11 @@ const DESC =
   + 'detection — generated from a child\'s own home practice, on the family\'s device. Free for '
   + 'families. No audio, no voiceprints, no account, and nothing reaches a server.';
 
+// Description sent explicitly: without it the portfolio OG renderer falls back
+// to the brand tagline, and kide.us is not in that registry, so every share of
+// this page showed "Part of the Growth.Business portfolio" under the headline.
 const ogUrl = `https://www.growth.business/api/og?domain=kide.us&title=${encodeURIComponent(TITLE)}`
+  + `&description=${encodeURIComponent(DESC)}`
   + `&template=page&path=${encodeURIComponent(PATH)}`;
 
 /* The questions an SLP actually asks, answered the way a colleague would answer
