@@ -38,6 +38,25 @@
   .note{font-size:13px;color:var(--ink-soft);background:#FAF7F0;border-left:3px solid #EFE9DA;
         padding:11px 13px;border-radius:0 10px 10px 0;margin-top:12px}
   .note b{color:var(--ink)}
+  /* gift builder */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .field{display:flex;flex-direction:column;gap:4px;font-size:11px;text-transform:uppercase;
+         letter-spacing:.05em;color:var(--ink-faint);font-weight:700}
+  .field input,.field select{font:inherit;font-size:16px;text-transform:none;letter-spacing:0;
+    font-weight:400;color:var(--ink);padding:12px 14px;border:2px solid #EFE9DA;border-radius:14px;
+    background:#fff;min-height:48px;width:100%}
+  /* A mock of the message card, because the whole reason this page exists is
+     what the link looks like in somebody else's texts. */
+  .preview{display:flex;gap:12px;align-items:stretch;margin-top:14px;border:2px solid #EFE9DA;
+           border-radius:16px;overflow:hidden;background:#fff}
+  .preview-img{width:96px;flex:none;display:flex;align-items:center;justify-content:center;
+               font-size:40px;background:linear-gradient(180deg,#56C6E6,#BDEBFF)}
+  .preview-txt{padding:11px 13px;display:flex;flex-direction:column;gap:3px;min-width:0}
+  .preview-txt b{font-size:14.5px;line-height:1.3}
+  .preview-txt span{font-size:12.5px;color:var(--ink-soft);line-height:1.35;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .preview-txt i{font-size:11px;color:var(--ink-faint);font-style:normal;text-transform:uppercase;
+    letter-spacing:.04em}
   .link{word-break:break-all;font-size:12px;color:var(--ink-faint);margin-top:10px}
 </style>
 <link rel="stylesheet" href="../mobile.css">
@@ -119,6 +138,47 @@
     </div>
   </div>
 
+  <!-- Sharing Kide with another family is the only distribution this product
+       has, and until now the only way to do it was to paste a bare URL. A bare
+       URL previews as a grey rectangle; a gift with a child's name on it does
+       not, and the difference is whether the other parent opens it. -->
+  <div class="card">
+    <h2>Send Kide to another family</h2>
+    <p class="muted">Makes a small page addressed to a particular child, with a preview card that
+      shows up properly when you text it. Nothing you type here is stored anywhere — it travels in
+      the link itself and we never see it.</p>
+    <div class="grid2" style="margin-top:12px">
+      <label class="field">For<input id="giftTo" placeholder="Elie" maxlength="24" autocomplete="off"></label>
+      <label class="field">From<input id="giftFrom" placeholder="Kaleigh" maxlength="24" autocomplete="off"></label>
+    </div>
+    <label class="field" style="margin-top:10px">A short note (optional)
+      <input id="giftNote" placeholder="Thought Elie might love this one." maxlength="140" autocomplete="off">
+    </label>
+    <label class="field" style="margin-top:10px">Opens
+      <select id="giftDest">
+        <option value="/play">Pip's game — colors, counting, shapes, letters, feelings</option>
+        <option value="/words">Say it with me — the speech practice</option>
+        <option value="/sounds">Speech sounds by age — for a worried parent</option>
+      </select>
+    </label>
+
+    <div class="preview" id="giftPreview" hidden>
+      <div class="preview-img">🌱</div>
+      <div class="preview-txt">
+        <b id="giftPrevTitle">A little gift</b>
+        <span id="giftPrevDesc"></span>
+        <i>kide.us</i>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:12px">
+      <button class="primary" id="btnGiftShare">Share link</button>
+      <button id="btnGiftCopy">Copy link</button>
+      <a class="btn" id="btnGiftOpen" href="/gift" target="_blank" rel="noopener">Preview</a>
+    </div>
+    <p class="muted" id="giftMsg" style="margin-top:10px;min-height:18px"></p>
+  </div>
+
   <!-- Moved here from the homepage when Letters and Feelings shipped. It sat
        under "more concept packs are coming", which stopped being true, and a
        cold homepage is the worst place to ask: a parent who has reached the
@@ -153,6 +213,74 @@ import { LEX, keyOf } from '../engine/lexicon.js';
 const $ = (id) => document.getElementById(id);
 let record = null;
 window.__kideParent = () => ({ record, events: Journal.count() });
+
+/* ---- the gift link ------------------------------------------------------
+   Built entirely in the page. The names never reach a server from here: they
+   go into a URL the parent then sends to somebody, and the Worker renders that
+   URL for whoever opens it without storing a thing.
+
+   The live preview is not decoration. The reason to build a gift page rather
+   than paste kide.us into a text is the card the other parent sees, so a
+   parent should be able to see that card before they send it. */
+const giftFields = ['giftTo', 'giftFrom', 'giftNote', 'giftDest'].map($);
+
+function giftUrl() {
+  const u = new URL('/gift', location.origin);
+  const to = $('giftTo').value.trim();
+  const from = $('giftFrom').value.trim();
+  const note = $('giftNote').value.trim();
+  const dest = $('giftDest').value;
+  if (to) u.searchParams.set('to', to);
+  if (from) u.searchParams.set('from', from);
+  if (note) u.searchParams.set('note', note);
+  if (dest && dest !== '/play') u.searchParams.set('t', dest);
+  return u.toString();
+}
+
+function giftRefresh() {
+  const to = $('giftTo').value.trim();
+  const from = $('giftFrom').value.trim();
+  const note = $('giftNote').value.trim();
+  const headline = to ? `A little gift for ${to}` : 'A little gift';
+  $('giftPrevTitle').textContent = from ? `${headline}, from ${from}` : headline;
+  $('giftPrevDesc').textContent = note
+    || `${to || 'Someone little'} can play this on any phone or tablet. It's free, there are no `
+     + 'accounts and no ads, and nothing a child says ever leaves the device.';
+  $('giftPreview').hidden = false;
+  $('btnGiftOpen').href = giftUrl();
+}
+giftFields.forEach((f) => f.addEventListener('input', giftRefresh));
+$('giftDest').addEventListener('change', giftRefresh);
+giftRefresh();
+
+$('btnGiftCopy').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(giftUrl());
+    $('giftMsg').textContent = 'Link copied — paste it into a message.';
+  } catch {
+    $('giftMsg').textContent = giftUrl();
+  }
+});
+
+/* Hands the link straight to the phone's own share sheet where there is one,
+   which is the difference between "copy this and go find Messages" and one tap. */
+$('btnGiftShare').addEventListener('click', async () => {
+  const url = giftUrl();
+  const to = $('giftTo').value.trim();
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: to ? `A little gift for ${to}` : 'A little gift', url });
+      $('giftMsg').textContent = '';
+      return;
+    } catch { /* the share sheet was dismissed — not an error */ }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    $('giftMsg').textContent = 'Sharing isn\'t available on this device — link copied instead.';
+  } catch {
+    $('giftMsg').textContent = url;
+  }
+});
 
 /* The one thing on this page that leaves the device, and only because a parent
    typed it and pressed a button. Nothing about the child goes with it — not the

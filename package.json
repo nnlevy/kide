@@ -28,13 +28,14 @@
 		"test:seo": "npm run seo --silent && node test-seo.mjs",
 		"test:billing": "node test-billing.mjs",
 		"test:packs": "node test-packs.mjs",
+		"test:gift": "npm run seo:sitemap --silent && node test-gift.mjs",
 		"test:slps": "npm run seo:slps --silent && node test-slps.mjs",
 		"voice:words:render": "node tools/voice/render-words.mjs",
 		"test:mobile": "npm run build && node test-mobile.mjs",
 		"lexicon:build": "python3 tools/lexicon/build_lexicon.py && python3 tools/lexicon/build_play_targets.py",
 		"calibrate": "python3 tools/calibrate/calibrate.py",
 		"share:render": "node tools/share/card.js",
-		"test": "npm run test:engine && npm run test:scene && npm run test:clinical && npm run test:speech && npm run test:journal && npm run test:words-voice && npm run test:voice-pack && npm run test:seo && npm run test:billing && npm run test:packs && npm run test:slps && npm run test:mobile && npm run test:voice && node test-routines.js",
+		"test": "npm run test:engine && npm run test:scene && npm run test:clinical && npm run test:speech && npm run test:journal && npm run test:words-voice && npm run test:voice-pack && npm run test:seo && npm run test:billing && npm run test:packs && npm run test:gift && npm run test:slps && npm run test:mobile && npm run test:voice && node test-routines.js",
 		"demo:render": "npm run build && node tools/share/demo.js"
 	},
 	"devDependencies": {

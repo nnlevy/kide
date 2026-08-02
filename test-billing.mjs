@@ -49,9 +49,15 @@ const wrangler = JSON.parse(readFileSync('wrangler.json', 'utf8'));
  * the worker names riskfreetrial.org in prose precisely to warn the next person
  * off calling it, and a naive search would read that warning as the violation
  * it exists to prevent. It also stops a comment from satisfying a code check. */
+// Line comments FIRST, then block comments — the order is load-bearing.
+// src/worker/index.ts contains the line "caching for /voice/* lives in", and
+// stripping block comments first reads that "/*" as the start of one, then
+// swallows everything up to the next "*/" thousands of lines later. It took
+// out the whole clinician handler and six assertions went red for a reason
+// that had nothing to do with the code they test.
 const stripComments = (s) => s
-  .replace(/\/\*[\s\S]*?\*\//g, '')
-  .replace(/(^|[^:])\/\/.*$/gm, '$1');
+  .replace(/(^|[^:])\/\/.*$/gm, '$1')
+  .replace(/\/\*[\s\S]*?\*\//g, '');
 const workerCode = stripComments(worker);
 
 const scriptBlocks = [...page.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);

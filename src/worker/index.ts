@@ -1,6 +1,6 @@
 // Sitemap and robots are GENERATED from the pages that actually exist -- the
 // hand-written version silently went stale and was missing five live pages.
-import { SITEMAP, ROBOTS } from "./seo-generated";
+import { SITEMAP, ROBOTS, PUBLIC_ROUTES } from "./seo-generated";
 
 // kide.us is a leaf on the Quizbiz portfolio billing hub (riskfreetrial) and
 // growth control plane (newgrowthbusiness) -- see wrangler.json "services".
@@ -106,6 +106,15 @@ export default {
 
     if (url.pathname === "/robots.txt") {
       return new Response(ROBOTS, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+    }
+
+    // A gift link a parent made and texted to somebody. Rendered here rather
+    // than as a static page because the whole point is the preview card that
+    // appears in the message, and a crawler building that card does not run
+    // JavaScript -- names injected client-side would show up as an empty
+    // template in iMessage.
+    if (url.pathname === "/gift" || url.pathname === "/gift/") {
+      return renderGift(url);
     }
 
     if (url.pathname === "/api/health") {
@@ -371,6 +380,166 @@ async function handleClinicianApi(request: Request, env: Env, url: URL): Promise
     console.warn("clinician checkout rpc failed", e);
     return json({ ok: false, error: "Billing service unavailable — try again shortly" }, 503);
   }
+}
+
+// ── The gift link ────────────────────────────────────────────────────────────
+//
+// A parent fills in a short form on /parent and gets a URL to text somebody:
+// "a gift for Elie, from Kaleigh". This renders that page, and — the reason it
+// is server-side at all — the Open Graph card that appears in the message.
+//
+// THIS IS THE ONLY SURFACE ON KIDE.US WHERE ONE PERSON'S INPUT IS RENDERED TO
+// ANOTHER PERSON'S SCREEN. Everywhere else the audience for a value is the
+// device that produced it. So the rules here are stricter than anywhere else
+// in this Worker:
+//
+//   - Names are stripped to letters, spaces, apostrophes and hyphens, and
+//     capped. Not escaped-and-hoped: an allow-list of characters, so there is
+//     nothing left to escape by the time it reaches the template. The note
+//     field, which cannot be reduced to letters, is HTML-escaped on top.
+//   - The destination is checked against PUBLIC_ROUTES, which is generated
+//     from the pages that actually exist. An allow-list that maintains itself
+//     cannot go stale, and there is no path by which this becomes an open
+//     redirect.
+//   - NOTHING IS STORED. No KV write, no D1 row, no log line. A child's first
+//     name arrives in a query string because a parent chose to put it there,
+//     and it leaves again with the response. There is no reason for us to keep
+//     it and every reason not to.
+//   - noindex. A personal link is not a page for a search engine.
+const GIFT_NAME_MAX = 24;
+const GIFT_NOTE_MAX = 140;
+
+const escHtml = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+   .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+/** Letters (any alphabet), spaces, apostrophes, hyphens. Nothing else survives. */
+function giftName(raw: string | null): string {
+  if (!raw) return "";
+  return raw.normalize("NFC").replace(/[^\p{L}\p{M} '’-]/gu, "").replace(/\s+/g, " ")
+            .trim().slice(0, GIFT_NAME_MAX);
+}
+
+function giftNote(raw: string | null): string {
+  if (!raw) return "";
+  return raw.normalize("NFC").replace(/[^\p{L}\p{M}\p{N} .,!?'’—-]/gu, "")
+            .replace(/\s+/g, " ").trim().slice(0, GIFT_NOTE_MAX);
+}
+
+/** Destination, validated against the routes the site actually publishes. */
+function giftDestination(raw: string | null): { path: string; label: string } {
+  const fallback = { path: "/play", label: "Pip's game" };
+  if (!raw) return fallback;
+  const path = raw.startsWith("/") ? raw : `/${raw}`;
+  if (!PUBLIC_ROUTES.includes(path)) return fallback;
+  if (path === "/play") return fallback;
+  if (path === "/words") return { path, label: "Say it with me" };
+  if (path === "/sounds") return { path, label: "Speech sounds by age" };
+  if (path.startsWith("/sounds/")) {
+    return { path, label: `The “${path.slice("/sounds/".length)}” sound` };
+  }
+  if (path.startsWith("/guides/")) return { path, label: "a guide for grown-ups" };
+  return { path, label: "Kide" };
+}
+
+function renderGift(url: URL): Response {
+  const to = giftName(url.searchParams.get("to"));
+  const from = giftName(url.searchParams.get("from"));
+  const note = giftNote(url.searchParams.get("note"));
+  const dest = giftDestination(url.searchParams.get("t"));
+
+  const headline = to ? `A little gift for ${to}` : "A little gift";
+  const sub = from ? `from ${from}` : "";
+  const cardTitle = sub ? `${headline}, ${sub}` : headline;
+  const description = note
+    || `${to || "Someone little"} can play this on any phone or tablet. It's free, there are no `
+     + "accounts and no ads, and nothing a child says ever leaves the device.";
+
+  // Same portfolio OG renderer every other page on this domain uses, so the
+  // message preview looks like Kide rather than like a bare link.
+  const og = "https://www.growth.business/api/og?domain=kide.us"
+    + `&title=${encodeURIComponent(cardTitle)}&template=page&path=${encodeURIComponent("/gift")}`;
+
+  const body = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escHtml(cardTitle)} · Kide</title>
+<meta name="description" content="${escHtml(description)}">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#56C6E6">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Kide">
+<meta property="og:title" content="${escHtml(cardTitle)}">
+<meta property="og:description" content="${escHtml(description)}">
+<meta property="og:url" content="${escHtml(url.origin)}/gift">
+<meta property="og:image" content="${escHtml(og)}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${escHtml(cardTitle)}">
+<meta name="twitter:description" content="${escHtml(description)}">
+<meta name="twitter:image" content="${escHtml(og)}">
+<link rel="stylesheet" href="/guides/shared.css">
+<link rel="stylesheet" href="/mobile.css">
+<style>
+  body{background:linear-gradient(180deg,#56C6E6,#BDEBFF);min-height:100vh}
+  .gift{max-width:560px;margin:0 auto;padding:38px 22px 60px;text-align:center;color:#fff}
+  .gift .sprout{font-size:64px;line-height:1}
+  .gift h1{font-size:clamp(28px,7vw,42px);margin:10px 0 4px;color:#fff;text-shadow:0 3px 0 rgba(0,0,0,.08)}
+  .gift .from{font-size:19px;font-weight:800;opacity:.95;margin:0}
+  .gift .note{background:rgba(255,255,255,.92);color:#2E3A3F;border-radius:20px;padding:18px 20px;
+              margin:22px 0 0;font-size:17px;line-height:1.5;box-shadow:0 4px 0 rgba(0,0,0,.08)}
+  .gift .what{background:#FFFBF2;color:#2E3A3F;border-radius:20px;padding:20px;margin-top:16px;text-align:left}
+  .gift .what b{display:block;margin-bottom:6px}
+  .gift .what ul{margin:8px 0 0;padding-left:18px;font-size:15px;color:#5B6A67}
+  .gift .what li{margin:4px 0}
+  .gift .go{display:inline-block;margin-top:26px;border-radius:999px;padding:18px 36px;font-size:19px;
+            font-weight:800;color:#fff;text-decoration:none;
+            background:linear-gradient(180deg,#FF8A73,#F16E55);box-shadow:0 5px 0 rgba(0,0,0,.14)}
+  .gift .fine{font-size:13.5px;opacity:.92;margin-top:22px}
+  .gift .fine a{color:#fff}
+</style>
+</head>
+<body>
+<div class="gift">
+  <div class="sprout">🌱</div>
+  <h1>${escHtml(headline)}</h1>
+  ${sub ? `<p class="from">${escHtml(sub)}</p>` : ""}
+  ${note ? `<p class="note">${escHtml(note)}</p>` : ""}
+
+  <div class="what">
+    <b>What this is</b>
+    <p style="margin:0;font-size:15.5px;color:#5B6A67">Kide is a gentle learning game for little
+      children. Pip the Sprout reads every question out loud, so a child who can't read yet can
+      play on their own — and Pip gets sleepy at the end and asks to be tucked in, so screen time
+      finishes without a fight.</p>
+    <ul>
+      <li>Free, with no accounts and no ads</li>
+      <li>Nothing your child says ever leaves the device</li>
+      <li>Nothing is scored, and there is no way to lose</li>
+    </ul>
+  </div>
+
+  <a class="go" href="${escHtml(dest.path)}">Open ${escHtml(dest.label)}</a>
+  <p class="fine">Made by <a href="/">kide.us</a> · <a href="/privacy">privacy</a></p>
+</div>
+</body>
+</html>`;
+
+  return new Response(body, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      // Personal, and cheap to rebuild. Cached only by the sharing app that is
+      // fetching the preview, never by a shared cache.
+      "Cache-Control": "private, max-age=300",
+      "X-Robots-Tag": "noindex, nofollow",
+      "Referrer-Policy": "no-referrer",
+    },
+  });
 }
 
 function normalizeEmail(input: unknown): string | null {
