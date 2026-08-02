@@ -82,6 +82,12 @@ nav .row{display:flex;align-items:center;justify-content:space-between;}
 .hero h1{font-size:clamp(32px,7vw,52px);margin:6px 0 0;color:#fff;text-shadow:0 3px 0 rgba(0,0,0,.08);}
 .hero p{color:#fff;font-size:17px;margin:14px auto 0;opacity:.96;max-width:480px;}
 .cta{display:inline-block;margin-top:24px;border:none;border-radius:999px;padding:17px 34px;font-size:18px;font-weight:800;color:#fff;text-decoration:none;background:linear-gradient(180deg,var(--coral),var(--coral-deep));box-shadow:0 5px 0 rgba(0,0,0,.14);}
+/* BRAND.md: coral is "the one CTA color — if everything is a CTA, nothing is",
+   and there is one main action per screen. This page had two coral buttons
+   pointing at two different games. The hero keeps coral; the second entry
+   point becomes the sand-blue secondary the brand guide specifies, so both
+   routes survive and only one of them shouts. */
+.cta-secondary{background:linear-gradient(180deg,var(--sand),var(--sand-deep));}
 
 /* ---- sections ---- */
 section{margin-top:56px;}
@@ -153,8 +159,14 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
 <div class="wrap">
   <nav><div class="row">
     <a class="wordmark" href="/">kide</a>
+    <!-- Kept in step with every other adult-facing page (/sounds, /guides,
+         /for-slps). The homepage nav used to omit Guides entirely, which left
+         the guides hub with no route from the front door and buried the guide
+         that explains this page's own headline. Child-facing surfaces
+         (/words, /play) still carry no nav at all, on purpose. -->
     <div>
       <a class="nav-play" href="/sounds" style="border-color:var(--sand);color:var(--sand-deep);margin-right:8px;">Sounds</a>
+      <a class="nav-play" href="/guides" style="border-color:var(--sand);color:var(--sand-deep);margin-right:8px;">Guides</a>
       <a class="nav-play" href="/words">Practise</a>
     </div>
   </div></nav>
@@ -191,6 +203,13 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
       <div class="mini-card"><div class="emoji">🚽</div><b>Going Potty</b><span>Your child walks Pip through the whole routine — nothing scored</span></div>
       <div class="mini-card"><div class="emoji">🫧</div><b>Washing Hands</b><span>Water, soap, scrub, rinse, dry — in order, as many times as they like</span></div>
     </div>
+    <!-- The headline of this page is "the screen time that ends without a
+         meltdown", and the guide that substantiates it had exactly one inbound
+         link on the whole site — from a hub the homepage did not link either.
+         The claim that sells this product was the one claim with no route to
+         its evidence. Every other feature section already ends in a readmore;
+         this one now does too. -->
+    <p class="desc" style="margin-top:14px"><a class="readmore" href="/guides/screen-time-that-ends-itself">How the goodbye actually works, and why ending is Pip's idea →</a></p>
   </section>
 
   <section id="companions">
@@ -200,7 +219,7 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
       Then your child names them — and that name becomes the very first word they practise, because
       a name you chose is the most motivating word in the language.</p>
     <div class="companion-grid" id="companionGrid"></div>
-    <p class="desc" style="margin-top:22px"><a class="cta" href="/words">Meet them</a></p>
+    <p class="desc" style="margin-top:22px"><a class="cta cta-secondary" href="/words">Meet them</a></p>
   </section>
 
   <section id="lessons">
@@ -254,7 +273,14 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
 
   <footer>
     kide.us — a Quizbiz LLC product
-    <div class="links"><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></div>
+    <!-- The clinician surface lives in the footer rather than on the page. It
+         is the only page aimed at the customer who pays, so it needs a
+         site-wide route for both people and crawlers — but this page is
+         written for a worried parent, and a professional B2B block in the
+         middle of it would be addressed to the wrong reader. -->
+    <div class="links"><a href="/sounds">Sounds</a> · <a href="/guides">Guides</a> ·
+      <a href="/for-slps">For speech therapists</a></div>
+    <div class="links" style="margin-top:8px"><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></div>
     <div class="links" style="margin-top:8px">Part of the portfolio network ·
     <a href="https://growth.business/?from=kide.us">growth.business</a></div>
 </footer>

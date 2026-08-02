@@ -183,6 +183,74 @@ t('the reassurance is the lead, not the footnote', () => {
   }
 });
 
+console.log('\nthe front door reaches everything behind it');
+
+/* An audit found no orphans and still three real holes: the homepage nav
+ * omitted Guides, the guides hub had no route from the front door, and the one
+ * page aimed at the paying customer was invisible from the homepage. None of
+ * that breaks a build or shows up in a link checker — the pages render
+ * perfectly and simply never get visited. */
+
+const ADULT_PAGES = allPages.filter(([p]) =>
+  p === 'index.html' || /^public\/(sounds|guides|for-slps)\//.test(p) || p === 'public/sounds/index.html');
+
+t('every adult-facing page carries the same three nav links', () => {
+  // Three different navs were live at once: the homepage omitted Guides, and
+  // /guides called it "Play" pointing at /play while everyone else said
+  // "Practise" pointing at /words.
+  for (const [p, h] of ADULT_PAGES) {
+    const nav = (h.match(/<nav[\s\S]*?<\/nav>/) || [''])[0];
+    assert(nav, `${p} has no nav`);
+    for (const href of ['/words', '/sounds', '/guides']) {
+      assert(nav.includes(`href="${href}"`), `${p} nav is missing ${href}`);
+    }
+  }
+});
+
+t('child-facing surfaces still carry no nav at all', () => {
+  // The counterpart rule. /words and /play are played by a two-year-old, and
+  // consistency is not a reason to put adult navigation in front of them.
+  for (const p of ['public/words/index.html', 'public/play/index.html']) {
+    const h = read(p);
+    assert(!/<nav[\s>]/.test(h), `${p} has grown a nav — it is a child-facing surface`);
+  }
+});
+
+t('every public destination is one click from the homepage', () => {
+  // Individual sound pages are excepted: they are reached through the /sounds
+  // hub by design, and sixteen phoneme links on the homepage would serve the
+  // crawler rather than the parent.
+  const home = read('index.html');
+  const linked = new Set([...home.matchAll(/href="(\/[^"#?]*)"/g)]
+    .map((m) => m[1].replace(/\/$/, '') || '/'));
+  const xml = read('public/sitemap.xml');
+  const routes = [...xml.matchAll(/<loc>https:\/\/kide\.us([^<]*)<\/loc>/g)]
+    .map((m) => m[1]).filter((r) => r !== '/' && !/^\/sounds\/./.test(r));
+  const missing = routes.filter((r) => !linked.has(r));
+  assert.equal(missing.length, 0, `not reachable from the homepage: ${missing.join(', ')}`);
+});
+
+t('the page that sells this product links to the evidence for its own headline', () => {
+  // The H1 promises screen time that ends without a meltdown. The guide that
+  // substantiates that had one inbound link site-wide, from a hub the homepage
+  // did not link either.
+  const home = read('index.html');
+  assert(/href="\/guides\/screen-time-that-ends-itself"/.test(home),
+    'the homepage no longer links the guide explaining its own headline');
+});
+
+t('one coral call to action on the homepage, as the brand guide requires', () => {
+  // docs/BRAND.md: coral is "the one CTA color -- if everything is a CTA,
+  // nothing is", and there is one main action per screen. Two coral buttons
+  // pointing at two different games was live for a while.
+  const home = read('index.html');
+  const ctas = [...home.matchAll(/class="cta([^"]*)"/g)].map((m) => m[1].trim());
+  assert(ctas.length >= 1, 'the homepage has no call to action at all');
+  const primary = ctas.filter((c) => !c.includes('cta-secondary'));
+  assert.equal(primary.length, 1,
+    `expected exactly one primary (coral) CTA, found ${primary.length}`);
+});
+
 console.log('\nthe technical surface is complete');
 
 const PRIVATE_PAGE = /\/(bench|engine|scene|parent|clinician)\//;
