@@ -22,13 +22,15 @@
 
 import { ACTORS } from './actors.js';
 
-/** The companions the product actually has, by the name a child would type. */
-const KNOWN = {
+/** The companions the product actually has, by the name a child would type.
+ *  Null-prototype: a plain object answers KNOWN['constructor'] with a function,
+ *  and every lookup here is attacker-supplied text from a URL. */
+const KNOWN = Object.assign(Object.create(null), {
   butterbean: 'goldendoodle',
   marmalade: 'cat',
   rosie: 'friend',
   pip: 'toy',
-};
+});
 
 /** FNV-1a. Small, stable across engines, and -- the property that matters here
  *  -- identical for the same string forever, so a card regenerated next year
@@ -94,7 +96,16 @@ const RIG_LITERALS = {
   cat:          ['#EDB57E', '#D9995F', '#C07F49', '#7A5540'],
 };
 
+/** For matching against KNOWN, where stripping to bare latin letters is right:
+ *  "Butter-bean" and "butterbean" are the same companion. */
 const norm = (n) => String(n || '').trim().toLowerCase().replace(/[^a-z]/g, '');
+
+/** For deciding whether two cast entries are the SAME PERSON, where stripping
+ *  is catastrophic. norm() reduces every non-latin name to the empty string, so
+ *  a card naming two Hebrew people — or two emoji, or two Japanese names — saw
+ *  '' twice and silently dropped the second. Identity is the literal name,
+ *  case- and whitespace-insensitive and nothing more. */
+const identity = (n) => String(n || '').trim().toLowerCase().replace(/\s+/g, ' ').normalize('NFC');
 
 /* Relative luminance, sRGB. Used for one job only: stopping the generator from
    handing somebody a character whose hair is invisible against their skin.
@@ -263,7 +274,7 @@ export function castFrom(list, max = 3) {
   const seen = new Set();
   const out = [];
   for (const n of names) {
-    const key = norm(parseSpec(n).name);
+    const key = identity(parseSpec(n).name);
     if (seen.has(key)) continue;
     seen.add(key);
     const c = characterFor(n);

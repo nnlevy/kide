@@ -575,6 +575,64 @@ console.log('--- the naming flow ---');
        !/goTo\('more'\); return;/.test(page));
   }
 
+
+  // ---- adversarial input ---------------------------------------------------
+  // Everything here reaches characterFor() from a URL somebody else can write.
+  {
+    const { parseSpec } = await import('./public/scene/cast.js');
+
+    for (const [label, v] of [['empty', ''], ['whitespace', '   '],
+                              ['null', null], ['undefined', undefined]]) {
+      eq(`${label} name yields no character`, characterFor(v), null);
+    }
+    for (const n of ['123', '!!!', 'J', 'a'.repeat(200)]) {
+      ok(`"${n.slice(0, 12)}" renders rather than throwing`, !!characterFor(n));
+    }
+
+    // KNOWN is looked up with attacker-supplied text. A plain object answers
+    // KNOWN['constructor'] with a function.
+    for (const k of ['constructor', '__proto__', 'toString', 'hasOwnProperty', 'valueOf']) {
+      eq(`a person called "${k}" is drawn as a person`, characterFor(k).rig, 'friend');
+    }
+
+    // norm() strips to bare latin, which is right for matching Butterbean and
+    // catastrophic for identity: every non-latin name reduced to '' and a card
+    // naming two Hebrew people silently dropped the second.
+    eq('two Hebrew names both survive', castFrom('חתולה,אליה').length, 2);
+    eq('two Japanese names both survive', castFrom('さくら,ひかり').length, 2);
+    eq('two emoji names both survive', castFrom('🐱,🐶').length, 2);
+    eq('the same name twice is still one', castFrom('Kaleigh,kaleigh ').length, 1);
+    eq('same name, different traits, still one', castFrom('K~p1,K~p2').length, 1);
+
+    // Malformed trait codes must degrade, never throw.
+    eq('an unknown species letter falls back to a person', characterFor('X~z1').rig, 'friend');
+    ok('an out-of-range index does not throw', !!characterFor('X~p999999'));
+    ok('non-base36 trait chars do not throw', !!characterFor('X~p!!!'));
+    eq('a bare tilde is just a name', characterFor('X~').rig, 'friend');
+    eq('a tilde with no name is nothing', characterFor('~p1'), null);
+    eq('only the first tilde counts', parseSpec('A~p1~c2').name, 'A');
+    eq('a cat with a nonsense coat is still a cat', characterFor('C~c99').rig, 'cat');
+    eq('trait codes are case-insensitive', characterFor('C~C2').rig, 'cat');
+    eq('an empty cast is empty', castFrom('').length, 0);
+    eq('a cast of commas is empty', castFrom(',,,').length, 0);
+  }
+
+  // ---- the builder's own rules --------------------------------------------
+  {
+    const page = fs.readFileSync('public/make/index.html', 'utf8');
+    const worker = fs.readFileSync('src/worker/index.ts', 'utf8');
+    ok('the builder escapes a name before innerHTML',
+       /const esc = \(v\)/.test(page) && /esc\(c\.name\)/.test(page));
+    ok('the card escapes a name before innerHTML', /esc\(c\.name\)/.test(worker));
+    // commitDraft caps at three, so offering a fourth meant filling in four
+    // screens and watching the result vanish.
+    ok('a fourth character is never offered', /state\.cast\.length \+ 1 < 3/.test(page));
+    // Skipping the species question for a known name meant a family whose own
+    // cat is called Pip got the soft toy, permanently.
+    ok('the species question is always asked', !/when: \(\) => !isKnownName/.test(page));
+    ok('a known name pre-selects its rig instead', /seedKindFromName/.test(page));
+  }
+
   eq('the cast is capped at three', castFrom('a,b,c,d,e').length, 3);
   eq('a name repeated is only drawn once', castFrom('Kaleigh,kaleigh,Nir').length, 2);
   eq('empty entries are dropped', castFrom('Kaleigh,,  ,Nir').length, 2);

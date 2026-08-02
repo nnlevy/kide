@@ -227,9 +227,10 @@ const STEPS = [
   {
     id: 'kind',
     q: () => `What is ${state.draft.name || 'they'}?`,
-    hint: '',
+    hint: () => (isKnownName(state.draft.name)
+      ? `${state.draft.name} is one of Pip's friends — but if yours is different, say so.`
+      : ''),
     say: 'What are they?',
-    when: () => !isKnownName(state.draft.name),
     /* No Next: this screen advances on tap, so a second, permanently disabled
        button was pure clutter under the thing you were meant to press. */
     hideNext: true,
@@ -267,11 +268,16 @@ const STEPS = [
   {
     id: 'more',
     q: () => `${state.draft.name || 'They'} are ready`,
-    hint: 'You can put up to three on a card.',
+    hint: () => (state.cast.length + 1 >= 3
+      ? "That's three — the most a card can hold."
+      : 'You can put up to three on a card.'),
     say: 'Shall we add somebody else?',
+    /* commitDraft() caps the cast at three, so offering a fourth meant a parent
+       filled in four screens and watched the result vanish. The option is only
+       offered while there is room for it. */
     body: () => choices([
-      { value: 'add', label: 'Add somebody else', em: '➕',
-        on: () => { commitDraft(); resetDraft(); goTo('name'); } },
+      ...(state.cast.length + 1 < 3 ? [{ value: 'add', label: 'Add somebody else', em: '➕',
+        on: () => { commitDraft(); resetDraft(); goTo('name'); } }] : []),
       { value: 'done', label: "That's everybody", em: '✅',
         on: () => { commitDraft(); goTo('from'); } },
     ]),
@@ -298,8 +304,18 @@ const STEPS = [
     body: () => finish(), next: () => false, hideNext: true },
 ];
 
-const isKnownName = (n) =>
-  ['butterbean', 'marmalade', 'rosie', 'pip'].includes(String(n).trim().toLowerCase());
+const KNOWN_KIND = { butterbean: 'dog', marmalade: 'cat', rosie: 'person', pip: 'toy' };
+const isKnownName = (n) => !!KNOWN_KIND[String(n).trim().toLowerCase()];
+
+/** Pre-select the rig a known name already has, so the question is a
+ *  confirmation rather than a chore — without making it unanswerable. */
+function seedKindFromName() {
+  if (state.draft.kind) return;
+  const k = KNOWN_KIND[String(state.draft.name).trim().toLowerCase()];
+  if (!k) return;
+  state.draft.kind = k;
+  state.draft.species = (KINDS.find((x) => x.id === k) || {}).species || null;
+}
 
 const visible = () => STEPS.filter((s) => !s.when || s.when());
 /* TRACKED BY ID, NOT INDEX. An index into a list whose length changes with the
@@ -320,7 +336,11 @@ function resetDraft() {
 /** One place builds a spec, so the live preview and the finished link can never
  *  disagree about what the character looks like. */
 function specFor(d) {
-  if (isKnownName(d.name) && !d.species) return d.name.trim();
+  /* If the chosen rig is the one the name already implies, emit the bare name:
+     "Butterbean" is a nicer thing to find in a URL than "Butterbean~d0", and it
+     is the same character. Anyone who overrode the default gets the code. */
+  const known = KNOWN_KIND[String(d.name).trim().toLowerCase()];
+  if (known && (!d.kind || d.kind === known) && d.coat === null) return d.name.trim();
   return toSpec({ name: d.name, species: d.species || 'friend',
                   skin: d.skin ?? 0, hair: d.hair ?? 0, knit: d.knit ?? 0,
                   eye: d.eye ?? 0, coat: d.coat });
@@ -446,14 +466,22 @@ function previewCast() {
   return out.filter(Boolean);
 }
 
+/* Names go through innerHTML, and a name is free text a parent typed. Even
+   though this is their own browser and their own name, an unescaped quote
+   silently breaks the aria-label attribute and takes the screen reader label
+   with it — and the same code shape, copied to the card, would be reading a
+   name off a URL. Escape at the boundary, always. */
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g,
+  (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
 function renderStage() {
   const cast = previewCast();
   const stage = $('stage');
   stage.innerHTML = cast.map((c) => {
     const svg = c.svg.replace(/id="a-/g, 'data-a="');
-    return '<button class="actor" type="button" aria-label="' + c.name + '">'
+    return '<button class="actor" type="button" aria-label="' + esc(c.name) + '">'
       + '<svg viewBox="36 20 138 170" role="img" aria-hidden="true">' + svg + '</svg>'
-      + '<span class="cast-name">' + (c.label ? c.label + ' ' : '') + c.name + '</span></button>';
+      + '<span class="cast-name">' + (c.label ? esc(c.label) + ' ' : '') + esc(c.name) + '</span></button>';
   }).join('');
   stage.querySelectorAll('[data-a="eyeL"],[data-a="eyeR"]').forEach((e) => e.classList.add('blinker'));
   stage.querySelectorAll('.actor').forEach((el) => {
@@ -498,6 +526,7 @@ function render() {
   $('q').textContent = typeof s.q === 'function' ? s.q() : s.q;
   $('hint').textContent = typeof s.hint === 'function' ? s.hint() : s.hint;
   const body = $('body');
+  if (s.id === 'kind') seedKindFromName();
   body.innerHTML = '';
   body.appendChild(s.body());
   renderStage();

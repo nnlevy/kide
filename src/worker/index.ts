@@ -700,12 +700,17 @@ if (stage && names.length) {
          here rather than in actors.js, because inside the game exactly one
          actor is ever mounted and the ids are correct as they stand. */
       const svg = c.svg.replace(/id="a-/g, 'data-a="');
-      return '<button class="actor" type="button" aria-label="' + c.name + ', ' + c.species + '">'
+      /* The Worker's allow-list already strips angle brackets and quotes, so
+         this is belt and braces — but it is the copy of this code that reads a
+         name off somebody else's URL, so it does not get to rely on that. */
+      const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g,
+        (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+      return '<button class="actor" type="button" aria-label="' + esc(c.name) + ', ' + esc(c.species) + '">'
         /* Measured from the rigs themselves rather than guessed: the widest
            (the dog, ears out) spans x 40-170 and both span y 25-186, so this
            frames every rig with a little air and no cropped ear. */
         + '<svg viewBox="36 20 138 170" role="img" aria-hidden="true">' + svg + '</svg>'
-        + '<span class="cast-name">' + c.name + '</span></button>';
+        + '<span class="cast-name">' + esc(c.name) + '</span></button>';
     }).join('');
     /* Blinking is applied after mounting so it targets whatever the rig calls
        its eyes, without cast.js needing to know the anatomy of four rigs. */
