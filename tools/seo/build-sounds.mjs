@@ -22,6 +22,7 @@
 import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { LEX } from '../../public/engine/lexicon.js';
 import { NORMS, STAGES, CITATION, SUBSTITUTIONS, ageWords, ageLabel } from '../../public/engine/norms.js';
+import { SOUND_NOTES, SEEN_LINE, SHORT_ANSWER } from './sound-notes.mjs';
 
 const OUT = 'public/sounds';
 const ORIGIN = 'https://kide.us';
@@ -150,12 +151,20 @@ for (const code of codes) {
   const positions = [...new Set(rows.map((r) => r.pos))];
   const wordsByPos = positions.map((p) => [p, rows.filter((r) => r.pos === p).map((r) => r.w)]);
 
+  // What is actually different about this sound (tools/seo/sound-notes.mjs).
+  // Sixteen pages generated from one template are one page as far as a reader
+  // or a crawler is concerned, and the deploy gate blocked the release saying
+  // exactly that. Every page now leads with its own idea.
+  const note = SOUND_NOTES[code];
+
   // Don't promise "words to practise" on a page that has three of them. The
-  // substance of a thin page is the age answer and the substitution pattern,
-  // so the title says that instead of overselling a short list.
-  const title = rows.length >= 5
-    ? `The "${L}" sound: when children learn it, and words to practise`
-    : `The "${L}" sound: when should my child be saying it?`;
+  // substance of a thin page is the age answer, the substitution pattern and
+  // the sound's own quirk, none of which depend on the word count.
+  const title = note?.angle
+    ? `The "${L}" sound: ${note.angle}`
+    : rows.length >= 5
+      ? `The "${L}" sound: when children learn it, and words to practise`
+      : `The "${L}" sound: when should my child be saying it?`;
   const description =
     `Most children have "${L}" by about ${ageWords(n.mastery)} (${CITATION.short}). `
     + `If your child isn't saying it yet, here's whether that's on time — and `
@@ -182,7 +191,25 @@ for (const code of codes) {
      word yourself, warmly, and carry on — they get the model without the verdict.</p>
 ` : '';
 
+  // How the sound is physically made, whether you can show it, and its
+  // voiced/voiceless twin. This is the half of the page a parent can act on
+  // tonight, and it is different for every sound -- which is the point.
+  const mouthBlock = note ? `
+  <h2>How &ldquo;${L}&rdquo; is made</h2>
+  <p>${note.mouth}</p>
+  <p>${SEEN_LINE[note.seen]}</p>${note.twin ? `
+  <p><b>&ldquo;${L}&rdquo; and &ldquo;${note.twin.letters}&rdquo; are the same movement.</b>
+     For both, ${note.twin.same} — ${note.twin.diff}. Put a hand on your throat and say them
+     one after the other: one buzzes and one doesn't. If your child has one of the pair they
+     already own the mouth position for the other, which is a much smaller gap than it sounds.</p>` : ''}
+
+  <h2>${esc(note.heading)}</h2>
+  <p>${note.insight}</p>
+  <p><b>Try this.</b> ${note.tip}</p>
+` : '';
+
   const faqs = [
+    ...(note?.faq || []),
     ...(sub ? [[`My child says "${sub.eg[1]}" instead of "${sub.eg[0]}". Is that normal?`,
       `Yes — very. Substituting "${sub.says}" for "${L}" is a documented pattern called `
       + `${sub.name}, and it typically resolves on its own by around ${ageWords(sub.by)}. `
@@ -215,24 +242,33 @@ for (const code of codes) {
 
   <div class="verdict">
     <span class="tag">The short answer</span>
+    <!-- Per-sound, from sound-notes.mjs. The fallback template below is only
+         reached for a sound with no note written yet; it used to be the ONLY
+         path, which is how seven pages came to open with the same sentence. -->
     <p>${
-      n.mastery >= 60
-        ? `&ldquo;${L}&rdquo; is one of the later sounds. A four-year-old who says &ldquo;${
-            code === 'r' ? 'wabbit' : code === 'l' ? 'yeaf' : 'something else'
-          }&rdquo; instead is not behind — this sound usually doesn't settle until around ${ageWords(n.mastery)}.`
-        : `&ldquo;${L}&rdquo; is one of the earlier sounds, usually in place by around ${ageWords(n.mastery)}. `
-          + `If your child is past that and still isn't using it, it's worth a mention to your doctor — `
-          + `not because something is wrong, but because they're the person who can actually tell you.`
+      SHORT_ANSWER[code]
+        || (n.mastery >= 60
+          ? `&ldquo;${L}&rdquo; is one of the later sounds. A four-year-old who says &ldquo;${
+              esc(sub ? sub.eg[1] : 'something else')
+            }&rdquo; instead of &ldquo;${esc(sub ? sub.eg[0] : L)}&rdquo; is not behind — this sound usually doesn't settle until around ${ageWords(n.mastery)}.`
+          : `&ldquo;${L}&rdquo; is one of the earlier sounds, usually in place by around ${ageWords(n.mastery)}. `
+            + `If your child is past that and still isn't using it, it's worth a mention to your doctor — `
+            + `not because something is wrong, but because they're the person who can actually tell you.`)
     }</p>
   </div>
 
-  <h2>What the research says</h2>
+  ${mouthBlock}
+  <!-- The age label goes in verbatim (never trimmed to a whole number: "5 and a
+       half" trimmed to "5" would misstate the norm), and the letter is in the
+       heading because seven sounds share the 3-year figure and a heading built
+       from the age alone would be identical across all of them. -->
+  <h2>Where the &ldquo;${L}&rdquo; figure of ${ageWords(n.mastery)} comes from</h2>
   <p>${CITATION.short} reviewed consonant acquisition across 64 studies and reported the age by
      which 90% of typically developing children produce each sound correctly — in the beginning,
      middle <i>and</i> end of words. For &ldquo;${L}&rdquo; that age is <b>${ageLabel(n.mastery)}</b>
      (${ageWords(n.mastery)}).</p>
   <p>The 90% figure is deliberately conservative. Older charts used 50% or 75%, which produce much
-     earlier ages and flag ordinary late acquisition as a delay. We use the conservative number on
+     earlier ages and flag ordinary late acquisition as a problem. We use the conservative number on
      purpose: an earlier one would manufacture worry rather than answer it.</p>
 
   ${subBlock}
@@ -260,7 +296,9 @@ for (const code of codes) {
   ${faqs.map(([q, a]) => `<details><summary>${esc(q)}</summary><p>${a}</p></details>`).join('\n  ')}
 
   <p class="cite"><b>Source.</b> ${esc(CITATION.full)}
-     <a href="${CITATION.doi}" rel="nofollow noopener">${CITATION.doi}</a><br>
+     <a href="${CITATION.doi}" rel="nofollow noopener">${CITATION.doi}</a><br>${note?.source ? `
+     <b>Also.</b> ${esc(note.source.full)} — ${esc(note.source.note)}.${
+       note.source.url ? ` <a href="${note.source.url}" rel="nofollow noopener">${note.source.url}</a>` : ''}<br>` : ''}
      Figures are ${CITATION.criterion}. Kide is practice, not therapy — nothing here
      diagnoses anything, and a child outside these ages may be perfectly typical. If you are
      worried about your child's speech, a speech-language pathologist is the right person to ask.</p>
