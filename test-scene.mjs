@@ -494,7 +494,10 @@ console.log('--- the naming flow ---');
   // at shipping size as a bald head -- a bug that looks like a style choice.
   {
     const SK = ['#F0CBA8', '#E8B48C', '#C68642', '#8D5524', '#5C3317', '#FADCBC'];
-    const HA = ['#C68B4E', '#3B2A20', '#8C4B2A', '#2E2E33', '#6B4423', '#D9A441', '#7A5C3E'];
+    // Mirrors HAIRS in cast.js, including the appended blondes -- a stale copy
+    // here silently made the contrast check read an undefined colour.
+    const HA = ['#C68B4E', '#3B2A20', '#8C4B2A', '#2E2E33', '#6B4423', '#D9A441', '#7A5C3E',
+                '#EBCF8D', '#F3E3B8', '#B5651D', '#D8D8D8'];
     const lum = (hex) => {
       const v = parseInt(hex.slice(1), 16);
       const c = [(v >> 16) & 255, (v >> 8) & 255, v & 255]
@@ -516,6 +519,61 @@ console.log('--- the naming flow ---');
   // dark-on-dark one.
   ok('an explicitly chosen low-contrast hair is left alone',
      characterFor('Kaleigh~p33').svg.includes('#2E2E33'));
+
+
+  // ---- the three characters this had to be able to express -----------------
+  const { toSpec, TRAITS_FOR } = await import('./public/scene/cast.js');
+
+  {
+    const K = characterFor(toSpec({ name: 'Kaleigh', species: 'friend',
+                                    skin: 0, hair: 7, knit: 1, eye: 1 }));
+    eq('Kaleigh is a person', K.rig, 'friend');
+    ok('Kaleigh can be blonde', K.svg.includes('#EBCF8D'));
+    ok('Kaleigh can have blue eyes', K.svg.includes('#3D7EA6'));
+    ok('the hard-wired blue-grey eye is gone once one is chosen',
+       !K.svg.includes('#41627A'));
+    // The rig hard-codes a brow tuned to ITS ginger hair; on blonde that read
+    // as two heads of hair on one person.
+    ok('the brow follows the chosen hair', !K.svg.includes('#9C6B39'));
+    ok('Kaleigh is smiling', /M102 88 q-8 8 -14 2/.test(K.svg));
+
+    // A cat that is not the marmalade one was previously INEXPRESSIBLE, and a
+    // name the product did not know fell through to being drawn as a person.
+    const C = characterFor(toSpec({ name: 'Chatulah', species: 'cat', coat: 2 }));
+    eq('Chatulah is a cat, not a person', C.rig, 'cat');
+    eq('Chatulah is black', C.species, 'black cat');
+    ok('no marmalade left on a black cat', !C.svg.includes('#EDB57E'));
+    // On a dark coat the nose/brow/mouth line must be LIGHTER than the fur or
+    // the entire face disappears.
+    ok('a black cat still has a face', C.svg.includes('#9AA0AA'));
+
+    eq('Butterbean is the goldendoodle', characterFor('Butterbean').rig, 'goldendoodle');
+  }
+
+  // ---- the form is adaptive because the RIG says so ------------------------
+  {
+    const page = fs.readFileSync('public/make/index.html', 'utf8');
+    eq('a person has four appearance traits', TRAITS_FOR.friend.join(','), 'skin,hair,eye,knit');
+    eq('a dog has one', TRAITS_FOR.goldendoodle.join(','), 'coat');
+    eq('a cat has one', TRAITS_FOR.cat.join(','), 'coat');
+    eq('a soft toy has none', TRAITS_FOR.toy.length, 0);
+    ok('a dog cannot be asked about hair', !TRAITS_FOR.goldendoodle.includes('hair'));
+    ok('a person cannot be asked about fur', !TRAITS_FOR.friend.includes('coat'));
+
+    // The screens must be GENERATED from that table. The previous version
+    // hard-coded `kind === 'person'` on four screens and then needed a special
+    // case in advance() to skip them -- a branch pretending to be a table.
+    ok('the appearance screens are generated from the rig',
+       /TRAIT_ORDER\.map/.test(page) && /draftTraits\(\)\.includes\(key\)/.test(page));
+    ok('no appearance screen hard-codes a species',
+       !/when: \(\) => state\.draft\.kind === 'person',\s*\n\s*body: \(\) => swatches/.test(page));
+    // An index into a list whose length changes with the answers means choosing
+    // "a dog" moves you to a different question than the one you were on.
+    ok('the flow tracks its position by id, not index',
+       /state\.stepId/.test(page) && !/state\.step\s*[+-]=/.test(page));
+    ok('advance() has no per-species special case',
+       !/goTo\('more'\); return;/.test(page));
+  }
 
   eq('the cast is capped at three', castFrom('a,b,c,d,e').length, 3);
   eq('a name repeated is only drawn once', castFrom('Kaleigh,kaleigh,Nir').length, 2);

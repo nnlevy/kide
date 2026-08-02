@@ -54,8 +54,45 @@ const SKINS = [
   ['#5C3317', '#452409', '#6B3A24'],
   ['#FADCBC', '#E6C3A0', '#F0B49A'],
 ];
-const HAIRS = ['#C68B4E', '#3B2A20', '#8C4B2A', '#2E2E33', '#6B4423', '#D9A441', '#7A5C3E'];
-const KNITS = ['#8CA07B', '#7B93A0', '#A08C7B', '#9B7BA0', '#A07B84', '#7BA093'];
+/* APPENDED, NEVER REORDERED. These indices are encoded into links that have
+   already been sent; inserting a colour in the middle would repaint somebody's
+   grandmother in a card that is sitting in a text message. New colours go on
+   the end, forever. The first blonde is index 7 for that reason and not because
+   blonde is an afterthought. */
+const HAIRS = ['#C68B4E', '#3B2A20', '#8C4B2A', '#2E2E33', '#6B4423', '#D9A441', '#7A5C3E',
+               '#EBCF8D', '#F3E3B8', '#B5651D', '#D8D8D8'];
+
+/* Eye colour was not offered at all and the rig was hard-wired to one blue-grey,
+   so every person this generated had the same eyes. */
+const EYES = ['#41627A', '#3D7EA6', '#4E7A46', '#6B4A2E', '#2E2E33', '#7A8A94'];
+
+const KNITS = ['#8CA07B', '#7B93A0', '#A08C7B', '#9B7BA0', '#A07B84', '#7BA093',
+               '#C96F5A', '#E8C87A', '#5F6B8A', '#D8D8D8'];
+
+/* Animal coats: [fur, furDeep, ear, line]. `line` draws the nose, brows and
+   mouth, so on a dark coat it must be LIGHTER than the fur or the whole face
+   disappears -- which is exactly what a black cat did on the first attempt. */
+const COATS = [
+  ['#F0DCC0', '#DFC4A0', '#CBA57C', '#6B5648'],
+  ['#EDB57E', '#D9995F', '#C07F49', '#7A5540'],
+  ['#3A3A3E', '#2C2C30', '#4A4A50', '#9AA0AA'],
+  ['#FAFAF7', '#E4E4DE', '#D0D0C8', '#7A7A72'],
+  ['#E8C27A', '#D3A85C', '#BE9247', '#6B5230'],
+  ['#9AA0A6', '#848A90', '#6F757B', '#3E4348'],
+  ['#8B5E3C', '#744C2F', '#5F3D25', '#2F1E12'],
+];
+
+/* The literals each rig is built from, so a recolour is a value swap and the
+   rigs stay a pure description of a character that knows nothing about being
+   recoloured. Dog and cat differ because they are built from different
+   palettes (COAT vs COAT_ALT in palette.js). */
+/** Spoken/written names for the coats, used in the alt text and the builder. */
+const COAT_WORDS = ['cream', 'ginger', 'black', 'white', 'golden', 'grey', 'brown'];
+
+const RIG_LITERALS = {
+  goldendoodle: ['#F0DCC0', '#DFC4A0', '#CBA57C', '#6B5648'],
+  cat:          ['#EDB57E', '#D9995F', '#C07F49', '#7A5540'],
+};
 
 const norm = (n) => String(n || '').trim().toLowerCase().replace(/[^a-z]/g, '');
 
@@ -78,7 +115,18 @@ const CONTRAST_FLOOR = 0.06;
 export const OPTIONS = {
   skin: SKINS.map((s, i) => ({ i, swatch: s[0] })),
   hair: HAIRS.map((h, i) => ({ i, swatch: h })),
+  eye:  EYES.map((e, i) => ({ i, swatch: e })),
   knit: KNITS.map((k, i) => ({ i, swatch: k })),
+  coat: COATS.map((c, i) => ({ i, swatch: c[0] })),
+};
+
+/** Which questions a species can answer. The builder reads this rather than
+ *  hard-coding a branch, so a rig cannot be asked about hair it does not have. */
+export const TRAITS_FOR = {
+  friend: ['skin', 'hair', 'eye', 'knit'],
+  goldendoodle: ['coat'],
+  cat: ['coat'],
+  toy: [],
 };
 
 /** Species codes, short because they ride in a URL a parent might read aloud. */
@@ -112,21 +160,26 @@ export function parseSpec(raw) {
   const name = namePart.trim();
   const t = traitPart.trim().toLowerCase();
   const species = SPECIES[t[0]] || null;
+  // A person carries four traits, an animal one. Reading them off the same
+  // positions keeps the code short and the link short.
   return {
     name,
     species,
     skin: un36(t[1]),
     hair: un36(t[2]),
     knit: un36(t[3]),
+    eye:  un36(t[4]),
+    coat: un36(t[1]),
   };
 }
 
 /** The inverse, used by the builder to write a link. */
-export function toSpec({ name, species, skin, hair, knit }) {
+export function toSpec({ name, species, skin, hair, knit, eye, coat }) {
   const code = SPECIES_CODE[species];
-  if (!code) return String(name || '').trim();
-  if (code !== 'p') return `${String(name).trim()}~${code}`;
-  return `${String(name).trim()}~p${b36(skin)}${b36(hair)}${b36(knit)}`;
+  const n = String(name || '').trim();
+  if (!code) return n;
+  if (code !== 'p') return coat === null || coat === undefined ? `${n}~${code}` : `${n}~${code}${b36(coat)}`;
+  return `${n}~p${b36(skin)}${b36(hair)}${b36(knit)}${b36(eye)}`;
 }
 
 /**
@@ -144,7 +197,18 @@ export function characterFor(name) {
      parent does is look for the version that matches the actual person. */
   const rig = spec.species || KNOWN[norm(clean)];
   if (rig && rig !== 'friend' && ACTORS[rig]) {
-    return { name: clean, species: ACTORS[rig].species, rig, svg: ACTORS[rig].svg, spec };
+    let svg = ACTORS[rig].svg;
+    let label = ACTORS[rig].species;
+    const lit = RIG_LITERALS[rig];
+    /* An animal was never recolourable, so every cat this produced was the
+       marmalade one -- a black cat was simply not expressible, and a name the
+       product did not know fell through to being drawn as a PERSON. */
+    if (lit && spec.coat !== null && spec.coat >= 0 && spec.coat < COATS.length) {
+      const c = COATS[spec.coat];
+      lit.forEach((from, i) => { svg = svg.split(from).join(c[i]); });
+      label = `${COAT_WORDS[spec.coat]} ${rig === 'cat' ? 'cat' : 'dog'}`;
+    }
+    return { name: clean, species: label, rig, svg, spec };
   }
 
   // Everyone else is a person, recoloured from their own name unless told.
@@ -169,6 +233,7 @@ export function characterFor(name) {
   }
   const hair = HAIRS[hairIdx];
   const knit = KNITS[pick(spec.knit, KNITS, 11)];
+  const eye = EYES[pick(spec.eye, EYES, 17)];
 
   // friendSvg() builds from four literals. Swapping them by value is blunt, but
   // it is also why this file needs no cooperation from actors.js: the rigs stay
@@ -178,7 +243,12 @@ export function characterFor(name) {
     .split('#DDB08A').join(skinDeep)
     .split('#E8A88A').join(cheek)
     .split('#C68B4E').join(hair)
-    .split('#8CA07B').join(knit);
+    .split('#8CA07B').join(knit)
+    .split('#41627A').join(eye)
+    /* The rig hard-codes a brow and a hair-shadow tuned to ITS ginger hair. On
+       blonde they read as two different heads of hair on one person, so both
+       follow whatever hair was chosen. */
+    .split('#9C6B39').join(hair);
 
   return { name: clean, species: 'a friend', rig: 'friend', svg, spec };
 }

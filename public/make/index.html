@@ -141,7 +141,7 @@
 </main>
 
 <script type="module">
-import { characterFor, toSpec, OPTIONS } from '/scene/cast.js';
+import { characterFor, toSpec, OPTIONS, TRAITS_FOR } from '/scene/cast.js';
 import * as Speech from '/engine/speech.js';
 
 const $ = (id) => document.getElementById(id);
@@ -153,7 +153,9 @@ const $ = (id) => document.getElementById(id);
 const state = {
   step: 0,
   sound: true,
-  draft: { name: '', kind: null, species: null, relation: '', skin: null, hair: null, knit: null },
+  stepId: 'who',
+  draft: { name: '', kind: null, species: null, relation: '',
+           skin: null, hair: null, eye: null, knit: null, coat: null },
   cast: [],
   to: '',
   from: '',
@@ -175,6 +177,35 @@ const KINDS = [
    happens when the writer and the reader are not from the same country. */
 const RELATIONS = ['Mom', 'Dad', 'Grandma', 'Grandpa', 'Aunt', 'Uncle',
                    'Big sister', 'Big brother', 'Cousin', 'Friend'];
+
+/* One entry per trait a rig can declare. Order here is the order asked. */
+const TRAIT_META = {
+  skin: { q: 'Skin', say: 'What color is their skin?',
+          hint: 'Tap the closest one. You can change it after you see them.' },
+  hair: { q: 'Hair', say: 'What color is their hair?', hint: '' },
+  eye:  { q: 'Eyes', say: 'What color are their eyes?', hint: '' },
+  knit: { q: 'Sweater', say: 'What color is their sweater?', hint: '' },
+  coat: { q: 'Fur', say: 'What color is their fur?',
+          hint: 'Tap the closest one.' },
+};
+const TRAIT_ORDER = ['coat', 'skin', 'hair', 'eye', 'knit'];
+
+/** The traits the CURRENT draft's rig actually has. Empty until a kind is
+ *  chosen, so no appearance question can be reached before then. */
+const draftTraits = () => {
+  const sp = state.draft.species;
+  return sp && TRAITS_FOR[sp] ? TRAITS_FOR[sp] : [];
+};
+
+const TRAIT_SCREENS = TRAIT_ORDER.map((key) => ({
+  id: key,
+  q: TRAIT_META[key].q,
+  hint: TRAIT_META[key].hint,
+  say: TRAIT_META[key].say,
+  when: () => draftTraits().includes(key),
+  body: () => swatches(key),
+  next: () => true,
+}));
 
 const STEPS = [
   {
@@ -222,33 +253,17 @@ const STEPS = [
     })), true),
     next: () => true,
   },
-  {
-    id: 'skin',
-    q: 'Skin',
-    hint: 'Tap the closest one. You can change it after you see them.',
-    say: 'What color is their skin?',
-    when: () => state.draft.kind === 'person',
-    body: () => swatches('skin'),
-    next: () => true,
-  },
-  {
-    id: 'hair',
-    q: 'Hair',
-    hint: '',
-    say: 'What color is their hair?',
-    when: () => state.draft.kind === 'person',
-    body: () => swatches('hair'),
-    next: () => true,
-  },
-  {
-    id: 'knit',
-    q: 'Sweater',
-    hint: '',
-    say: 'What color is their sweater?',
-    when: () => state.draft.kind === 'person',
-    body: () => swatches('knit'),
-    next: () => true,
-  },
+  /* THE APPEARANCE QUESTIONS ARE GENERATED FROM THE RIG, NOT LISTED HERE.
+     cast.js exports TRAITS_FOR — which traits each rig actually declares — and
+     these screens are built from it. That is what makes the form adaptive in
+     the real sense: a dog cannot be asked its hair colour because the
+     goldendoodle rig has no hair, and giving a rig a new trait adds its
+     question here with no edit to this flow. The version this replaces
+     hard-coded `kind === 'person'` on three screens and then needed a special
+     case inside advance() to skip past them — a branch pretending to be a
+     table, and one that could only ever describe the species it was written
+     for. */
+  ...TRAIT_SCREENS,
   {
     id: 'more',
     q: () => `${state.draft.name || 'They'} are ready`,
@@ -287,27 +302,34 @@ const isKnownName = (n) =>
   ['butterbean', 'marmalade', 'rosie', 'pip'].includes(String(n).trim().toLowerCase());
 
 const visible = () => STEPS.filter((s) => !s.when || s.when());
-const current = () => visible()[Math.min(state.step, visible().length - 1)];
-const goTo = (id) => {
-  const i = visible().findIndex((s) => s.id === id);
-  state.step = i < 0 ? state.step : i;
-  render();
+/* TRACKED BY ID, NOT INDEX. An index into a list whose length changes with the
+   answers means picking "a dog" silently moves you to a different question than
+   the one you were on — the bug that the old advance() special-case existed to
+   paper over. An id survives the list changing underneath it. */
+const current = () => {
+  const list = visible();
+  return list.find((s) => s.id === state.stepId) || list[0];
 };
+const goTo = (id) => { state.stepId = id; render(); };
 
 function resetDraft() {
-  state.draft = { name: '', kind: null, species: null, relation: '', skin: null, hair: null, knit: null };
+  state.draft = { name: '', kind: null, species: null, relation: '',
+                  skin: null, hair: null, eye: null, knit: null, coat: null };
+}
+
+/** One place builds a spec, so the live preview and the finished link can never
+ *  disagree about what the character looks like. */
+function specFor(d) {
+  if (isKnownName(d.name) && !d.species) return d.name.trim();
+  return toSpec({ name: d.name, species: d.species || 'friend',
+                  skin: d.skin ?? 0, hair: d.hair ?? 0, knit: d.knit ?? 0,
+                  eye: d.eye ?? 0, coat: d.coat });
 }
 function commitDraft() {
   const d = state.draft;
   if (!d.name.trim()) return;
   if (state.cast.length >= 3) return;
-  const known = isKnownName(d.name);
-  state.cast.push({
-    label: d.relation,
-    spec: known ? d.name.trim()
-      : toSpec({ name: d.name, species: d.species || 'friend',
-                 skin: d.skin ?? 0, hair: d.hair ?? 0, knit: d.knit ?? 0 }),
-  });
+  state.cast.push({ label: d.relation, spec: specFor(d) });
 }
 
 /* ---- builders ---------------------------------------------------------- */
@@ -418,10 +440,7 @@ function previewCast() {
   const out = state.cast.map((c) => ({ ...characterFor(c.spec), label: c.label }));
   const d = state.draft;
   if (d.name.trim() && out.length < 3) {
-    const spec = isKnownName(d.name) ? d.name.trim()
-      : toSpec({ name: d.name, species: d.species || 'friend',
-                 skin: d.skin ?? 0, hair: d.hair ?? 0, knit: d.knit ?? 0 });
-    const c = characterFor(spec);
+    const c = characterFor(specFor(d));
     if (c) out.push({ ...c, label: d.relation });
   }
   return out.filter(Boolean);
@@ -461,15 +480,21 @@ function renderNav() {
 function advance() {
   const s = current();
   if (!s.hideNext && !s.next()) return;
-  if (s.id === 'knit' || (s.id === 'kind' && state.draft.kind !== 'person')) { goTo('more'); return; }
-  state.step = Math.min(state.step + 1, visible().length - 1);
+  /* No special cases. visible() is recomputed against the answers just given,
+     so the next screen is simply the next one that applies — which is why
+     choosing "a dog" now lands on Fur and choosing "a person" lands on Skin,
+     with nothing here knowing either of those words. */
+  const list = visible();
+  const i = list.findIndex((x) => x.id === s.id);
+  state.stepId = list[Math.min(i + 1, list.length - 1)].id;
   render();
 }
 
 function render() {
   const s = current();
   const list = visible();
-  $('bar').style.width = `${Math.round((state.step / (list.length - 1)) * 100)}%`;
+  const idx = Math.max(0, list.findIndex((x) => x.id === s.id));
+  $('bar').style.width = `${Math.round((idx / Math.max(1, list.length - 1)) * 100)}%`;
   $('q').textContent = typeof s.q === 'function' ? s.q() : s.q;
   $('hint').textContent = typeof s.hint === 'function' ? s.hint() : s.hint;
   const body = $('body');
@@ -477,7 +502,7 @@ function render() {
   body.appendChild(s.body());
   renderStage();
   renderNav();
-  $('fine').innerHTML = state.step === 0
+  $('fine').innerHTML = s.id === 'who'
     ? 'Nothing here is stored, and nothing leaves your device. '
       + '<a href="/privacy">How that works</a>'
     : '';
@@ -511,8 +536,10 @@ $('sound').addEventListener('click', async () => {
 
 $('back').addEventListener('click', () => {
   Speech.stop();
-  if (state.step === 0) { location.href = '/parent/'; return; }
-  state.step -= 1;
+  const list = visible();
+  const i = list.findIndex((x) => x.id === state.stepId);
+  if (i <= 0) { location.href = '/parent/'; return; }
+  state.stepId = list[i - 1].id;
   lastSpoken = '';
   render();
 });
