@@ -59,26 +59,83 @@ const KNITS = ['#8CA07B', '#7B93A0', '#A08C7B', '#9B7BA0', '#A07B84', '#7BA093']
 
 const norm = (n) => String(n || '').trim().toLowerCase().replace(/[^a-z]/g, '');
 
+/* The palettes, exported so the builder at /make can show a parent the actual
+   swatches rather than an abstract "option 3". The builder and the renderer
+   must read the same arrays or the preview stops predicting the card. */
+export const OPTIONS = {
+  skin: SKINS.map((s, i) => ({ i, swatch: s[0] })),
+  hair: HAIRS.map((h, i) => ({ i, swatch: h })),
+  knit: KNITS.map((k, i) => ({ i, swatch: k })),
+};
+
+/** Species codes, short because they ride in a URL a parent might read aloud. */
+export const SPECIES = { p: 'friend', d: 'goldendoodle', c: 'cat', t: 'toy' };
+const SPECIES_CODE = { friend: 'p', goldendoodle: 'd', cat: 'c', toy: 't' };
+
+const b36 = (n) => Number(n || 0).toString(36)[0];
+const un36 = (ch) => {
+  const n = parseInt(ch, 36);
+  return Number.isFinite(n) ? n : null;
+};
+
+/**
+ * Traits ride in the name itself: "Kaleigh~p204".
+ *
+ * WHY IN THE URL AND NOT A SERVER RECORD. The card is a link somebody texts.
+ * There is no account on this domain and nothing about a family is stored, so
+ * the only place a choice can live is the link that carries it — which also
+ * means a parent can edit one by hand, and a card still works years later with
+ * nothing running behind it.
+ */
+export function parseSpec(raw) {
+  const [namePart, traitPart = ''] = String(raw || '').split('~');
+  const name = namePart.trim();
+  const t = traitPart.trim().toLowerCase();
+  const species = SPECIES[t[0]] || null;
+  return {
+    name,
+    species,
+    skin: un36(t[1]),
+    hair: un36(t[2]),
+    knit: un36(t[3]),
+  };
+}
+
+/** The inverse, used by the builder to write a link. */
+export function toSpec({ name, species, skin, hair, knit }) {
+  const code = SPECIES_CODE[species];
+  if (!code) return String(name || '').trim();
+  if (code !== 'p') return `${String(name).trim()}~${code}`;
+  return `${String(name).trim()}~p${b36(skin)}${b36(hair)}${b36(knit)}`;
+}
+
 /**
  * @param {string} name
  * @returns {{name:string, species:string, rig:string, svg:string}|null}
  */
 export function characterFor(name) {
-  const clean = String(name || '').trim();
+  const spec = parseSpec(name);
+  const clean = spec.name;
   if (!clean) return null;
 
-  const known = KNOWN[norm(clean)];
-  if (known && ACTORS[known]) {
-    return { name: clean, species: ACTORS[known].species, rig: known, svg: ACTORS[known].svg };
+  /* THE HASH IS A STARTING POINT, NOT A VERDICT. Every trait it picks can be
+     overridden explicitly, and an explicit choice always wins. A generator that
+     could not be corrected would be worse than no generator: the first thing a
+     parent does is look for the version that matches the actual person. */
+  const rig = spec.species || KNOWN[norm(clean)];
+  if (rig && rig !== 'friend' && ACTORS[rig]) {
+    return { name: clean, species: ACTORS[rig].species, rig, svg: ACTORS[rig].svg, spec };
   }
 
-  // Everyone else is a person, recoloured from their own name.
+  // Everyone else is a person, recoloured from their own name unless told.
   const base = ACTORS.friend;
   if (!base) return null;
   const h = hash(norm(clean) || clean);
-  const [skin, skinDeep, cheek] = SKINS[h % SKINS.length];
-  const hair = HAIRS[(h >>> 5) % HAIRS.length];
-  const knit = KNITS[(h >>> 11) % KNITS.length];
+  const pick = (given, arr, shift) =>
+    (given !== null && given >= 0 && given < arr.length) ? given : ((h >>> shift) % arr.length);
+  const [skin, skinDeep, cheek] = SKINS[pick(spec.skin, SKINS, 0)];
+  const hair = HAIRS[pick(spec.hair, HAIRS, 5)];
+  const knit = KNITS[pick(spec.knit, KNITS, 11)];
 
   // friendSvg() builds from four literals. Swapping them by value is blunt, but
   // it is also why this file needs no cooperation from actors.js: the rigs stay
@@ -90,7 +147,7 @@ export function characterFor(name) {
     .split('#C68B4E').join(hair)
     .split('#8CA07B').join(knit);
 
-  return { name: clean, species: 'a friend', rig: 'friend', svg };
+  return { name: clean, species: 'a friend', rig: 'friend', svg, spec };
 }
 
 /** Parse a cast list off a URL and resolve it. Capped, because three characters
@@ -103,7 +160,7 @@ export function castFrom(list, max = 3) {
   const seen = new Set();
   const out = [];
   for (const n of names) {
-    const key = norm(n);
+    const key = norm(parseSpec(n).name);
     if (seen.has(key)) continue;
     seen.add(key);
     const c = characterFor(n);

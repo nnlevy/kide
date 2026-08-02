@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Make a card · Kide</title>
+<meta name="description" content="Build a card for a child you know. Choose who is on it, what they look like, and what it says — then send the link. Nothing is stored and nothing leaves your device.">
+<link rel="canonical" href="https://kide.us/make">
+<meta name="theme-color" content="#56C6E6">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Make a card · Kide">
+<meta property="og:description" content="Build a card for a child you know, one choice at a time. Nothing is stored and nothing leaves your device.">
+<meta property="og:url" content="https://kide.us/make">
+<meta property="og:image" content="https://kide.us/og-card.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Make a card · Kide">
+<meta name="twitter:description" content="Build a card for a child you know, one choice at a time.">
+<meta name="twitter:image" content="https://kide.us/og-card.png">
+<!--
+  ONE DECISION PER SCREEN.
+
+  This is the same rule the game itself follows, for the same reason: the person
+  using it is often holding a child. A single form with eleven fields is a form
+  you abandon on a phone at bedtime; eleven screens with one question each is a
+  thing you finish. Every screen states its question, offers a small number of
+  visible options, and moves on the moment one is tapped — there is no Next
+  button to hunt for on a choice screen.
+
+  THE QUESTIONS ARE NOT A FIXED LIST. What gets asked depends on what has been
+  answered: a dog is never asked about hair colour, and a person is never asked
+  what breed they are. STEPS below is a list of screens each of which declares
+  when it applies, so adding a question is adding one entry rather than editing
+  a flow.
+
+  NOTHING HERE REACHES A SERVER. Every choice ends up in the link, which is the
+  only place it is ever stored — see the note in /scene/cast.js. That is also
+  why the finished card keeps working with no account and nothing running.
+-->
+<style>
+  :root{
+    --sky-top:#56C6E6; --sky-bottom:#BDEBFF;
+    --cream:#FFFBF2; --card:#fff; --ink:#2E3A3F; --ink-soft:#5B6A67; --ink-faint:#9AA6A3;
+    --coral:#FF8A73; --coral-deep:#F16E55; --grass:#6FD08C; --grass-deep:#4FB874;
+    --sand:#4EA8DE; --sand-deep:#3B8FC4;
+    --radius-lg:28px; --radius-md:20px;
+    --safe-b:env(safe-area-inset-bottom,0px);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{margin:0;background:linear-gradient(180deg,var(--sky-top),var(--sky-bottom));
+       color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;
+       display:flex;flex-direction:column;min-height:100dvh}
+  .top{display:flex;align-items:center;gap:10px;padding:12px 16px;flex:0 0 auto}
+  .bar{flex:1;height:8px;border-radius:6px;background:rgba(255,255,255,.45);overflow:hidden}
+  .bar i{display:block;height:100%;background:#fff;border-radius:6px;transition:width .3s ease}
+  .iconbtn{width:44px;height:44px;min-width:44px;border-radius:50%;border:0;flex:0 0 auto;
+    background:rgba(255,255,255,.75);font-size:19px;cursor:pointer;display:flex;
+    align-items:center;justify-content:center}
+  /* The screen scrolls when, and only when, its content does not fit. Same
+     lesson as /play, where a fixed height with no scroll container put the
+     bottom of the Parent Corner out of reach on every phone. */
+  main{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+       -webkit-overflow-scrolling:touch;padding:6px 18px calc(24px + var(--safe-b))}
+  .inner{max-width:560px;margin:0 auto;text-align:center}
+  h1{font-size:clamp(24px,6vw,34px);color:#fff;text-shadow:0 3px 0 rgba(0,0,0,.08);margin:10px 0 4px}
+  .hint{color:#fff;opacity:.95;font-size:15.5px;margin:0 auto 18px;max-width:420px}
+  .opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-top:6px}
+  .opt{background:var(--card);border:3px solid transparent;border-radius:var(--radius-md);
+    padding:18px 14px;font:inherit;font-size:16px;font-weight:800;color:var(--ink);cursor:pointer;
+    box-shadow:0 5px 0 rgba(0,0,0,.10);min-height:64px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:6px}
+  .opt:active{transform:translateY(2px)}
+  .opt[aria-pressed="true"]{border-color:var(--grass-deep)}
+  .opt .sub{font-size:12.5px;font-weight:600;color:var(--ink-faint)}
+  .opt .em{font-size:28px}
+  /* Colour choices are the colour, at a size a thumb can hit. A swatch grid is
+     the one place where showing the answer beats naming it. */
+  .swatches{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:12px;margin-top:6px}
+  .sw{height:72px;border-radius:18px;border:4px solid #fff;cursor:pointer;padding:0;
+      box-shadow:0 5px 0 rgba(0,0,0,.10)}
+  .sw[aria-pressed="true"]{border-color:var(--grass-deep);transform:translateY(2px)}
+  .field{display:block;text-align:left;max-width:360px;margin:0 auto}
+  .field input{font:inherit;font-size:17px;width:100%;padding:15px 18px;border:3px solid #fff;
+    border-radius:16px;min-height:56px;color:var(--ink);background:#fff}
+  .field input:focus{outline:none;border-color:var(--grass-deep)}
+  .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:20px}
+  .btn{font:inherit;font-size:17px;font-weight:800;padding:15px 26px;min-height:52px;
+    border-radius:999px;border:0;cursor:pointer;background:#fff;color:var(--ink);
+    box-shadow:0 4px 0 rgba(0,0,0,.10);text-decoration:none;display:inline-flex;
+    align-items:center;justify-content:center}
+  .btn.go{background:linear-gradient(180deg,var(--coral),var(--coral-deep));color:#fff}
+  .btn.ghost{background:rgba(255,255,255,.35);color:#fff;box-shadow:none}
+  .stage{display:flex;align-items:flex-end;justify-content:center;gap:8px;min-height:170px;margin:4px 0}
+  .actor{width:120px;max-width:30vw;flex:0 0 auto;background:none;border:0;padding:0;cursor:pointer;
+    animation:breathe 3.4s ease-in-out infinite;transform-origin:bottom center}
+  .actor:nth-child(2){animation-delay:-1.1s}.actor:nth-child(3){animation-delay:-2.2s}
+  .actor svg{width:100%;height:auto;display:block;overflow:visible}
+  .blinker{animation:blink 5.5s ease-in-out infinite;transform-origin:center}
+  @keyframes breathe{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-5px) rotate(-1.2deg)}}
+  @keyframes blink{0%,93%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}97%{transform:scaleY(1)}}
+  @keyframes wiggle{0%{transform:translateY(0) rotate(0) scale(1)}25%{transform:translateY(-14px) rotate(-7deg) scale(1.05)}
+    50%{transform:translateY(0) rotate(5deg) scale(.98)}75%{transform:translateY(-6px) rotate(-3deg) scale(1.02)}
+    100%{transform:translateY(0) rotate(0) scale(1)}}
+  .actor.tapped{animation:wiggle .62s ease-in-out}
+  .cast-name{display:block;font-size:13px;font-weight:800;color:#fff;opacity:.92;margin-top:2px}
+  .done{background:var(--cream);border-radius:var(--radius-lg);padding:20px;margin-top:14px;text-align:left}
+  .done b{display:block;margin-bottom:6px}
+  .link{word-break:break-all;font-size:12.5px;color:var(--ink-soft);background:#fff;
+        border-radius:14px;padding:12px 14px;margin-top:10px}
+  .fine{color:#fff;opacity:.92;font-size:13px;margin-top:18px}
+  .fine a{color:#fff}
+  @media (prefers-reduced-motion: reduce){
+    .actor,.blinker,.actor.tapped{animation:none}
+  }
+</style>
+<link rel="stylesheet" href="/mobile.css">
+</head>
+<body>
+
+<div class="top">
+  <button class="iconbtn" id="back" aria-label="Go back">←</button>
+  <div class="bar"><i id="bar" style="width:0%"></i></div>
+  <!-- Sound is ON by default and switchable in one tap from every screen. Pip
+       reading the question aloud is the difference between a form and a
+       character talking to you, and it is also the only way this page works for
+       an adult who is not reading closely because a child is on their hip. -->
+  <button class="iconbtn" id="sound" aria-label="Turn sound off" aria-pressed="true">🔊</button>
+</div>
+
+<main>
+  <div class="inner">
+    <div class="stage" id="stage"></div>
+    <h1 id="q">Make a card</h1>
+    <p class="hint" id="hint"></p>
+    <div id="body"></div>
+    <div class="row" id="nav"></div>
+    <p class="fine" id="fine"></p>
+  </div>
+</main>
+
+<script type="module">
+import { characterFor, toSpec, OPTIONS } from '/scene/cast.js';
+import * as Speech from '/engine/speech.js';
+
+const $ = (id) => document.getElementById(id);
+
+/* ---- state -------------------------------------------------------------
+   One draft character at a time, plus the finished cast and the card's words.
+   Kept in memory only: a refresh starts over, which is the correct trade for a
+   page that stores nothing about anybody. */
+const state = {
+  step: 0,
+  sound: true,
+  draft: { name: '', kind: null, species: null, relation: '', skin: null, hair: null, knit: null },
+  cast: [],
+  to: '',
+  from: '',
+  note: '',
+};
+
+/* ---- the flow ----------------------------------------------------------
+   Each screen declares when() it applies, so the path through the flow is a
+   consequence of the answers rather than a hard-coded branch. */
+const KINDS = [
+  { id: 'person', label: 'A person', em: '🧑', sub: 'Grown-up or child', species: 'friend' },
+  { id: 'dog',    label: 'A dog',    em: '🐶', sub: 'Like Butterbean',   species: 'goldendoodle' },
+  { id: 'cat',    label: 'A cat',    em: '🐱', sub: 'Like Marmalade',    species: 'cat' },
+  { id: 'toy',    label: 'A soft toy', em: '🧸', sub: 'Like Pip',        species: 'toy' },
+];
+
+const RELATIONS = ['Mum', 'Dad', 'Grandma', 'Grandpa', 'Auntie', 'Uncle',
+                   'Big sister', 'Big brother', 'Cousin', 'Friend'];
+
+const STEPS = [
+  {
+    id: 'who',
+    q: 'Who is this card for?',
+    hint: "Their first name. Pip will say hello to them by it.",
+    say: 'Who is this card for?',
+    body: () => textInput('to', 'Elie'),
+    next: () => state.to.trim().length > 0,
+  },
+  {
+    id: 'name',
+    q: () => `Who shall we put on ${state.to || 'the card'}'s card?`,
+    hint: 'A name. Butterbean, Marmalade, Rosie and Pip are drawn as themselves.',
+    say: 'Who shall we put on the card?',
+    body: () => textInput('draftName', 'Kaleigh'),
+    next: () => state.draft.name.trim().length > 0,
+  },
+  {
+    id: 'kind',
+    q: () => `What is ${state.draft.name || 'they'}?`,
+    hint: '',
+    say: 'What are they?',
+    when: () => !isKnownName(state.draft.name),
+    body: () => choices(KINDS.map((k) => ({
+      value: k.id, label: k.label, sub: k.sub, em: k.em,
+      on: () => { state.draft.kind = k.id; state.draft.species = k.species; },
+      is: () => state.draft.kind === k.id,
+    }))),
+    next: () => !!state.draft.kind,
+  },
+  {
+    id: 'relation',
+    q: () => `Who is ${state.draft.name} to ${state.to || 'them'}?`,
+    hint: 'Optional — it goes under the picture so a little one knows who they are looking at.',
+    say: 'Who are they?',
+    when: () => state.draft.kind === 'person',
+    body: () => choices(RELATIONS.map((r) => ({
+      value: r, label: r,
+      on: () => { state.draft.relation = state.draft.relation === r ? '' : r; },
+      is: () => state.draft.relation === r,
+    })), true),
+    next: () => true,
+  },
+  {
+    id: 'skin',
+    q: 'Skin',
+    hint: 'Tap the closest one. You can change it after you see them.',
+    say: 'What colour is their skin?',
+    when: () => state.draft.kind === 'person',
+    body: () => swatches('skin'),
+    next: () => true,
+  },
+  {
+    id: 'hair',
+    q: 'Hair',
+    hint: '',
+    say: 'What colour is their hair?',
+    when: () => state.draft.kind === 'person',
+    body: () => swatches('hair'),
+    next: () => true,
+  },
+  {
+    id: 'knit',
+    q: 'Jumper',
+    hint: '',
+    say: 'What colour is their jumper?',
+    when: () => state.draft.kind === 'person',
+    body: () => swatches('knit'),
+    next: () => true,
+  },
+  {
+    id: 'more',
+    q: () => `${state.draft.name || 'They'} are ready`,
+    hint: 'You can put up to three on a card.',
+    say: 'Shall we add somebody else?',
+    body: () => choices([
+      { value: 'add', label: 'Add somebody else', em: '➕',
+        on: () => { commitDraft(); resetDraft(); goTo('name'); } },
+      { value: 'done', label: "That's everybody", em: '✅',
+        on: () => { commitDraft(); goTo('from'); } },
+    ]),
+    next: () => false,
+    hideNext: true,
+  },
+  {
+    id: 'from',
+    q: 'Who is it from?',
+    hint: 'Both of you is fine — "Kaleigh & Nir".',
+    say: 'Who is it from?',
+    body: () => textInput('from', 'Kaleigh & Nir'),
+    next: () => true,
+  },
+  {
+    id: 'note',
+    q: 'Say something',
+    hint: 'Optional. It sits in a little box under the names.',
+    say: 'Would you like to say something?',
+    body: () => textInput('note', 'Thought you might love this one.', 140),
+    next: () => true,
+  },
+  { id: 'done', q: 'Your card is ready', hint: '', say: 'Your card is ready!',
+    body: () => finish(), next: () => false, hideNext: true },
+];
+
+const isKnownName = (n) =>
+  ['butterbean', 'marmalade', 'rosie', 'pip'].includes(String(n).trim().toLowerCase());
+
+const visible = () => STEPS.filter((s) => !s.when || s.when());
+const current = () => visible()[Math.min(state.step, visible().length - 1)];
+const goTo = (id) => {
+  const i = visible().findIndex((s) => s.id === id);
+  state.step = i < 0 ? state.step : i;
+  render();
+};
+
+function resetDraft() {
+  state.draft = { name: '', kind: null, species: null, relation: '', skin: null, hair: null, knit: null };
+}
+function commitDraft() {
+  const d = state.draft;
+  if (!d.name.trim()) return;
+  if (state.cast.length >= 3) return;
+  const known = isKnownName(d.name);
+  state.cast.push({
+    label: d.relation,
+    spec: known ? d.name.trim()
+      : toSpec({ name: d.name, species: d.species || 'friend',
+                 skin: d.skin ?? 0, hair: d.hair ?? 0, knit: d.knit ?? 0 }),
+  });
+}
+
+/* ---- builders ---------------------------------------------------------- */
+function textInput(key, placeholder, max = 44) {
+  const wrap = document.createElement('label');
+  wrap.className = 'field';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = placeholder;
+  input.maxLength = max;
+  input.autocomplete = 'off';
+  input.value = key === 'draftName' ? state.draft.name : state[key];
+  input.addEventListener('input', () => {
+    if (key === 'draftName') state.draft.name = input.value; else state[key] = input.value;
+    renderNav(); renderStage();
+  });
+  /* Enter advances, because a soft keyboard's blue key is where a thumb already
+     is and hunting for a button below the keyboard is the main way a phone form
+     gets abandoned. */
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); advance(); } });
+  wrap.appendChild(input);
+  setTimeout(() => input.focus({ preventScroll: true }), 60);
+  return wrap;
+}
+
+function choices(items, toggle = false) {
+  const grid = document.createElement('div');
+  grid.className = 'opts';
+  items.forEach((it) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'opt';
+    b.setAttribute('aria-pressed', String(it.is ? it.is() : false));
+    b.innerHTML = (it.em ? `<span class="em">${it.em}</span>` : '')
+      + `<span>${it.label}</span>` + (it.sub ? `<span class="sub">${it.sub}</span>` : '');
+    b.addEventListener('click', () => {
+      it.on();
+      /* A toggle screen stays put — the parent may be deselecting. A pick
+         screen advances immediately, because asking somebody to tap their
+         answer and then tap Next is asking twice. */
+      if (toggle) render(); else advance();
+    });
+    grid.appendChild(b);
+  });
+  return grid;
+}
+
+function swatches(kind) {
+  const grid = document.createElement('div');
+  grid.className = 'swatches';
+  OPTIONS[kind].forEach((o) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sw';
+    b.style.background = o.swatch;
+    b.setAttribute('aria-label', `${kind} option ${o.i + 1}`);
+    b.setAttribute('aria-pressed', String(state.draft[kind] === o.i));
+    b.addEventListener('click', () => { state.draft[kind] = o.i; render(); });
+    grid.appendChild(b);
+  });
+  return grid;
+}
+
+function finish() {
+  const u = new URL('/gift', location.origin);
+  if (state.to.trim()) u.searchParams.set('to', state.to.trim());
+  if (state.from.trim()) u.searchParams.set('from', state.from.trim());
+  if (state.note.trim()) u.searchParams.set('note', state.note.trim());
+  if (state.cast.length) u.searchParams.set('cast', state.cast.map((c) => c.spec).join(','));
+  const url = u.toString();
+
+  const box = document.createElement('div');
+  box.className = 'done';
+  box.innerHTML = '<b>Send this link</b>'
+    + '<p style="margin:0;font-size:14.5px;color:var(--ink-soft)">Everything you chose is inside '
+    + 'the link itself. Nothing was saved anywhere, and nothing about it reached us.</p>'
+    + `<div class="link">${url.replace(/&/g, '&amp;')}</div>`;
+
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.innerHTML = `<button class="btn go" id="doShare">Share it</button>`
+    + `<button class="btn" id="doCopy">Copy link</button>`
+    + `<a class="btn ghost" href="${url.replace(/&/g, '&amp;')}" target="_blank" rel="noopener">Open it</a>`;
+  box.appendChild(row);
+
+  setTimeout(() => {
+    $('doCopy')?.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(url); $('doCopy').textContent = 'Copied'; }
+      catch { /* the link is on screen above regardless */ }
+    });
+    $('doShare')?.addEventListener('click', async () => {
+      if (navigator.share) {
+        try { await navigator.share({ title: `A little gift for ${state.to || 'you'}`, url }); return; }
+        catch { /* the sheet was dismissed — not an error */ }
+      }
+      try { await navigator.clipboard.writeText(url); $('doShare').textContent = 'Copied'; } catch {}
+    });
+  }, 0);
+  return box;
+}
+
+/* ---- render ------------------------------------------------------------ */
+function previewCast() {
+  const out = state.cast.map((c) => ({ ...characterFor(c.spec), label: c.label }));
+  const d = state.draft;
+  if (d.name.trim() && out.length < 3) {
+    const spec = isKnownName(d.name) ? d.name.trim()
+      : toSpec({ name: d.name, species: d.species || 'friend',
+                 skin: d.skin ?? 0, hair: d.hair ?? 0, knit: d.knit ?? 0 });
+    const c = characterFor(spec);
+    if (c) out.push({ ...c, label: d.relation });
+  }
+  return out.filter(Boolean);
+}
+
+function renderStage() {
+  const cast = previewCast();
+  const stage = $('stage');
+  stage.innerHTML = cast.map((c) => {
+    const svg = c.svg.replace(/id="a-/g, 'data-a="');
+    return '<button class="actor" type="button" aria-label="' + c.name + '">'
+      + '<svg viewBox="36 20 138 170" role="img" aria-hidden="true">' + svg + '</svg>'
+      + '<span class="cast-name">' + (c.label ? c.label + ' ' : '') + c.name + '</span></button>';
+  }).join('');
+  stage.querySelectorAll('[data-a="eyeL"],[data-a="eyeR"]').forEach((e) => e.classList.add('blinker'));
+  stage.querySelectorAll('.actor').forEach((el) => {
+    el.addEventListener('click', () => {
+      el.classList.remove('tapped'); void el.offsetWidth; el.classList.add('tapped');
+    });
+  });
+}
+
+function renderNav() {
+  const s = current();
+  const nav = $('nav');
+  nav.innerHTML = '';
+  if (s.hideNext) return;
+  const b = document.createElement('button');
+  b.className = 'btn go';
+  b.textContent = s.id === 'note' || s.id === 'from' ? 'Done' : 'Next';
+  b.disabled = !s.next();
+  b.style.opacity = s.next() ? '1' : '.5';
+  b.addEventListener('click', advance);
+  nav.appendChild(b);
+}
+
+function advance() {
+  const s = current();
+  if (!s.hideNext && !s.next()) return;
+  if (s.id === 'knit' || (s.id === 'kind' && state.draft.kind !== 'person')) { goTo('more'); return; }
+  state.step = Math.min(state.step + 1, visible().length - 1);
+  render();
+}
+
+function render() {
+  const s = current();
+  const list = visible();
+  $('bar').style.width = `${Math.round((state.step / (list.length - 1)) * 100)}%`;
+  $('q').textContent = typeof s.q === 'function' ? s.q() : s.q;
+  $('hint').textContent = typeof s.hint === 'function' ? s.hint() : s.hint;
+  const body = $('body');
+  body.innerHTML = '';
+  body.appendChild(s.body());
+  renderStage();
+  renderNav();
+  $('fine').innerHTML = state.step === 0
+    ? 'Nothing here is stored, and nothing leaves your device. '
+      + '<a href="/privacy">How that works</a>'
+    : '';
+  speak(s);
+}
+
+/* ---- voice -------------------------------------------------------------
+   Pip reads the question. Recorded clips are used where the pack has one and
+   the device voice fills in otherwise, which is exactly how /play behaves — see
+   engine/speech.js. Failure is silent by design: a page that popped an error
+   because a phone had no speech synthesis would be worse than a quiet one. */
+let lastSpoken = '';
+async function speak(s) {
+  if (!state.sound || !s.say || s.say === lastSpoken) return;
+  lastSpoken = s.say;
+  try { await Speech.say({ id: `make-${s.id}`, text: s.say }); } catch { /* stays quiet */ }
+}
+
+$('sound').addEventListener('click', async () => {
+  state.sound = !state.sound;
+  $('sound').textContent = state.sound ? '🔊' : '🔇';
+  $('sound').setAttribute('aria-pressed', String(state.sound));
+  $('sound').setAttribute('aria-label', state.sound ? 'Turn sound off' : 'Turn sound on');
+  if (!state.sound) { Speech.stop(); return; }
+  /* iOS will not play audio until a user gesture has unlocked it, and this tap
+     is one — so unlock here rather than on load, where it would be refused. */
+  try { await Speech.unlock(); } catch {}
+  lastSpoken = '';
+  speak(current());
+});
+
+$('back').addEventListener('click', () => {
+  Speech.stop();
+  if (state.step === 0) { location.href = '/parent/'; return; }
+  state.step -= 1;
+  lastSpoken = '';
+  render();
+});
+
+/* First interaction anywhere unlocks audio, for the same iOS reason. */
+addEventListener('pointerdown', function once() {
+  removeEventListener('pointerdown', once);
+  Speech.unlock().catch(() => {});
+}, { once: true });
+
+render();
+</script>
+</body>
+</html>

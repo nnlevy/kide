@@ -429,6 +429,24 @@ function giftName(raw: string | null): string {
             .trim().slice(0, GIFT_NAME_MAX);
 }
 
+/** A cast entry is "Name~p312": a name plus an optional trait code.
+ *
+ *  It needs its own sanitiser. giftName() deliberately allows only letters,
+ *  spaces, apostrophes, hyphens and &, so it silently ATE the tilde and the
+ *  digits -- "Kaleigh~p312" arrived as "Kaleighp312", which is a different
+ *  person with a mangled name. Found by round-tripping a built link rather than
+ *  by any test, which is why there is now a test for it too.
+ *
+ *  Still an allow-list: letters, marks, spaces, apostrophes, hyphens, one tilde
+ *  and the base36 characters the trait code uses. No comma -- the caller has
+ *  already split on it -- and nothing that could reach the renderer unescaped.
+ */
+function giftCastEntry(raw: string): string {
+  if (!raw) return "";
+  return raw.normalize("NFC").replace(/[^\p{L}\p{M}\p{N} '’~-]/gu, "")
+            .replace(/\s+/g, " ").trim().slice(0, GIFT_NAME_MAX);
+}
+
 function giftNote(raw: string | null): string {
   if (!raw) return "";
   return raw.normalize("NFC").replace(/[^\p{L}\p{M}\p{N} .,!?'’—-]/gu, "")
@@ -460,7 +478,7 @@ function renderGift(url: URL): Response {
   // "from Kaleigh and Nir" is two adults, but the card a child wants shows
   // Kaleigh and the dog. Names only; cast.js resolves them to characters.
   const cast = (url.searchParams.get("cast") || "")
-    .split(",").map((n) => giftName(n)).filter(Boolean).slice(0, GIFT_CAST_MAX);
+    .split(",").map((n) => giftCastEntry(n)).filter(Boolean).slice(0, GIFT_CAST_MAX);
   const dest = giftDestination(url.searchParams.get("t"));
 
   const headline = to ? `A little gift for ${to}` : "A little gift";
@@ -637,10 +655,16 @@ function renderGift(url: URL): Response {
   <p class="fine">Made by <a href="/">kide.us</a> · <a href="/privacy">privacy</a></p>
 </div>
 <script type="module">
-/* NOTE ON INDENTATION: the closing braces below are indented on purpose.
+/* NOTE: no backtick may appear anywhere in this block. It lives inside a TS
+   template literal, so one backtick ends the literal and the file stops
+   parsing -- which is exactly what happened when this comment first quoted a
+   brace in backticks. esbuild reported it 60 lines later as an unexpected "}".
+
+   NOTE ON INDENTATION: the closing braces below are indented on purpose.
    test-gift.mjs finds the end of renderGift() by matching up to the first
-   newline-then-brace at column 0, and a top-level `}` inside this template
-   literal truncates that match early -- which silently dropped the X-Robots-Tag
+   newline-then-brace at column 0, and a top-level closing brace inside this
+   template literal truncates that match early -- which silently dropped the
+   X-Robots-Tag
    assertion rather than failing loudly. Keeping braces off column 0 keeps the
    test measuring the whole function.
 
