@@ -63,9 +63,24 @@ body{
 body.stage-warm{background:linear-gradient(180deg,#FFC97A,#FFE3B0);}
 body.stage-dusk{background:linear-gradient(180deg,var(--dusk-top),var(--dusk-bottom));}
 body.stage-sleepy{background:linear-gradient(180deg,var(--night-top),var(--night-bottom));}
-#app{position:relative;min-height:100dvh;min-height:100svh;min-height:100vh;padding-top:var(--safe-t);padding-bottom:var(--safe-b);display:flex;flex-direction:column;overflow:hidden;}
+/* #app must be CLAMPED to the viewport, not merely at least as tall as it.
+   With only min-height, #app grew to its content (Parent Corner is ~2270px on a
+   phone), so `.screen{flex:1}` resolved to that same full content height,
+   `overflow-y:auto` never had anything to overflow, and `body{overflow:hidden}`
+   stopped the page itself from scrolling. The result was ~980px of Parent
+   Corner that no gesture could reach — the one screen a parent has to read.
+   height (not just min-height) is what makes the flex child overflow and the
+   scroll container engage. */
+#app{position:relative;height:100dvh;height:100svh;min-height:100dvh;min-height:100svh;min-height:100vh;padding-top:var(--safe-t);padding-bottom:var(--safe-b);display:flex;flex-direction:column;overflow:hidden;}
+@supports not (height:100dvh){#app{height:100vh;}}
 button{font-family:inherit;}
 .screen{flex:1;display:flex;flex-direction:column;align-items:center;padding:18px 18px calc(18px + var(--safe-b));position:relative;z-index:2;min-height:0;}
+/* Every screen scrolls when — and only when — its content does not fit.
+   overflow-y:auto is inert while content fits, so gameplay screens are
+   unchanged, but a short viewport (landscape phone, 844x390) can no longer
+   strand a button below the fold on any of the ten screens. overscroll-behavior
+   keeps a child's over-scroll inside the screen instead of bouncing the page. */
+.screen{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
 .scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;}
 
 /* decorative clouds */
@@ -1641,7 +1656,10 @@ function screenGate(){
   state.gateTarget = a+b;
   const opts = shuffle([state.gateTarget, state.gateTarget+1, Math.max(1,state.gateTarget-2)]);
   const c = document.createElement("div");
-  c.style.width="100%"; c.style.display="flex"; c.style.flexDirection="column"; c.style.alignItems="center"; c.style.flex="1";
+  /* justify-content:center — the handoff card centres itself and this one did
+     not, so the gate slammed to the top of the screen while every other modal
+     sat in the middle. On a tall phone that reads as a half-loaded page. */
+  c.style.width="100%"; c.style.display="flex"; c.style.flexDirection="column"; c.style.alignItems="center"; c.style.justifyContent="center"; c.style.flex="1";
   c.innerHTML =
     '<div class="gate-card">'+
       '<div class="p-eyebrow" style="color:var(--ink-soft);font-weight:700">GROWN-UPS ONLY</div>'+

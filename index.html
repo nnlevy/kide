@@ -83,11 +83,11 @@ nav .row{display:flex;align-items:center;justify-content:space-between;}
 .hero p{color:#fff;font-size:17px;margin:14px auto 0;opacity:.96;max-width:480px;}
 .cta{display:inline-block;margin-top:24px;border:none;border-radius:999px;padding:17px 34px;font-size:18px;font-weight:800;color:#fff;text-decoration:none;background:linear-gradient(180deg,var(--coral),var(--coral-deep));box-shadow:0 5px 0 rgba(0,0,0,.14);}
 /* BRAND.md: coral is "the one CTA color — if everything is a CTA, nothing is",
-   and there is one main action per screen. This page had two coral buttons
-   pointing at two different games. The hero keeps coral; the second entry
-   point becomes the sand-blue secondary the brand guide specifies, so both
-   routes survive and only one of them shouts. */
-.cta-secondary{background:linear-gradient(180deg,var(--sand),var(--sand-deep));}
+   and there is one main action per screen. The page now has exactly one action,
+   "Let's Play", stated twice — once in the hero and once at the end for the
+   reader who scrolled. Every other route out (Sounds, Guides, the guides, the
+   Parent Corner, the clinician band) is a text link, so nothing competes with
+   it. .cta-secondary is retired along with the second button it styled. */
 
 /* ---- sections ---- */
 section{margin-top:56px;}
@@ -129,21 +129,31 @@ p.desc{color:var(--ink-soft);font-size:16px;max-width:560px;margin:0 auto 30px;t
   box-shadow:0 5px 0 rgba(0,0,0,.05);}
 .stat b{display:block;font-size:28px;color:var(--grass-dark);line-height:1.1;}
 .stat span{font-size:12.5px;color:var(--ink-soft);}
-.sound-picker{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:12px;}
-.sound-picker button{font:inherit;font-size:16px;font-weight:800;min-height:48px;min-width:48px;
-  padding:10px 16px;border-radius:999px;border:2px solid #EFE9DA;background:#fff;color:var(--ink);
-  cursor:pointer;}
-/* min-width matters as much as min-height here: a single-letter label like "p"
-   made a 40px-wide target, which fails the 44px floor on the horizontal axis
-   even though the button is tall enough. */
-.sound-picker button[aria-pressed="true"]{background:var(--grass);border-color:var(--grass-deep);color:#fff;}
-.word-panel{background:var(--card);border-radius:var(--radius-md);padding:18px 18px 20px;margin-top:14px;
-  box-shadow:0 5px 0 rgba(0,0,0,.05);min-height:110px;}
-.word-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
-.chip{background:#F6F2E6;border-radius:999px;padding:7px 13px;font-size:15px;font-weight:700;}
-.chip i{font-style:normal;color:var(--ink-faint);font-weight:600;font-size:13px;margin-left:5px;}
-.where{font-size:13.5px;color:var(--ink-soft);margin-top:12px;}
-.where b{color:var(--ink);}
+/* .sound-picker / .word-panel / .chip / .where were deleted with the phoneme
+   explorer they styled. The live version of all of it is on /sounds. */
+/* ---- trust strip ----
+   The hero paragraph used to carry four separate promises ("No accounts. No
+   ads. Nothing ever leaves the device.") on top of two explanations of what the
+   product does. Six ideas in one paragraph is not a paragraph a tired parent
+   reads. The promises become scannable chips instead, which is the form they
+   were always trying to be. */
+.trust{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:22px auto 0;max-width:560px;}
+.trust span{background:var(--card);border-radius:999px;padding:9px 16px;font-size:13.5px;
+  font-weight:700;color:var(--ink-soft);box-shadow:0 2px 0 rgba(0,0,0,.05);}
+
+/* ---- clinician band ----
+   /clinician is the only page aimed at the customer who pays, and it had one
+   link on the whole site, in the footer, labelled for a different page. A
+   parent-facing homepage should not be interrupted by a B2B pitch — so this is
+   deliberately quiet, visually separate, and self-selecting: it addresses
+   someone who already knows they are a clinician and is invisible to everyone
+   else. It sits below every parent-facing section for the same reason. */
+.pro{background:#F4F7F5;border:2px solid #E4EDE7;border-radius:var(--radius-lg);
+  padding:28px 26px;text-align:center;margin-top:64px;}
+.pro b{display:block;font-size:18px;margin-bottom:6px;}
+.pro p{color:var(--ink-soft);font-size:15px;max-width:460px;margin:0 auto 4px;}
+.pro a.readmore{color:var(--grass-dark);}
+
 footer{margin-top:64px;padding:30px 0 46px;text-align:center;color:var(--ink-faint);font-size:13px;}
 footer a{text-decoration:underline;}
 footer .links{margin-top:6px;}
@@ -181,112 +191,106 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
         </div></div></div></div>
     </div>
     <h1>The screen time that ends without a meltdown.</h1>
-    <p>Pip reads every question out loud, so a child who can't read yet can play alone — colors, counting and shapes at their own pace. Then Pip gets sleepy, asks to be tucked in, and hands the moment back to you. The goodbye is the point. No accounts. No ads. Nothing ever leaves the device.</p>
-    <a class="cta" href="/play">Let's Play — it's free</a>
-    <p style="margin:14px 0 0"><a href="/words" style="color:#fff;font-weight:800;font-size:15px;
-      display:inline-flex;align-items:center;min-height:44px;text-decoration:underline">
-      or start the word practice &rarr;</a></p>
+    <!-- Two sentences, one idea each. The old hero packed six ideas into one
+         block and then offered two competing buttons; a parent deciding in
+         eight seconds needs the promise, the reason to believe it, and one
+         door. The four trust promises moved to the chips below, and the
+         second CTA moved into the page where it is not competing with the
+         primary one. -->
+    <p>Pip gets sleepy, asks to be tucked in, and hands the moment back to you — so ending playtime is Pip's idea, not yours. Every question is read out loud, so a child too little to read can play on their own.</p>
+    <a class="cta" href="/play">Let's Play &mdash; it's free</a>
+  </div>
+
+  <div class="trust">
+    <span>Free</span>
+    <span>No accounts</span>
+    <span>No ads</span>
+    <span>Nothing leaves the device</span>
+    <span>Ages 2&ndash;7</span>
   </div>
 
   <section>
-    <h2>One home for everything little kids need</h2>
-    <p class="desc">Kide is where Quizbiz LLC builds joyful, honest learning experiences for little kids — starting with Pip's first game, growing into more over time. Every product here follows the same rule: gentle pace, real privacy, zero pressure on your child or your wallet.</p>
+    <h2>The goodbye is the whole point</h2>
+    <p class="desc">Near the end of a session the sky turns amber, then dusk, and Pip starts to yawn. Your child is the one who tucks Pip in. Nothing locks, nothing is taken away, and there is no timer to argue with &mdash; which is why handing the tablet back stops being a fight.</p>
+    <p class="desc" style="margin-top:14px"><a class="readmore" href="/guides/screen-time-that-ends-itself">How the goodbye actually works &rarr;</a></p>
   </section>
 
   <section>
-    <h2>What Pip teaches today</h2>
+    <h2>What's inside</h2>
     <div class="card-grid">
       <div class="mini-card"><div class="emoji">🌙</div><b>A goodbye that works</b><span>Pip gets sleepy and asks to be tucked in — so ending is Pip's idea, not yours</span></div>
       <div class="mini-card"><div class="emoji">🎨</div><b>Colors</b><span>Find the color Pip names</span></div>
       <div class="mini-card"><div class="emoji">🔢</div><b>Counting</b><span>Count along, one at a time</span></div>
       <div class="mini-card"><div class="emoji">🔺</div><b>Shapes</b><span>Spot shapes in the world around</span></div>
-      <div class="mini-card"><div class="emoji">🚽</div><b>Going Potty</b><span>Your child walks Pip through the whole routine — nothing scored</span></div>
-      <div class="mini-card"><div class="emoji">🫧</div><b>Washing Hands</b><span>Water, soap, scrub, rinse, dry — in order, as many times as they like</span></div>
+      <div class="mini-card"><div class="emoji">🔤</div><b>Letters</b><span>Beginning with the letters in the name your child chose</span></div>
+      <div class="mini-card"><div class="emoji">💛</div><b>Feelings</b><span>Happy and sad first, then the harder ones</span></div>
+      <div class="mini-card"><div class="emoji">🚽</div><b>Going Potty</b><span>Your child walks Pip through the routine — nothing is scored</span></div>
+      <div class="mini-card"><div class="emoji">🫧</div><b>Washing Hands</b><span>Water, soap, scrub, rinse, dry — as many times as they like</span></div>
     </div>
-    <!-- The headline of this page is "the screen time that ends without a
-         meltdown", and the guide that substantiates it had exactly one inbound
-         link on the whole site — from a hub the homepage did not link either.
-         The claim that sells this product was the one claim with no route to
-         its evidence. Every other feature section already ends in a readmore;
-         this one now does too. -->
-    <p class="desc" style="margin-top:14px"><a class="readmore" href="/guides/screen-time-that-ends-itself">How the goodbye actually works, and why ending is Pip's idea →</a></p>
   </section>
 
   <section id="companions">
     <h2>Your child picks who comes with them</h2>
-    <p class="desc">Four companions, and the choice matters more than it looks. Each one gets stuck
-      for a different reason, so the world reads differently depending on who your child brings.
-      Then your child names them — and that name becomes the very first word they practise, because
-      a name you chose is the most motivating word in the language.</p>
+    <!-- One sentence instead of four. The mechanic (each companion gets stuck
+         differently, the chosen name becomes the first practice word) is real
+         and worth knowing, but it is a delightful discovery inside the game and
+         a wall of text on a landing page. The cards below carry it. -->
+    <p class="desc">Then your child names them &mdash; and that name becomes the first word they practise, because a name you chose is the most motivating word there is.</p>
     <div class="companion-grid" id="companionGrid"></div>
-    <p class="desc" style="margin-top:22px"><a class="cta cta-secondary" href="/words">Meet them</a></p>
   </section>
 
   <section id="lessons">
-    <h2>Hundreds of little lessons, hiding in one afternoon</h2>
-    <p class="desc">Your child never sees a lesson. They see a companion who needs a rope, and a
-      hill with somebody behind it. Underneath, every word carries a speech sound, and every sound
-      is chosen for what your child is ready for next — so the practice is invisible and never
-      turns into a test.</p>
+    <h2>The practice is invisible</h2>
+    <!-- The interactive phoneme picker and its IPA transcriptions moved to
+         /sounds, which is the page written for the reader who wants them. On
+         the homepage it asked a parent to engage with clinical notation before
+         they had played anything, and it was the single biggest reason this
+         page felt like more work than it was worth. The numbers stay, because
+         a parent reads "113 different little moments" as reassurance, not as
+         homework. -->
+    <p class="desc">Your child never sees a lesson. They see a companion who needs a rope, and a hill with somebody behind it. Underneath, every word carries a speech sound chosen for what your child is ready for next &mdash; so it never turns into a test.</p>
 
     <div class="stat-row" id="lessonStats"></div>
 
-    <p class="desc" style="margin-top:26px"><b>Pick a sound to see the words that carry it.</b></p>
-    <div class="sound-picker" id="soundPicker"></div>
-    <div class="word-panel" id="wordPanel"></div>
-
-    <p class="desc" style="margin-top:22px">Every option offered at any moment practises the
-      <i>same</i> sound — so wherever your child chooses to go, there is no wrong door, and they
-      can never quietly avoid the sound they find hardest.</p>
-    <p class="desc"><a class="readmore" href="/words">Try it with your child →</a></p>
-    <p class="desc" style="margin-top:18px">Not sure which sounds your child should have yet?
-       Most of the time the answer is &ldquo;this one is still on its way, and that's on time&rdquo; —
-       <a class="readmore" href="/sounds">check your child's age against the research →</a></p>
-  </section>
-
-  <section>
-    <h2>Pip's Turn: rehearsing the routine</h2>
-    <p class="desc">A toddler will happily play with a toy sink that has no water in it. Nothing is being rewarded — <i>doing the routine</i> is the whole reward, and being the one who does it is the point. Pip's Turn is built on that. Your child doesn't answer questions about the potty; they help Pip go, step by step, as many times as they want. Nothing is scored, there is no wrong tap, and there is no way to fail.</p>
-    <p class="desc" style="margin-top:14px"><b>Pip sometimes sits and nothing happens. Pip sometimes doesn't make it in time.</b> Both are deliberate, and nobody is cross about either — so that if it happens to your child, they have already watched it be okay. We never reward a child for going, because pressure is the fastest route to holding it in. And we'd rather you played this <i>before</i> the real moment, in another room: a screen on the toilet pulls attention away from exactly the signals your child is learning to notice.</p>
-    <p class="desc" style="margin-top:10px"><a class="readmore" href="/guides/potty-training-without-pressure">Why it's built this way, with the research →</a></p>
+    <p class="desc" style="margin-top:26px">Wondering which sounds your child should have by now? Most of the time the answer is &ldquo;that one is still on its way, and that's on time.&rdquo;</p>
+    <p class="desc"><a class="readmore" href="/sounds">Check your child's age against the research &rarr;</a></p>
   </section>
 
   <section>
     <h2>Pip talks. And, if you like, listens.</h2>
-    <p class="desc">Every question is spoken aloud in Pip's voice, so a two-year-old who can't read a word can still play alone. Turn it on in the Parent Corner and Pip will listen too — your child can just say <i>&ldquo;red!&rdquo;</i> instead of tapping.</p>
-    <p class="desc" style="margin-top:14px"><b>We only ever listen on the device.</b> If a browser would need to send your child's voice to a company's servers to understand it, we don't offer the microphone there at all — there's no cloud option to switch on. Nothing is recorded, stored, or sent. Tapping always works, and listening is off until a grown-up turns it on.</p>
-    <p class="desc" style="margin-top:10px"><a class="readmore" href="/guides/your-childs-voice-stays-on-the-device">Exactly how that works, device by device →</a></p>
-    <p class="desc" style="margin-top:6px"><a class="readmore" href="/parent/">See what your child has been practising →</a></p>
+    <p class="desc">Turn listening on in the Parent Corner and your child can just say &ldquo;red!&rdquo; instead of tapping. <b>We only ever listen on the device</b> &mdash; nothing is recorded, stored, or sent, and where a browser would need to ship your child's voice to a company's servers, we don't offer the microphone at all.</p>
+    <p class="desc" style="margin-top:12px"><a class="readmore" href="/guides/your-childs-voice-stays-on-the-device">Exactly how that works, device by device &rarr;</a></p>
   </section>
 
-  <!-- This was "More concept packs are coming — letters, feelings, and more",
-       with an email box under it. Letters and Feelings now exist, so the
-       promise is replaced by the thing itself, and the email capture moved to
-       the Parent Corner where a parent who has actually played will find it.
-       An unfinished-state promise on the front page costs more credibility
-       than an address is worth. -->
   <section>
-    <h2>Two new packs: Letters and Feelings</h2>
-    <p class="desc">Both are built in the order children actually learn, which is not the
-      order you would guess.</p>
-    <div class="card-grid" style="margin-top:16px">
-      <div class="mini-card"><div class="emoji">🔤</div><b>Letters</b><span>Starts with the letters
-        in the name your child chose for their companion — children learn those first — then follows
-        the letters whose names give away their sound before the ones that don't</span></div>
-      <div class="mini-card"><div class="emoji">💛</div><b>Feelings</b><span>Happy and sad first,
-        then angry, then scared, then surprised — the order children separate them. And it asks
-        about situations before faces, because that is the easier one for a little child</span></div>
-    </div>
-    <p class="desc" style="margin-top:14px"><a class="readmore" href="/play">Play them with your child →</a></p>
+    <h2>Nothing here is scored</h2>
+    <p class="desc">Going Potty and Washing Hands are pretend play, not quizzes. Your child helps Pip through the steps as many times as they want; there is no wrong tap and no way to fail. Pip sometimes doesn't make it in time, on purpose &mdash; so if it happens to your child, they have already watched it be okay.</p>
+    <p class="desc" style="margin-top:12px"><a class="readmore" href="/guides/potty-training-without-pressure">Why it's built this way, with the research &rarr;</a></p>
   </section>
+
+  <section style="margin-top:44px;text-align:center">
+    <a class="cta" href="/play">Let's Play &mdash; it's free</a>
+    <p class="desc" style="margin-top:16px"><a class="readmore" href="/parent/">Or see what your child has been practising &rarr;</a></p>
+  </section>
+
+  <div class="pro">
+    <b>Are you a speech-language pathologist?</b>
+    <!-- Claims here are taken from what /clinician actually offers: a free
+         practice record a parent can hand you, and a $39 one-time professional
+         edition that wraps the same numbers for a chart. Nothing is rounded up
+         — an inflated promise on the way to a paid page is the fastest way to
+         lose the one reader on this site who pays. -->
+    <p>Kide turns a home programme into a practice record you can read &mdash; adherence, and per-sound production rates with credible intervals, measured from the practice itself rather than from a parent's recall. The record is free, and a parent can hand you the link.</p>
+    <p style="margin-top:10px"><a class="readmore" href="/clinician/">See a worked example &rarr;</a></p>
+  </div>
 
   <footer>
     kide.us — a Quizbiz LLC product
-    <!-- The clinician surface lives in the footer rather than on the page. It
-         is the only page aimed at the customer who pays, so it needs a
-         site-wide route for both people and crawlers — but this page is
-         written for a worried parent, and a professional B2B block in the
-         middle of it would be addressed to the wrong reader. -->
+    <!-- /for-slps stays in the footer as the site-wide route for crawlers and
+         for anyone who scrolled past the band above. The band, not the footer,
+         is now the primary route to the only page aimed at the customer who
+         pays — it sits below every parent-facing section and is addressed
+         explicitly to clinicians, so it never speaks to the wrong reader. -->
     <div class="links"><a href="/sounds">Sounds</a> · <a href="/guides">Guides</a> ·
       <a href="/for-slps">For speech therapists</a></div>
     <div class="links" style="margin-top:8px"><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></div>
@@ -324,65 +328,23 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
     }).join('');
   }
 
-  var PH_LABEL = {p:"p",b:"b",m:"m",n:"n",w:"w",h:"h",t:"t",d:"d",k:"k",g:"g",
-                  f:"f",v:"v",s:"s",z:"z",l:"l",r:"r",sh:"sh",ch:"ch",th:"th",y:"y"};
-
+  /* The interactive sound picker that used to live here moved to /sounds, which
+     is the page written for a reader who wants IPA. What survives is the count
+     row, because four numbers are reassurance a parent reads in a second, where
+     a phoneme grid was homework they had not agreed to. The numbers are still
+     generated from the engine's own lexicon rather than hand-written, so the
+     homepage cannot advertise a lexicon the product does not have. */
   fetch('/data/lessons.json').then(function(r){ return r.ok ? r.json() : null; }).then(function(data){
     if (!data) return;
     var stats = document.getElementById('lessonStats');
-    if (stats) {
-      stats.innerHTML = [
-        [data.counts.words,  'words your child can be asked for'],
-        [data.counts.targets,'speech sounds practised'],
-        [data.counts.scenes, 'places to go'],
-        [data.counts.pairs,  'different little moments']
-      ].map(function(x){ return '<div class="stat"><b>'+x[0]+'</b><span>'+x[1]+'</span></div>'; }).join('');
-    }
-
-    /* Order sounds the way an SLP would recognise: earlier-developing first. */
-    var ORDER = ['p','b','m','n','w','h','t','d','k','g','f','sh','ch','l','s','r','th'];
-    var byPh = {};
-    data.words.forEach(function(w){ (byPh[w.ph] = byPh[w.ph] || []).push(w); });
-    var sounds = Object.keys(byPh).sort(function(a,b){
-      var ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
-      return (ia<0?99:ia) - (ib<0?99:ib);
-    });
-
-    var picker = document.getElementById('soundPicker');
-    var panel  = document.getElementById('wordPanel');
-    if (!picker || !panel) return;
-
-    function show(ph){
-      var ws = byPh[ph] || [];
-      picker.querySelectorAll('button').forEach(function(b){
-        b.setAttribute('aria-pressed', String(b.getAttribute('data-ph') === ph));
-      });
-      var places = {};
-      ws.forEach(function(w){ w.aff.forEach(function(a){ places[a] = true; }); });
-      var placeNames = Object.keys(places).map(function(a){ return data.stations[a]; });
-      panel.innerHTML =
-        '<b>' + ws.length + ' word' + (ws.length===1?'':'s') + ' carry the /' + (PH_LABEL[ph]||ph) + '/ sound</b>'
-        + '<div class="word-chips">' + ws.slice(0,14).map(function(w){
-            return '<span class="chip">'+w.w+'<i>/'+w.ipa.join(' ')+'/</i></span>';
-          }).join('') + (ws.length>14 ? '<span class="chip">+'+(ws.length-14)+' more</span>' : '') + '</div>'
-        + '<p class="where">Your child meets these at <b>' + placeNames.join('</b>, <b>') + '</b>'
-        + ' — and the harder ones only unlock once the easier ones are comfortable.</p>'
-        /* Straight through to the page that answers "should they have this by now?".
-           The homepage is the strongest page on the site; pointing it at the surface
-           built to rank is free, and it is also the next thing a parent wants. */
-        + '<p class="where" style="margin-top:10px"><a class="readmore" href="/sounds/' + ph + '">'
-        + 'When do children learn the &ldquo;' + (PH_LABEL[ph]||ph) + '&rdquo; sound? →</a></p>';
-    }
-
-    picker.innerHTML = sounds.map(function(ph){
-      return '<button data-ph="'+ph+'" aria-pressed="false">'+(PH_LABEL[ph]||ph)+'</button>';
-    }).join('');
-    picker.querySelectorAll('button').forEach(function(b){
-      b.addEventListener('click', function(){ show(b.getAttribute('data-ph')); });
-    });
-    /* Open on /r/ -- the sound families most often come for. */
-    show(sounds.indexOf('r') >= 0 ? 'r' : sounds[0]);
-  }).catch(function(){ /* sections stay hidden; nothing else is affected */ });
+    if (!stats) return;
+    stats.innerHTML = [
+      [data.counts.words,  'words your child can be asked for'],
+      [data.counts.targets,'speech sounds practised'],
+      [data.counts.scenes, 'places to go'],
+      [data.counts.pairs,  'different little moments']
+    ].map(function(x){ return '<div class="stat"><b>'+x[0]+'</b><span>'+x[1]+'</span></div>'; }).join('');
+  }).catch(function(){ /* the row stays empty; nothing else is affected */ });
 })();
 
 /* The notify form moved to the Parent Corner (/parent) when Letters and

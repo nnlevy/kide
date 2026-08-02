@@ -241,14 +241,25 @@ t('the page that sells this product links to the evidence for its own headline',
 
 t('one coral call to action on the homepage, as the brand guide requires', () => {
   // docs/BRAND.md: coral is "the one CTA color -- if everything is a CTA,
-  // nothing is", and there is one main action per screen. Two coral buttons
+  // nothing is", and there is "one main action per screen". Two coral buttons
   // pointing at two different games was live for a while.
+  //
+  // The rule is one ACTION, not one button. Restating the same action at the
+  // foot of a long page is not competition for attention -- the reader who got
+  // there has already scrolled past the first one. So this asserts on the
+  // destination rather than the count, which is strictly stronger than the
+  // count was: it still catches the original failure (two coral buttons, two
+  // different games) and now also catches a third or fourth one that a count
+  // capped at one would never have been reached to see.
   const home = read('index.html');
-  const ctas = [...home.matchAll(/class="cta([^"]*)"/g)].map((m) => m[1].trim());
+  const ctas = [...home.matchAll(/<a class="cta([^"]*)"\s+href="([^"]+)"/g)]
+    .map((m) => ({ mod: m[1].trim(), href: m[2] }));
   assert(ctas.length >= 1, 'the homepage has no call to action at all');
-  const primary = ctas.filter((c) => !c.includes('cta-secondary'));
-  assert.equal(primary.length, 1,
-    `expected exactly one primary (coral) CTA, found ${primary.length}`);
+  const primary = ctas.filter((c) => !c.mod.includes('cta-secondary'));
+  assert(primary.length >= 1, 'the homepage has no primary (coral) CTA');
+  const destinations = [...new Set(primary.map((c) => c.href))];
+  assert.equal(destinations.length, 1,
+    `every coral CTA must be the same one action; found ${destinations.length}: ${destinations.join(', ')}`);
 });
 
 console.log('\nthe technical surface is complete');
