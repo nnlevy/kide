@@ -478,6 +478,45 @@ console.log('--- the naming flow ---');
   const people = ['Kaleigh', 'Nir', 'Grandma', 'Sam', 'Ari', 'Jo'].map((n) => characterFor(n).svg);
   ok('six names give at least four distinguishable people', new Set(people).size >= 4);
 
+
+  // parseInt(undefined, 36) returns 86464843759093, because "undefined" is a
+  // valid base-36 string. An absent trait therefore read as a huge integer
+  // rather than null, every "was this specified?" check downstream read true,
+  // and the contrast rule below silently never ran.
+  eq('an absent trait parses as null, not as "undefined" in base 36',
+     characterFor('Kaleigh~p3').spec.hair, null);
+  eq('a partial trait code keeps the traits it does carry',
+     characterFor('Kaleigh~p3').spec.skin, 3);
+  eq('a bare species code leaves the rest unset',
+     characterFor('Kaleigh~p').spec.knit, null);
+
+  // A DEFAULT MUST ALWAYS BE LEGIBLE. Dark hair defaulted onto dark skin renders
+  // at shipping size as a bald head -- a bug that looks like a style choice.
+  {
+    const SK = ['#F0CBA8', '#E8B48C', '#C68642', '#8D5524', '#5C3317', '#FADCBC'];
+    const HA = ['#C68B4E', '#3B2A20', '#8C4B2A', '#2E2E33', '#6B4423', '#D9A441', '#7A5C3E'];
+    const lum = (hex) => {
+      const v = parseInt(hex.slice(1), 16);
+      const c = [(v >> 16) & 255, (v >> 8) & 255, v & 255]
+        .map((x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; });
+      return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    };
+    let worst = 1;
+    for (const nm of ['Kaleigh', 'Nir', 'Grandma', 'Sam', 'Ari', 'Jo', 'Bea', 'Tom', 'Zed', 'Mia']) {
+      for (let si = 0; si < SK.length; si++) {
+        const c = characterFor(`${nm}~p${si.toString(36)}`);
+        const hair = HA.filter((h) => c.svg.includes(h))[0];
+        worst = Math.min(worst, Math.abs(lum(hair) - lum(SK[si])));
+      }
+    }
+    ok(`no default hair vanishes into any skin (worst delta ${worst.toFixed(3)})`, worst >= 0.06);
+  }
+
+  // ...but an explicit choice is the user's business, including a deliberate
+  // dark-on-dark one.
+  ok('an explicitly chosen low-contrast hair is left alone',
+     characterFor('Kaleigh~p33').svg.includes('#2E2E33'));
+
   eq('the cast is capped at three', castFrom('a,b,c,d,e').length, 3);
   eq('a name repeated is only drawn once', castFrom('Kaleigh,kaleigh,Nir').length, 2);
   eq('empty entries are dropped', castFrom('Kaleigh,,  ,Nir').length, 2);

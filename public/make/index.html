@@ -170,7 +170,10 @@ const KINDS = [
   { id: 'toy',    label: 'A soft toy', em: '🧸', sub: 'Like Pip',        species: 'toy' },
 ];
 
-const RELATIONS = ['Mum', 'Dad', 'Grandma', 'Grandpa', 'Auntie', 'Uncle',
+/* US English. 'Mum', 'Auntie' and 'Jumper' went in one commit after the sweep
+   that removed 'practise' from the whole site, which is the kind of thing that
+   happens when the writer and the reader are not from the same country. */
+const RELATIONS = ['Mom', 'Dad', 'Grandma', 'Grandpa', 'Aunt', 'Uncle',
                    'Big sister', 'Big brother', 'Cousin', 'Friend'];
 
 const STEPS = [
@@ -196,6 +199,9 @@ const STEPS = [
     hint: '',
     say: 'What are they?',
     when: () => !isKnownName(state.draft.name),
+    /* No Next: this screen advances on tap, so a second, permanently disabled
+       button was pure clutter under the thing you were meant to press. */
+    hideNext: true,
     body: () => choices(KINDS.map((k) => ({
       value: k.id, label: k.label, sub: k.sub, em: k.em,
       on: () => { state.draft.kind = k.id; state.draft.species = k.species; },
@@ -220,7 +226,7 @@ const STEPS = [
     id: 'skin',
     q: 'Skin',
     hint: 'Tap the closest one. You can change it after you see them.',
-    say: 'What colour is their skin?',
+    say: 'What color is their skin?',
     when: () => state.draft.kind === 'person',
     body: () => swatches('skin'),
     next: () => true,
@@ -229,16 +235,16 @@ const STEPS = [
     id: 'hair',
     q: 'Hair',
     hint: '',
-    say: 'What colour is their hair?',
+    say: 'What color is their hair?',
     when: () => state.draft.kind === 'person',
     body: () => swatches('hair'),
     next: () => true,
   },
   {
     id: 'knit',
-    q: 'Jumper',
+    q: 'Sweater',
     hint: '',
-    say: 'What colour is their jumper?',
+    say: 'What color is their sweater?',
     when: () => state.draft.kind === 'person',
     body: () => swatches('knit'),
     next: () => true,
@@ -323,7 +329,11 @@ function textInput(key, placeholder, max = 44) {
      gets abandoned. */
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); advance(); } });
   wrap.appendChild(input);
-  setTimeout(() => input.focus({ preventScroll: true }), 60);
+  /* Focused on the next frame, not after a 60ms timer. The timer was long
+     enough that a fast typist's first word went nowhere at all — the keystrokes
+     landed on a document with nothing focused and were simply dropped. rAF
+     fires once the element is in the layout, which is the actual precondition. */
+  requestAnimationFrame(() => input.focus({ preventScroll: true }));
   return wrap;
 }
 

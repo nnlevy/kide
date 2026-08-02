@@ -59,6 +59,19 @@ const KNITS = ['#8CA07B', '#7B93A0', '#A08C7B', '#9B7BA0', '#A07B84', '#7BA093']
 
 const norm = (n) => String(n || '').trim().toLowerCase().replace(/[^a-z]/g, '');
 
+/* Relative luminance, sRGB. Used for one job only: stopping the generator from
+   handing somebody a character whose hair is invisible against their skin.
+   Picking a dark-brown default hair for dark-brown skin renders, at the size
+   this actually ships at, as a bald head — which is not a style, it is a bug
+   that looks like a choice. */
+function luminance(hex) {
+  const v = parseInt(hex.slice(1), 16);
+  const ch = [(v >> 16) & 255, (v >> 8) & 255, v & 255]
+    .map((c) => { const x = c / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; });
+  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+}
+const CONTRAST_FLOOR = 0.06;
+
 /* The palettes, exported so the builder at /make can show a parent the actual
    swatches rather than an abstract "option 3". The builder and the renderer
    must read the same arrays or the preview stops predicting the card. */
@@ -74,6 +87,13 @@ const SPECIES_CODE = { friend: 'p', goldendoodle: 'd', cat: 'c', toy: 't' };
 
 const b36 = (n) => Number(n || 0).toString(36)[0];
 const un36 = (ch) => {
+  /* The guard is not defensive padding, it is the whole function.
+     parseInt(undefined, 36) coerces to the STRING "undefined" — which is a
+     perfectly valid base-36 number — and returns 86464843759093. So a trait
+     that was simply absent came back as a huge integer instead of null, every
+     "was this specified?" check downstream read true, and the contrast nudge
+     that depends on knowing a value was NOT chosen silently never ran. */
+  if (typeof ch !== 'string' || ch === '') return null;
   const n = parseInt(ch, 36);
   return Number.isFinite(n) ? n : null;
 };
@@ -134,7 +154,20 @@ export function characterFor(name) {
   const pick = (given, arr, shift) =>
     (given !== null && given >= 0 && given < arr.length) ? given : ((h >>> shift) % arr.length);
   const [skin, skinDeep, cheek] = SKINS[pick(spec.skin, SKINS, 0)];
-  const hair = HAIRS[pick(spec.hair, HAIRS, 5)];
+
+  /* A DEFAULT MUST ALWAYS BE LEGIBLE; AN EXPLICIT CHOICE IS THE USER'S BUSINESS.
+     So only the hash-derived hair is nudged away from the skin it would vanish
+     into — walking the list until something separates. If a parent deliberately
+     picks hair that matches the skin, that is honoured untouched. */
+  let hairIdx = pick(spec.hair, HAIRS, 5);
+  if (spec.hair === null) {
+    const skinL = luminance(skin);
+    for (let n = 0; n < HAIRS.length; n++) {
+      const cand = (hairIdx + n) % HAIRS.length;
+      if (Math.abs(luminance(HAIRS[cand]) - skinL) >= CONTRAST_FLOOR) { hairIdx = cand; break; }
+    }
+  }
+  const hair = HAIRS[hairIdx];
   const knit = KNITS[pick(spec.knit, KNITS, 11)];
 
   // friendSvg() builds from four literals. Swapping them by value is blunt, but
