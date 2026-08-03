@@ -552,6 +552,7 @@ console.log('--- the naming flow ---');
 
   // ---- the form is adaptive because the RIG says so ------------------------
   {
+
     const page = fs.readFileSync('public/make/index.html', 'utf8');
     eq('a person has four appearance traits', TRAITS_FOR.friend.join(','), 'skin,hair,eye,knit');
     eq('a dog has one', TRAITS_FOR.goldendoodle.join(','), 'coat');
@@ -676,6 +677,44 @@ console.log('--- the naming flow ---');
     // A cat is never given hair, whatever the sentence says.
     eq('a black cat with blonde hair is still just a black cat',
        d('our black cat with blonde hair').hair, null);
+    // ---- the four rigs are all there is, so route everything onto one ------
+    // "our bunny", "the hamster", "my parrot" and "our horse" all fell through
+    // to `friend` and were drawn as PEOPLE. A rabbit drawn as a small
+    // four-legged animal is a recognisable rabbit; a rabbit drawn as a woman in
+    // a jumper is a broken product.
+    for (const [text, want] of [
+      ['our bunny', 'cat'], ['our rabbit', 'cat'], ['the hamster', 'cat'],
+      ['a guinea pig', 'cat'], ['our horse', 'goldendoodle'], ['a pony', 'goldendoodle'],
+      ['my parrot', 'toy'], ['a goldfish', 'toy'],
+      ['black lab', 'goldendoodle'], ['german shepherd', 'goldendoodle'],
+      ['a golden retriever', 'goldendoodle'], ['my cat Simba', 'cat'],
+    ]) {
+      eq(`"${text}" is not drawn as a person`, d(text).species, want);
+    }
+    eq('"black lab" is also black', WORDS.coat[d('black lab').coat], 'black');
+
+    // ---- kinship, in the languages this family actually uses --------------
+    // The first family to use this speaks Hebrew at home. "savta" is not an
+    // edge case to them, and "grandmother" was plain English and still missing.
+    for (const [text, want] of [
+      ['grandmother', 'Grandma'], ['savta', 'Grandma'], ['abuela', 'Grandma'],
+      ['bubbe', 'Grandma'], ['oma', 'Grandma'], ['nonna', 'Grandma'],
+      ['grandfather', 'Grandpa'], ['saba', 'Grandpa'], ['abuelo', 'Grandpa'],
+      ['my mum', 'Mom'], ['my mom', 'Mom'], ['ima', 'Mom'],
+      ['abba', 'Dad'], ['papa', 'Dad'], ['my auntie', 'Aunt'], ['tia', 'Aunt'],
+      ['his teacher', 'Teacher'], ['our neighbour', 'Neighbor'],
+    ]) {
+      eq(`"${text}" is recognised as ${want}`, d(text).relation, want);
+    }
+    // A kinship word is also a statement that this is a person.
+    ok('a kinship word alone settles the species',
+       ['savta', 'abba', 'my cousin'].every((x) => d(x).species === 'friend'
+                                                && d(x).matched.includes('species')));
+    // "long", "curly", "with glasses" are not traits any rig has. They must be
+    // ignored, not guessed at.
+    ok('unsupported descriptors are ignored rather than invented',
+       d('a curly haired woman with glasses').hair === null);
+
     ok('describe() never throws', ['', null, undefined, '   ', 'x'.repeat(500)]
        .every((v) => !!describe(v, 'n')));
 

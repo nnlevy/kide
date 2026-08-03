@@ -364,11 +364,50 @@ export function castFrom(list, max = 3) {
    there behind it. It is a shortcut, never the only road.
 --------------------------------------------------------------------------- */
 
+/* THE FOUR RIGS ARE ALL THERE IS, so the job of this table is to route every
+   living thing somebody might name onto the closest one — never to leave an
+   animal as the default.
+   
+   THAT DEFAULT WAS THE BUG. "our bunny", "the hamster", "my parrot" and "our
+   horse" all fell through to `friend` and were drawn as PEOPLE. A rabbit drawn
+   as a small four-legged animal with the right coat is a recognisable rabbit; a
+   rabbit drawn as a woman in a jumper is a broken product. Anything four-legged
+   and small routes to the cat rig, anything larger or canine to the dog. */
 const SPECIES_WORDS = [
-  [/\b(dog|puppy|pup|doggy|doodle|retriever|labrador|terrier|hound)\b/, 'goldendoodle'],
-  [/\b(cat|kitten|kitty|tabby|moggy|chatul\w*)\b/, 'cat'],
-  [/\b(toy|teddy|bear|plush|stuffed|doll|sprout)\b/, 'toy'],
-  [/\b(woman|man|lady|girl|boy|person|grandma|grandpa|granny|nan|mum|mom|dad|aunt\w*|uncle|cousin|sister|brother|friend|human|she|he|they)\b/, 'friend'],
+  [/\b(dog|puppy|pup|doggy|doggie|doodle|retriever|labrador|lab|terrier|hound|poodle|collie|beagle|husky|corgi|dachshund|spaniel|shepherd|chihuahua|pug|mutt|kelev)\b/, 'goldendoodle'],
+  [/\b(cat|kitten|kitty|tabby|moggy|feline|chatul\w*|chatool\w*|gato|gata)\b/, 'cat'],
+  // No rig of their own. The cat rig is small, four-legged and has ears and a
+  // tail, which is a far better rabbit than a person is.
+  [/\b(bunny|rabbit|hamster|guinea ?pig|gerbil|mouse|rat|ferret|hedgehog|chinchilla|squirrel|fox)\b/, 'cat'],
+  // Bigger or hoofed reads closer to the dog silhouette than the cat one.
+  [/\b(horse|pony|goat|sheep|lamb|cow|calf|donkey|llama|alpaca|pig|piglet)\b/, 'goldendoodle'],
+  [/\b(toy|teddy|plush|stuffed|doll|sprout|bear|bunny rabbit|lovey|blankie)\b/, 'toy'],
+  // A bird or a fish is neither, and a person is the worst of the three
+  // answers. The soft toy is the honest one: it is plainly a stand-in.
+  [/\b(bird|parrot|budgie|canary|cockatiel|chicken|hen|duck|fish|goldfish|turtle|tortoise|lizard|snake)\b/, 'toy'],
+  [/\b(woman|man|lady|gentleman|girl|boy|person|people|human|kid|child|baby|toddler|teen\w*|adult|grown[- ]?up|she|he|they|him|her)\b/, 'friend'],
+];
+
+/* KINSHIP -> the label under the picture, and a strong hint that this is a
+   person. Kept multilingual on purpose: the first family to use this speaks
+   Hebrew at home, and "savta" is not an edge case to them. Ordered longest-
+   first so "grandmother" is not eaten by "mother". */
+const RELATION_WORDS = [
+  [/\b(great[- ]?grandmother|great[- ]?grandma)\b/, 'Great-grandma'],
+  [/\b(great[- ]?grandfather|great[- ]?grandpa)\b/, 'Great-grandpa'],
+  [/\b(grandmother|grandma|granny|gran|nana|nanna|nan|savta|safta|abuela|bubbe|bubby|oma|yiayia|nonna|lola)\b/, 'Grandma'],
+  [/\b(grandfather|grandpa|grandad|granddad|gramps|saba|sabba|abuelo|zayde|zaide|opa|nonno|lolo)\b/, 'Grandpa'],
+  [/\b(mother|mummy|mommy|mum|mom|mama|momma|ima|imma|madre|eema)\b/, 'Mom'],
+  [/\b(father|daddy|dad|papa|pappa|abba|aba|padre)\b/, 'Dad'],
+  [/\b(auntie|aunty|aunt|tia|doda)\b/, 'Aunt'],
+  [/\b(uncle|tio|dod)\b/, 'Uncle'],
+  [/\b(big sister|older sister|sister|sis|achot)\b/, 'Big sister'],
+  [/\b(big brother|older brother|brother|bro|ach)\b/, 'Big brother'],
+  [/\b(cousin|prima|primo)\b/, 'Cousin'],
+  [/\b(wife|husband|partner|spouse)\b/, ''],
+  [/\b(teacher|nanny|childminder|babysitter|sitter)\b/, 'Teacher'],
+  [/\b(neighbou?r)\b/, 'Neighbor'],
+  [/\b(friend|bestie|buddy|mate)\b/, 'Friend'],
 ];
 
 /* Colour words -> index, per trait. Kept as words a person would actually use,
@@ -421,11 +460,17 @@ const firstMatch = (text, table) => {
 export function describe(text, name = '') {
   const t = String(text || '').toLowerCase().normalize('NFC');
   const matched = [];
-  const species = firstMatch(t, SPECIES_WORDS) || 'friend';
-  if (firstMatch(t, SPECIES_WORDS)) matched.push('species');
+  const relation = firstMatch(t, RELATION_WORDS);
+  /* A kinship word is also a statement that this is a person, and it is a
+     stronger one than a bare pronoun. "my savta" needs no other evidence. */
+  const explicit = firstMatch(t, SPECIES_WORDS);
+  const species = explicit || (relation !== null ? 'friend' : 'friend');
+  if (explicit || relation !== null) matched.push('species');
 
   const out = { name: String(name || '').trim(), species,
+                relation: relation || '',
                 skin: null, hair: null, eye: null, knit: null, coat: null, matched };
+  if (relation) matched.push('relation');
 
   if (species === 'friend') {
     out.hair = firstMatch(t, HAIR_WORDS_IN);

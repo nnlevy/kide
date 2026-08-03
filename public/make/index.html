@@ -469,10 +469,14 @@ function describeInput() {
        understand must not silently overwrite something already chosen. */
     const kind = { friend: 'person', goldendoodle: 'dog', cat: 'cat', toy: 'toy' }[d.species];
     if (d.matched.includes('species')) { state.draft.kind = kind; state.draft.species = d.species; }
+    if (d.relation) state.draft.relation = d.relation;
     for (const k of ['skin', 'hair', 'eye', 'coat']) if (d[k] !== null) state.draft[k] = d[k];
     read.textContent = d.matched.length
-      ? 'Got: ' + d.matched.map((k) => (k === 'species'
-          ? kind : `${k === 'eye' ? 'eyes' : k} — ${WORDS[k][state.draft[k]]}`)).join(', ')
+      ? 'Got: ' + d.matched.map((k) => {
+          if (k === 'species') return kind;
+          if (k === 'relation') return d.relation.toLowerCase();
+          return `${k === 'eye' ? 'eyes' : k} — ${WORDS[k][state.draft[k]]}`;
+        }).filter(Boolean).join(', ')
       : (input.value.trim() ? "I didn't catch anything yet — the next screens will ask." : '');
     renderStage();
   };
