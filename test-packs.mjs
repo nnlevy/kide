@@ -66,7 +66,7 @@ const sandbox = {
   // here — the point is to hammer the real random paths.
   pick: (a) => a[Math.floor(Math.random() * a.length)],
   shuffle: (a) => { const c = a.slice(); for (let i = c.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [c[i], c[j]] = [c[j], c[i]]; } return c; },
-  readCompanionName: () => companionName,
+  wordsCompanionName: () => companionName,
   state: { question: null, missOnQuestion: 0, qSerial: 0 },
   progress: {},
   listenTries: 0,

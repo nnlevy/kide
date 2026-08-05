@@ -24,7 +24,11 @@
 (function (global) {
   "use strict";
 
-  var VERSION = "v1";   // bump together with packVersion in tools/voice/manifest.js
+  var REGISTRY = global.KideVoiceRegistry;
+  if (!REGISTRY || !REGISTRY.packVersion || !REGISTRY.lines) {
+    throw new Error("Kide voice registry did not load before voice.js");
+  }
+  var VERSION = REGISTRY.packVersion;
   var CONSENT_KEY = "kide_voice_consent_v1";
   var PREFS_KEY = "kide_voice_prefs_v1";
   var CONSENT_VERSION = 1; // bump to force parents to re-consent
@@ -34,59 +38,7 @@
      fall back to browser speech for any line whose audio fails to load,
      and so a new line can ship before the pack is regenerated.
   ------------------------------------------------------------------ */
-  var TEXT = {
-    "prompt-color-red": "Find something red!",
-    "prompt-color-blue": "Find something blue!",
-    "prompt-color-yellow": "Find something yellow!",
-    "prompt-color-green": "Find something green!",
-    "prompt-color-purple": "Find something purple!",
-    "prompt-color-orange": "Find something orange!",
-    "prompt-count": "How many do you see?",
-    "answer-1": "One!", "answer-2": "Two!", "answer-3": "Three!",
-    "answer-4": "Four!", "answer-5": "Five!",
-    "prompt-shape-circle": "Find the circle!",
-    "prompt-shape-square": "Find the square!",
-    "prompt-shape-triangle": "Find the triangle!",
-    "prompt-collect-circle": "Help me collect the circles!",
-    "prompt-collect-square": "Help me collect the squares!",
-    "prompt-collect-triangle": "Help me collect the triangles!",
-    "affirm-1": "Yes!", "affirm-2": "You found it!", "affirm-3": "Pip is so happy!",
-    "affirm-4": "Great eyes!", "affirm-5": "Wonderful!", "affirm-6": "That's it!",
-    "retry-1": "Let's look again!", "retry-2": "Almost, try another!",
-    "retry-3": "Keep looking!", "retry-4": "So close!",
-    "hint-1": "This one! Can you find it?",
-    "home-greet": "Hi! I'm Pip. Let's grow together!",
-    "garden-intro": "Pick a game! Colors... counting... or shapes?",
-    "sleepy-invite": "I'm getting sleepy. Should we say goodnight?",
-    "goodbye": "Nighty night! Great playing today. See you soon!",
-    "listen-color": "Say the color out loud, or tap it!",
-    "listen-count": "Say the number out loud, or tap it!",
-    "listen-shape": "Say the shape out loud, or tap it!",
-    "listen-again": "I didn't quite hear that. Try again, or tap!",
-    "listen-garden": "Say colors, counting, or shapes... or tap one!",
-    "handoff-hello": "Hi there! Are you ready to play with me?",
-    "r-potty-0": "Pip's tummy feelswiggly.",
-    "r-potty-1": "Pip needs to gopotty!",
-    "r-potty-2": "Here we go. Pantsdown.",
-    "r-potty-3": "Sit downPip.",
-    "r-potty-4": "Now we wait. Let's hum a littlesong.",
-    "r-went-0": "Pip did it! Right in thepotty.",
-    "r-went-1": "All clean. Pants backup!",
-    "r-went-2": "Now weflush.",
-    "r-none-0": "Nothing this time. That'sokay!",
-    "r-none-1": "We can try againlater.",
-    "r-acc-0": "Oh! Pip didn't make it intime.",
-    "r-acc-1": "That's okay, Pip. Accidentshappen.",
-    "r-acc-2": "Let's find some dryclothes.",
-    "r-acc-3": "All better. We'll try the pottynext time.",
-    "r-wash-0": "Time to wash ourhands!",
-    "r-wash-1": "Now somesoap.",
-    "r-wash-2": "Scrubscrubscrub!",
-    "r-wash-3": "Rinse themoff.",
-    "r-wash-4": "Anddry them.",
-    "r-done": "I did it! Thank you for helpingme.",
-    "r-handwash-0": "Pip's hands are allmucky!"
-  };
+  var TEXT = REGISTRY.lines;
 
   /* Clips needed inside the first few seconds. Warmed on the handoff tap;
      everything else is fetched lazily and then cached at idle. */

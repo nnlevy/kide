@@ -7,6 +7,9 @@
 /voice/v1/*
   Cache-Control: public, max-age=31536000, immutable
 
-# The module itself is small and changes with the game; a day is plenty.
+# The generated registry and module are small and change with the game; a day is plenty.
+/voice-manifest.js
+  Cache-Control: public, max-age=86400
+
 /voice.js
   Cache-Control: public, max-age=86400

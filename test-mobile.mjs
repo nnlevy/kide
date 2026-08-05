@@ -57,7 +57,9 @@ await new Promise((r) => setTimeout(r, 1200));
 let pass = 0, fail = 0; const failures = [];
 const ok = (n, c, d = '') => { if (c) pass++; else { fail++; failures.push(`${n}${d ? ' -- ' + d : ''}`); } };
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({
+  ...(process.env.PW_CHROME ? { executablePath: process.env.PW_CHROME } : {}),
+});
 for (const d of DEVICES) {
   for (const path of PAGES) {
     const page = await browser.newPage({

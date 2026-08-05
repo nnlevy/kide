@@ -491,7 +491,7 @@
     },
     {
       "id": "chrome-where",
-      "text": "Where shall we go?",
+      "text": "Tap a picture.",
       "note": "chrome"
     },
     {
@@ -516,12 +516,12 @@
     },
     {
       "id": "chrome-who",
-      "text": "Who shall we take with us?",
+      "text": "Pick a friend.",
       "note": "chrome"
     },
     {
       "id": "chrome-name",
-      "text": "What shall we call them?",
+      "text": "Pick a name.",
       "note": "chrome"
     },
     {

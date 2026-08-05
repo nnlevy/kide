@@ -30,7 +30,10 @@ export async function browserOrSkip(name) {
   }
 
   try {
-    const b = await chromium.launch({ args: ['--no-sandbox'] });
+    const b = await chromium.launch({
+      ...(process.env.PW_CHROME ? { executablePath: process.env.PW_CHROME } : {}),
+      args: ['--no-sandbox'],
+    });
     await b.close();
   } catch (e) {
     const why = String(e.message).split('\n').find((l) => /error while loading|ENOENT|not found/i.test(l))

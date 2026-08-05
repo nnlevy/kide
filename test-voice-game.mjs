@@ -43,6 +43,11 @@ const t = (name, fn) => {
 const index = JSON.parse(readFileSync(join(OUT, 'index.json'), 'utf8'));
 const onDisk = new Set(readdirSync(OUT).filter((f) => f.endsWith('.mp3')).map((f) => f.slice(0, -4)));
 const page = readFileSync('public/play/index.html', 'utf8');
+const browserRegistrySource = readFileSync('public/voice-manifest.js', 'utf8');
+const browserSandbox = { window: {} };
+vm.createContext(browserSandbox);
+vm.runInContext(browserRegistrySource, browserSandbox);
+const browserRegistry = browserSandbox.window.KideVoiceRegistry;
 
 console.log('\nthe game pack is complete');
 
@@ -76,6 +81,30 @@ t('the pack records the voice and the model that made it', () => {
   assert(index.voice, 'no voice recorded in index.json');
   assert(index.model, 'no model recorded in index.json');
   assert.equal(index.version, M.packVersion, 'the index and the manifest disagree on the version');
+});
+
+t('the browser registry is generated from the full manifest', () => {
+  assert(browserRegistry, 'voice-manifest.js did not create KideVoiceRegistry');
+  assert.equal(browserRegistry.packVersion, M.packVersion, 'runtime pack version drifted');
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(browserRegistry.lines)),
+    Object.fromEntries(M.lines.map((line) => [line.id, line.text])),
+    'runtime ids or fallback text drifted from tools/voice/manifest.js',
+  );
+});
+
+t('the generated registry loads before the player', () => {
+  const registryAt = page.indexOf('/voice-manifest.js');
+  const playerAt = page.indexOf('/voice.js');
+  assert(registryAt > -1 && playerAt > registryAt,
+    'voice-manifest.js must load before voice.js');
+});
+
+t('replay is a real accessible button, not a clickable status card', () => {
+  assert(/<button type="button" class="replay" data-act="replay" aria-label="Hear this prompt again">/.test(page),
+    'replay is not an explicit labelled button');
+  assert(!/prompt-card"[^>]*data-act="replay"/.test(page),
+    'the status card still pretends to be the replay control');
 });
 
 console.log('\nthe game asks for exactly what the pack contains');

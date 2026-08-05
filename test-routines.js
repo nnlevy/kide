@@ -67,8 +67,9 @@ async function playThrough(pg, cap) {
   await toGarden(page);
 
   console.log("\n── the garden ──");
-  ok(await page.locator('[data-act="playroutine"]').count() === 2, "two routines offered alongside the three quiz games");
-  ok(/pip.s turn/i.test(await page.locator(".garden-sub").innerText()), "they sit under their own heading, not mixed in with the games");
+  ok(await page.locator('[data-act="playroutine"]').count() === 2, "two routines offered alongside the five quiz games");
+  ok(await page.locator('.garden-sub', { hasText: /Pip.s Turn/i }).count() === 1,
+    "they sit under their own heading, not mixed in with the games");
   ok(await page.locator('.routine-card .leaf-dot').count() === 0, "routine cards carry no mastery dots — nothing here is scored");
 
   console.log("\n── the potty routine, first run ──");

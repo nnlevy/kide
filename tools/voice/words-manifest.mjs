@@ -18,6 +18,7 @@
 
 import { writeFileSync, mkdirSync, existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { homedir } from 'node:os';
 import { ASK, CHROME, slug, wordLine } from '../../public/engine/speech.js';
 import { LEX, STATIONS } from '../../public/engine/lexicon.js';
 import { NAME_BANK } from '../../public/scene/naming.js';
@@ -96,12 +97,18 @@ if (existsSync(OUT_DIR)) {
 
 // Rendering needs a key and is a separate, deliberate step.
 if (process.argv.includes('--render')) {
-  const KEY = process.env.OPENAI_API_KEY;
-  if (!KEY) { console.error('OPENAI_API_KEY not set -- script written, nothing rendered'); process.exit(1); }
+  let KEY = process.env.OPENAI_API_KEY || '';
+  if (!KEY) {
+    try { KEY = readFileSync(join(homedir(), '.openclaw', '.credentials', 'openai-key.txt'), 'utf8').trim(); }
+    catch { /* handled below */ }
+  }
+  if (!KEY) { console.error('OpenAI credential unavailable -- script written, nothing rendered'); process.exit(1); }
+  const forceArg = process.argv.find((arg) => arg.startsWith('--force-id='));
+  const forceIds = new Set((forceArg?.slice('--force-id='.length) || '').split(',').filter(Boolean));
   let done = 0;
   for (const line of lines) {
     const file = join(OUT_DIR, `${line.id}.mp3`);
-    if (existsSync(file)) { done++; continue; }
+    if (existsSync(file) && !forceIds.has(line.id)) { done++; continue; }
     const res = await fetch('https://api.openai.com/v1/audio/speech', {
       method: 'POST',
       headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
@@ -114,6 +121,8 @@ if (process.argv.includes('--render')) {
     if (done % 20 === 0) console.log(`  ${done}/${lines.length}`);
   }
   const ids = readdirSync(OUT_DIR).filter((f) => f.endsWith('.mp3')).map((f) => f.replace('.mp3', ''));
-  writeFileSync(join(OUT_DIR, 'index.json'), JSON.stringify({ ids }) + '\n');
+  writeFileSync(join(OUT_DIR, 'index.json'), JSON.stringify({
+    ids, packVersion: script.packVersion, voice: script.voice, model: 'gpt-4o-mini-tts',
+  }) + '\n');
   console.log(`rendered ${ids.length}/${lines.length}`);
 }

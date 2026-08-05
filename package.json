@@ -3,13 +3,14 @@
 	"version": "0.1.0",
 	"private": true,
 	"scripts": {
+		"voice:registry": "node tools/voice/build-browser-registry.mjs",
 		"art:manifest": "node tools/art/build-manifest.mjs",
 		"seo:sounds": "node tools/seo/build-sounds.mjs",
 		"seo:slps": "node tools/seo/build-for-slps.mjs",
 		"seo:sitemap": "node tools/seo/build-sitemap.mjs",
 		"seo:pages": "node tools/seo/upgrade-pages.mjs",
 		"seo": "npm run seo:sounds --silent && npm run seo:slps --silent && npm run seo:pages --silent && npm run seo:sitemap --silent",
-		"build": "npm run art:manifest && npm run seo --silent && rm -rf dist && mkdir -p dist && cp -r public/* dist/ 2>/dev/null || true; cp index.html dist/index.html 2>/dev/null || true; find dist -name '.render-state.json' -delete; echo 'build complete'",
+		"build": "npm run voice:registry --silent && npm run art:manifest && npm run seo --silent && rm -rf dist && mkdir -p dist && cp -r public/* dist/ 2>/dev/null || true; cp index.html dist/index.html 2>/dev/null || true; find dist -name '.render-state.json' -delete; echo 'build complete'",
 		"check": "npm run build && npx wrangler deploy --dry-run",
 		"deploy": "npm run build && npx wrangler deploy",
 		"dev": "npx wrangler dev",
@@ -25,6 +26,7 @@
 		"test:speech": "node test-speech.mjs",
 		"test:journal": "node test-journal.mjs",
 		"test:words-voice": "npm run voice:words --silent && node test-words-voice.mjs",
+		"test:words-browser": "npm run build && node test-words-browser.mjs",
 		"test:voice-pack": "node test-voice-pack.mjs",
 		"test:voice-game": "node test-voice-game.mjs",
 		"test:seo": "npm run seo --silent && node test-seo.mjs",
@@ -37,13 +39,13 @@
 		"lexicon:build": "python3 tools/lexicon/build_lexicon.py && python3 tools/lexicon/build_play_targets.py",
 		"calibrate": "python3 tools/calibrate/calibrate.py",
 		"share:render": "node tools/share/card.js",
-		"test": "npm run test:engine && npm run test:scene && npm run test:clinical && npm run test:speech && npm run test:journal && npm run test:words-voice && npm run test:voice-pack && npm run test:voice-game && npm run test:seo && npm run test:billing && npm run test:packs && npm run test:gift && npm run test:slps && npm run test:mobile && npm run test:voice && node test-routines.js",
+		"test": "npm run test:engine && npm run test:scene && npm run test:clinical && npm run test:speech && npm run test:journal && npm run test:words-voice && npm run test:words-browser && npm run test:voice-pack && npm run test:voice-game && npm run test:seo && npm run test:billing && npm run test:packs && npm run test:gift && npm run test:slps && npm run test:mobile && npm run test:voice && node test-routines.js",
 		"demo:render": "npm run build && node tools/share/demo.js"
 	},
 	"devDependencies": {
 		"playwright": "^1.62.1",
 		"png-to-ico": "^3.0.2",
 		"sharp": "^0.35.3",
-		"wrangler": "^3.78.0"
+		"wrangler": "^4.118.0"
 	}
 }

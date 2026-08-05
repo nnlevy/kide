@@ -97,6 +97,11 @@ const ok = (c, m) => { if (c) { pass++; console.log("  ✓ " + m); } else { fail
      needing a real microphone or a real speaker. */
   await page.addInitScript(() => {
     window.__spoken = [];
+    // Keep the consent test about Kide's sequence and storage, not the host
+    // Mac's Chrome microphone entitlement. No audio is read by this fixture.
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: {
+      getUserMedia: async () => ({ getTracks: () => [{ stop() {} }] }),
+    }});
     class FakeSR {
       static available() { return Promise.resolve(window.__micAvail || "available"); }
       static install() { return Promise.resolve(true); }
@@ -139,13 +144,26 @@ const ok = (c, m) => { if (c) { pass++; console.log("  ✓ " + m); } else { fail
   ok(await page.locator("h2", { hasText: "Pip's Garden" }).isVisible(), "garden after the child's tap");
 
   console.log("\n── speaking every prompt ──");
-  for (const [level, expect] of [["colors", /^prompt-color-/], ["counting", /^prompt-count/], ["shapes", /^prompt-shape-/]]) {
+  for (const [level, expect] of [
+    ["colors", /^prompt-color-/], ["counting", /^prompt-count/], ["shapes", /^prompt-shape-/],
+    ["letters", /^prompt-letter-/], ["feelings", /^(prompt-feeling-|story-)/],
+  ]) {
     audioHits.length = 0;
     await page.locator(`[data-level="${level}"]`).click();
     await page.waitForTimeout(900);
     const src = await page.evaluate(() => { const a = document.querySelector("audio"); return a ? a.src.split("/").pop() : ""; });
     ok(expect.test(src), `${level}: prompt is spoken (${src})`);
-    ok(await page.locator(".replay").isVisible(), `${level}: replay affordance shown`);
+    const replay = page.getByRole('button', { name: 'Hear this prompt again' });
+    const hasReplay = await replay.count() > 0 && await replay.isVisible();
+    ok(hasReplay, `${level}: replay is an accessible button`);
+    if (hasReplay) {
+      const beforeReplay = audioHits.length;
+      await replay.click();
+      await page.waitForTimeout(350);
+      ok(audioHits.length > beforeReplay, `${level}: replay restarts the current prompt`);
+    } else {
+      ok(false, `${level}: replay restarts the current prompt`);
+    }
     await page.locator('[data-act="garden"]').click();
     await page.waitForTimeout(300);
   }

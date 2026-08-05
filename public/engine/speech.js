@@ -36,6 +36,11 @@ let manifest = null;          // id -> true, from the pack's index.json
 let audioEl = null;
 let epoch = 0;                // bumped on every new line; stale clips resolve false
 let unlocked = false;
+let unlocking = null;
+// A real, tiny MP3 is required here. Calling play() on an <audio> element with
+// no source can leave its promise pending forever in Chrome/Safari, which used
+// to freeze the first friend tap before the screen could advance.
+const SILENT_MP3 = 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tAwAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7uf/////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYbdyBb/AAAAAAAAAAAAAAAAAAAA//sQxAADwAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=';
 
 async function loadManifest() {
   if (manifest) return manifest;
@@ -60,17 +65,23 @@ function el() {
  *  Call from the first tap; harmless everywhere else. */
 export async function unlock() {
   if (unlocked) return true;
-  const a = el();
-  if (!a) return false;
-  try {
-    a.muted = true;
-    await a.play().catch(() => {});
-    a.pause();
-    a.currentTime = 0;
-    a.muted = false;
-    unlocked = true;
-  } catch { /* stays locked; captions still carry the game */ }
-  return unlocked;
+  if (unlocking) return unlocking;
+  unlocking = (async () => {
+    const a = el();
+    if (!a) return false;
+    try {
+      a.muted = true;
+      a.src = SILENT_MP3;
+      await a.play().catch(() => {});
+      a.pause();
+      a.currentTime = 0;
+      a.muted = false;
+      unlocked = true;
+    } catch { /* stays locked; captions still carry the game */ }
+    return unlocked;
+  })();
+  try { return await unlocking; }
+  finally { unlocking = null; }
 }
 
 export function stop() {
@@ -244,13 +255,13 @@ export const ASK = {
 };
 
 export const CHROME = {
-  where:     { id: 'chrome-where', text: 'Where shall we go?' },
+  where:     { id: 'chrome-where', text: 'Tap a picture.' },
   tryAgain:  { id: 'chrome-try', text: "Let's say it together." },
   sleepy:    { id: 'chrome-sleepy', text: 'The light is going down. Time to say goodnight.' },
   goodnight: { id: 'chrome-goodnight', text: 'Goodnight! See you next time.' },
   wake:      { id: 'chrome-wake', text: 'Can you say' },
-  whoFirst:  { id: 'chrome-who', text: 'Who shall we take with us?' },
-  nameFirst: { id: 'chrome-name', text: 'What shall we call them?' },
+  whoFirst:  { id: 'chrome-who', text: 'Pick a friend.' },
+  nameFirst: { id: 'chrome-name', text: 'Pick a name.' },
 };
 
 export const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');

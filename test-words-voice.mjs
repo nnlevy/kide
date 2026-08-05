@@ -28,6 +28,7 @@ const { LEX } = await import('./public/engine/lexicon.js');
 const { NAME_BANK } = await import('./public/scene/naming.js');
 const script = JSON.parse(readFileSync('tools/voice/words-script.json', 'utf8'));
 const scriptIds = new Set(script.lines.map((l) => l.id));
+const scriptById = new Map(script.lines.map((l) => [l.id, l.text]));
 const words = new URL('./public/words/index.html', import.meta.url);
 const wordsHtml = readFileSync(words, 'utf8');
 
@@ -52,6 +53,7 @@ t('every lexicon word has a clip in the script', () => {
 t('every chrome line is in the script', () => {
   for (const c of Object.values(Speech.CHROME)) {
     assert(scriptIds.has(c.id), `${c.id} is played but never recorded`);
+    assert.equal(scriptById.get(c.id), c.text, `${c.id} fallback text drifted from its recording script`);
   }
 });
 
@@ -166,6 +168,29 @@ await ta('routeFor is honest about which of the three routes is in use', async (
 });
 
 console.log('\nno caption reaches a child silently');
+
+t('/words uses the three literal pre-reader instructions', () => {
+  for (const instruction of ['Pick a friend.', 'Pick a name.', 'Tap a picture.']) {
+    assert(wordsHtml.includes(instruction), `missing child instruction: ${instruction}`);
+  }
+  for (const old of ['Who shall we take with us?', 'What shall we call them?', 'Where shall we go?']) {
+    assert(!wordsHtml.includes(old), `ambiguous old instruction remains: ${old}`);
+  }
+});
+
+t('choosing a name advances without a second reading-dependent button', () => {
+  assert(!wordsHtml.includes('id="btnBegin"'), 'a child must still find and read a second continue button');
+  assert(/nameLines[\s\S]{0,240}begin\(\)/.test(wordsHtml), 'the chosen name does not advance into play');
+});
+
+t('every child screen has a working replay control and grown-up controls are separated', () => {
+  for (const id of ['hearWho', 'hearName', 'hearPlay']) {
+    assert(wordsHtml.includes(`id="${id}"`), `${id} replay control is missing`);
+    assert(new RegExp(`\\$\\('${id}'\\)[\\s\\S]{0,180}Speech\\.`).test(wordsHtml), `${id} is not wired to speech`);
+  }
+  assert(wordsHtml.indexOf('id="grownupZone"') > wordsHtml.indexOf('id="stepPlay"'),
+    'grown-up controls compete above the child journey');
+});
 
 t('/words attaches a voice to the scene', () => {
   assert(/scene\.withVoice\(/.test(wordsHtml), '/words never attaches a speaker');
