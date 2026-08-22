@@ -260,6 +260,16 @@ t('one coral call to action on the homepage, as the brand guide requires', () =>
   const destinations = [...new Set(primary.map((c) => c.href))];
   assert.equal(destinations.length, 1,
     `every coral CTA must be the same one action; found ${destinations.length}: ${destinations.join(', ')}`);
+  assert.equal(destinations[0], '/play',
+    `the coral CTA must stay on free play, not a paid path; found ${destinations[0]}`);
+});
+
+t('the homepage has a $39 clinician buy path that is not a coral CTA', () => {
+  const home = read('index.html').replace(/<!--[\s\S]*?-->/g, '');
+  assert(/<a class="pro-buy" href="\/clinician\/">Buy a licence — \$39<\/a>/.test(home),
+    'the homepage has no $39 clinician href');
+  assert(!/<a class="cta[^"]*"\s+href="\/clinician/.test(home),
+    'the clinician buy path stole the coral CTA and would paywall the front door');
 });
 
 console.log('\nthe technical surface is complete');

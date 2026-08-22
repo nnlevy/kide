@@ -391,5 +391,36 @@ t('the clinician page is still excluded from search', () => {
     'the clinician page — which renders a child\'s record — became indexable');
 });
 
+console.log('\nthe $39 licence is findable, and play is not behind it');
+
+t('pricing aliases 301 to /clinician/, the page that actually charges $39', () => {
+  const block = (worker.match(/const cta: Record<string, string> = \{[\s\S]*?\};/) || [''])[0];
+  assert(block, 'the CTA alias map is gone');
+  for (const path of ['/pricing', '/price', '/buy', '/plans', '/credits']) {
+    assert(new RegExp(`"${path}":\\s*"/clinician/"`).test(block),
+      `${path} is not 301'd to /clinician/`);
+  }
+  for (const path of ['/go', '/launch', '/start', '/app', '/try']) {
+    assert(new RegExp(`"${path}":\\s*"/"`).test(block),
+      `${path} no longer 301s to free play`);
+  }
+  assert(/Response\.redirect\(dest\.toString\(\), 301\)/.test(workerCode),
+    'the alias map is no longer served as a 301');
+});
+
+t('the homepage names $39 and links to the page that sells it, without paywalling play', () => {
+  const home = readFileSync('index.html', 'utf8');
+  const visible = home.replace(/<!--[\s\S]*?-->/g, '');
+  assert(/\$39/.test(visible), 'the homepage no longer names the $39 price in visible copy');
+  assert(/<a class="pro-buy" href="\/clinician\/">Buy a licence — \$39<\/a>/.test(visible),
+    'the homepage has no paid href to /clinician/');
+  const ctas = [...home.matchAll(/<a class="cta([^"]*)"\s+href="([^"]+)"/g)].map((m) => m[2]);
+  assert(ctas.length >= 1, 'the homepage lost its play CTA');
+  assert(ctas.every((h) => h === '/play'),
+    `a coral CTA no longer points at free play: ${ctas.join(', ')}`);
+  assert(/Let's Play/.test(visible) && /it's free/.test(visible),
+    'the play CTA no longer says it is free');
+});
+
 console.log(`\n${pass} passed, ${fail} failed${skipped ? `, ${skipped} skipped` : ''}\n`);
 process.exit(fail ? 1 : 0);

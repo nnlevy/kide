@@ -64,6 +64,9 @@ export default {
 
     // Pulse 2026-07-29: CTA dual-cover — live /go·/launch·/start·/app HARD404 (branded
     // worker 404) while product home 200 "Kide — The Screen Time…". True 301 to /.
+    // Pulse 2026-08-22: /pricing·/price·/buy·/plans·/credits HARD404 while the
+    // $39 clinician licence lives at /clinician/ ("Buy a licence — $39").
+    // Play aliases stay on /; buy aliases go to the page that already charges.
     {
       const raw = url.pathname.replace(/\/$/, "") || "/";
       const cta: Record<string, string> = {
@@ -74,6 +77,11 @@ export default {
         "/try": "/",
         "/get-started": "/",
         "/getstarted": "/",
+        "/pricing": "/clinician/",
+        "/price": "/clinician/",
+        "/buy": "/clinician/",
+        "/plans": "/clinician/",
+        "/credits": "/clinician/",
       };
       if (Object.prototype.hasOwnProperty.call(cta, raw) && (request.method === "GET" || request.method === "HEAD")) {
         const dest = new URL(request.url);
