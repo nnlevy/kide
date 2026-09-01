@@ -116,6 +116,21 @@ t('measurement sends no identifier that could join two visits', () => {
     'measurement mints a session identifier');
 });
 
+t('the beacon posts to a host that does not redirect', () => {
+  // www.riskfreetrial.org 301s /api/analytics to the apex, on the POST AND on
+  // the CORS preflight. A preflight that redirects fails outright, and
+  // sendBeacon with a JSON Blob is preflighted -- so pointing at www meant
+  // every event was dropped before it left the browser, silently, forever.
+  // Asserted on the ENDPOINT constant, not the file: the comment above it
+  // names the www host on purpose, to explain why it must not be used.
+  const src = read('public/engine/measure.js');
+  const endpoint = (src.match(/const ENDPOINT = '([^']+)'/) || [])[1];
+  assert(endpoint, 'ENDPOINT is no longer a single readable constant');
+  assert(!/^https:\/\/www\./.test(endpoint),
+    `the beacon points at ${endpoint}, and the www host 301s, which kills the preflight`);
+  assert.equal(endpoint, 'https://riskfreetrial.org/api/analytics');
+});
+
 t('browser-level opt-outs are honoured', () => {
   const src = read('public/engine/measure.js');
   assert(/doNotTrack/.test(src) && /globalPrivacyControl/.test(src),

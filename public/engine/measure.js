@@ -41,7 +41,23 @@
 // "which pages bring people in" and it cannot answer "what did this person do",
 // and only the first question is any of our business here.
 
-const ENDPOINT = 'https://www.riskfreetrial.org/api/analytics';
+/* CANONICAL HOST, NO www. AND THIS IS NOT A TIDY-UP.
+ *
+ * www.riskfreetrial.org answers /api/analytics with a 301 to the apex — on the
+ * POST *and on the CORS preflight*. A preflight that redirects simply fails:
+ * browsers do not follow redirects on preflighted requests, and sendBeacon with
+ * an application/json Blob is preflighted because JSON is not a CORS-safelisted
+ * content type. So every beacon this file has ever sent was dropped before it
+ * left the browser, on every measured page, since the day it shipped.
+ *
+ * Nothing looked wrong from here: send() is wrapped in try/catch by design
+ * ("measurement must never affect the page"), so the failure was silent at both
+ * ends — no console error, no missing data anyone could point at, just an empty
+ * dashboard that read as "no traffic yet".
+ *
+ * Verified: www -> 301 on POST and on OPTIONS; apex -> 204 on the real payload.
+ */
+const ENDPOINT = 'https://riskfreetrial.org/api/analytics';
 const DOMAIN = 'kide.us';
 
 /** Parent-facing routes only. An allow-list, never a block-list. */
