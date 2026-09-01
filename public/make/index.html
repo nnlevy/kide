@@ -736,6 +736,11 @@ addEventListener('pointerdown', function once() {
 }, { once: true });
 
 render();
+
+/* Parent-facing and public, so it is measured on the same terms as every other
+   adult surface: no cookie, no id, nothing that could join two visits. The
+   child-facing routes still send nothing at all — see engine/measure.js. */
+import('/engine/measure.js').then((m) => m.start()).catch(() => {});
 </script>
 </body>
 </html>

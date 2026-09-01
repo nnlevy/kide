@@ -13,8 +13,18 @@
 // THE SPLIT THAT RESOLVES IT. This product has two audiences on two sets of
 // routes, and they are cleanly separable:
 //
-//   PARENT surfaces  /, /sounds, /sounds/*, /guides, /guides/*, /privacy, /terms
-//     An adult reading about speech development. Measured.
+//   PARENT surfaces  /, /sounds, /sounds/*, /guides, /guides/*, /privacy, /terms,
+//                    /for-slps, /make
+//     An adult reading about speech development, a clinician reading about the
+//     record, or a parent building a card. Measured.
+//
+//     /for-slps was loading this module and was NOT on the list, so the one
+//     page built to reach the only customer who pays reported nothing at all --
+//     500 clinicians could have read it and bounced without a trace. The file
+//     already says why that matters: "flying blind is also a real cost".
+//
+//     /make is the top of the sharing loop. If nobody can tell whether the card
+//     builder is used, nobody can tell whether it was worth building.
 //
 //   CHILD surfaces   /words, /play, /parent, /clinician
 //     A child playing, or their practice record. NEVER measured. Not reduced
@@ -40,6 +50,8 @@ const MEASURED = [
   /^\/sounds(\/[a-z]+)?\/?$/,
   /^\/guides(\/[a-z0-9-]+)?\/?$/,
   /^\/(privacy|terms)\/?$/,
+  /^\/for-slps\/?$/,
+  /^\/make\/?$/,
 ];
 
 export const isMeasured = (path) => MEASURED.some((rx) => rx.test(path));

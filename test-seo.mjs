@@ -61,8 +61,13 @@ t('no page loads a third-party analytics script', () => {
 console.log('\nchildren are never measured');
 
 t('the measurement allow-list covers parents and excludes children', () => {
-  for (const p of ['/', '/sounds', '/sounds/r', '/guides', '/guides/a-slug', '/privacy']) {
-    assert(isMeasured(p), `${p} is a parent surface and should be measured`);
+  // /for-slps and /make are adult surfaces and were BOTH silent. /for-slps was
+  // the worse of the two: it loaded measure.js, was not on the allow-list, and
+  // so the one page built to reach the only customer who pays reported nothing
+  // — every clinician who read it and left did so without a trace.
+  for (const p of ['/', '/sounds', '/sounds/r', '/guides', '/guides/a-slug', '/privacy',
+                   '/for-slps', '/make']) {
+    assert(isMeasured(p), `${p} is an adult surface and should be measured`);
   }
   for (const p of ['/words', '/play', '/parent', '/clinician', '/bench', '/words/']) {
     assert(!isMeasured(p), `${p} can be a child's screen and must NOT be measured`);
@@ -77,6 +82,18 @@ t('the shareable child-facing pages still have social cards', () => {
     const h = read(p);
     assert(/property="og:image"/.test(h), `${p} has no social card`);
     assert(!/name="robots"[^>]*noindex/.test(h), `${p} is hidden from search`);
+  }
+});
+
+t('every measured page actually loads the beacon, and vice versa', () => {
+  // The two halves drifted: /for-slps loaded the module without being on the
+  // list (silently sending nothing), and /make was on neither. A page that
+  // loads it but is not measured looks instrumented and is not, which is worse
+  // than being plainly absent.
+  const MEASURED_PAGES = ['index.html', 'public/sounds/index.html', 'public/guides/index.html',
+                          'public/for-slps/index.html', 'public/make/index.html'];
+  for (const p of MEASURED_PAGES) {
+    assert(/measure\.js/.test(read(p)), `${p} is measured but never loads measure.js`);
   }
 });
 
