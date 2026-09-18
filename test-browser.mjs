@@ -40,7 +40,25 @@ export async function browserOrSkip(name) {
       || String(e.message).split('\n')[0];
     console.log(`\n(SKIPPED ${name}: chromium will not launch here)`);
     console.log(`  ${why.trim()}`);
-    console.log('  npx playwright install --with-deps chromium   (needs root)\n');
+    /* Two different situations, two different fixes -- and the old one-liner
+       told a Mac user they needed root, which stopped the browser suites from
+       ever being run on the machine that could run them.
+         missing binary   -> the browser is simply not installed. No root, on
+                             any platform: playwright downloads into ~/.cache.
+         missing library  -> Linux only; the binary is there but a system .so
+                             is not. That is the case that wants --with-deps
+                             (and root), or the library extracted by hand. */
+    const missingBinary = /Executable doesn't exist|ENOENT/i.test(why);
+    if (missingBinary) {
+      console.log('  The browser is not installed. This needs no root on any platform:');
+      console.log('    npx playwright install chromium\n');
+    } else if (process.platform === 'linux') {
+      console.log('  A system library is missing (Linux). Either:');
+      console.log('    sudo npx playwright install --with-deps chromium');
+      console.log('  or extract the named .so into a dir and export LD_LIBRARY_PATH.\n');
+    } else {
+      console.log('    npx playwright install chromium\n');
+    }
     process.exit(0);
   }
 
