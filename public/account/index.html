@@ -40,7 +40,9 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Seg
 a{color:inherit;}
 .wrap{max-width:640px;margin:0 auto;padding:0 16px;}
 nav{padding:20px 0;}
-nav .row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+nav .row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.nav-links{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;max-width:100%;}
+.nav-links .nav-play{margin-right:0;}
 .wordmark{font-size:24px;font-weight:800;color:var(--grass-dark);letter-spacing:-.02em;text-decoration:none;}
 .nav-play{font-size:15px;font-weight:800;color:var(--grass-dark);text-decoration:none;padding:8px 16px;border-radius:999px;border:2px solid var(--grass-deep);}
 .card{background:var(--card);border-radius:var(--radius-lg);padding:28px 18px 26px;box-shadow:0 3px 14px rgba(0,0,0,.05);margin-top:8px;}
@@ -49,7 +51,7 @@ h1{font-size:clamp(28px,8vw,36px);margin:8px 0 0;text-align:center;letter-spacin
 .lead{color:var(--ink-soft);font-size:16px;text-align:center;margin:12px 0 0;}
 form{margin-top:22px;}
 label{display:block;font-size:14px;font-weight:700;margin:16px 0 6px;}
-input{width:100%;border:2px solid #EFE9DA;border-radius:999px;padding:14px 18px;font-size:16px;min-height:48px;font-family:inherit;color:var(--ink);background:#fff;}
+input{width:100%;max-width:100%;border:2px solid #EFE9DA;border-radius:999px;padding:14px 18px;font-size:16px;min-height:48px;font-family:inherit;color:var(--ink);background:#fff;}
 input:focus{outline:none;border-color:var(--sand);}
 .actions{display:flex;flex-direction:column;gap:10px;margin-top:16px;}
 button{border:none;border-radius:999px;padding:14px 22px;font-size:16px;min-height:48px;font-weight:800;color:#fff;cursor:pointer;font-family:inherit;width:100%;}
@@ -59,7 +61,7 @@ button.quiet{background:#fff;color:var(--ink-soft);border:2px solid #EFE9DA;box-
 .msg{margin-top:14px;font-size:15px;font-weight:700;min-height:1.2em;overflow-wrap:anywhere;}
 .msg.ok{color:var(--grass-dark);}
 .msg.err{color:var(--coral-deep);}
-.who{font-weight:800;overflow-wrap:anywhere;text-align:center;margin:8px 0 0;}
+.who{font-weight:800;overflow-wrap:anywhere;word-break:break-word;max-width:100%;text-align:center;margin:8px 0 0;}
 footer{margin-top:36px;padding:20px 0 28px;text-align:center;color:#9AA6A3;font-size:13px;}
 footer a{color:var(--ink-soft);text-decoration:underline;}
 .pip{position:relative;width:100%;height:100%;}
@@ -82,9 +84,9 @@ footer a{color:var(--ink-soft);text-decoration:underline;}
 <div class="wrap">
   <nav><div class="row">
     <a class="wordmark" href="/">kide</a>
-    <div>
-      <a class="nav-play" href="/sounds" style="border-color:var(--sand);color:var(--sand-deep);margin-right:8px;">Sounds</a>
-      <a class="nav-play" href="/guides" style="border-color:var(--sand);color:var(--sand-deep);margin-right:8px;">Guides</a>
+    <div class="nav-links">
+      <a class="nav-play" href="/sounds" style="border-color:var(--sand);color:var(--sand-deep);">Sounds</a>
+      <a class="nav-play" href="/guides" style="border-color:var(--sand);color:var(--sand-deep);">Guides</a>
       <a class="nav-play" href="/words">Practice</a>
     </div>
   </div></nav>
@@ -157,25 +159,22 @@ footer a{color:var(--ink-soft);text-decoration:underline;}
     msg.className = "msg" + (text ? (ok ? " ok" : " err") : "");
   }
 
-  function remember(address){
-    try { sessionStorage.setItem("kide-parent", address || ""); } catch (e) {}
-  }
-  function remembered(){
-    try { return sessionStorage.getItem("kide-parent") || ""; } catch (e) { return ""; }
-  }
-  function forget(){
-    try { sessionStorage.removeItem("kide-parent"); } catch (e) {}
-  }
-
   function showSigned(address){
-    email = address || email;
-    if (email) emailInput.value = email;
+    email = address;
     emailForm.hidden = true;
     codeForm.hidden = true;
     signedIn.hidden = false;
-    who.textContent = email ? ("Signed in as " + email) : "You are signed in.";
+    who.textContent = "Signed in as " + address;
     var save = document.getElementById("savePasskey");
     if (!window.PublicKeyCredential) save.hidden = true;
+  }
+
+  function acceptSession(data){
+    if (data && data.signedIn === true && typeof data.email === "string" && data.email) {
+      showSigned(data.email);
+      return true;
+    }
+    return false;
   }
 
   function showEmail(){
@@ -256,11 +255,8 @@ footer a{color:var(--ink-soft);text-decoration:underline;}
     try {
       var res = await fetch("/api/account/me", { credentials: "same-origin" });
       var data = await res.json();
-      if (data && data.signedIn && data.email) { remember(data.email); showSigned(data.email); return; }
-      if (data && data.sessionKnown) { forget(); return; }
+      acceptSession(data);
     } catch (e) {}
-    var saved = remembered();
-    if (saved) showSigned(saved);
   }
 
   if (window.PublicKeyCredential) passkeyIn.hidden = false;
@@ -288,8 +284,8 @@ footer a{color:var(--ink-soft);text-decoration:underline;}
     ev.preventDefault();
     say("Checking that code…", true);
     var data = await post("/api/account/verify", { email: email, code: codeInput.value.trim() });
-    say(data.message, !!data.ok);
-    if (data.ok) { remember(data.email || email); showSigned(data.email || email); }
+    say(data.message, data.signedIn === true);
+    acceptSession(data);
   });
 
   document.getElementById("savePasskey").addEventListener("click", async function(){
@@ -300,7 +296,7 @@ footer a{color:var(--ink-soft);text-decoration:underline;}
       var cred = await navigator.credentials.create({ publicKey: toCreate(data.publicKey) });
       var saved = await post("/api/account/passkey/register", { email: email, credential: pack(cred) });
       say(saved.message, !!saved.ok);
-      if (!saved.ok && /email code/i.test(saved.message || "")) { forget(); showEmail(); }
+      if (!saved.ok && /email code/i.test(saved.message || "")) showEmail();
     } catch (e) {
       say("That passkey could not be saved. You can still use your email code.", false);
     }
@@ -315,8 +311,8 @@ footer a{color:var(--ink-soft);text-decoration:underline;}
     try {
       var cred = await navigator.credentials.get({ publicKey: toGet(data.publicKey) });
       var signed = await post("/api/account/passkey/signin", { credential: pack(cred) });
-      say(signed.message, !!signed.ok);
-      if (signed.ok) { remember(signed.email || emailInput.value.trim()); showSigned(signed.email || emailInput.value.trim()); }
+      say(signed.message, signed.signedIn === true);
+      acceptSession(signed);
     } catch (e) {
       say("That passkey could not be verified. Try again, or use your email code.", false);
     }
@@ -325,7 +321,7 @@ footer a{color:var(--ink-soft);text-decoration:underline;}
   document.getElementById("signOut").addEventListener("click", async function(){
     var data = await post("/api/account/signout", {});
     email = "";
-    forget();
+    who.textContent = "";
     showEmail();
     say(data.message || "You are signed out on this browser.", true);
   });

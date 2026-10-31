@@ -14,20 +14,19 @@
 //   registerPasskey({ domain, email, session, credential, ip })
 //   preparePasskeySignIn({ domain, email?, ip })
 //   signInPasskey({ domain, credential, ip })
-//   currentSession({ domain, session })   — not on the hub yet; see below
+//       → { ok, message, email, sessionToken, cookie } on success
+//         (riskfreetrial #173, same shape as verifyCode)
+//   currentSession({ domain, session }) → { ok: true, email } | { ok: false }
+//   endSession({ domain, session }) → { ok: true } | { ok: false }
 //
 // The hub already does the rules: 6-digit codes, 10-minute expiry, lock after
 // 5 tries, passkeys. SMS starts sending only when that worker's SMS_LIVE_SENDS
 // flag is on and a from-number is set. This proxy never passes a phone, so
 // kide keeps asking for email until a later phase adds a phone field.
 //
-// Two hub gaps this proxy cannot paper over (a second stack would):
-//   1. verifyCode returns a session cookie. signInPasskey returns
-//      { ok, message, email } and no cookie. A passkey sign-in will not stick
-//      on refresh until signInPasskey returns the same cookie verifyCode does.
-//   2. Nothing on the entrypoint reads a session back. GET /api/account/me
-//      calls currentSession when the binding has it, and otherwise says the
-//      parent still needs to sign in.
+// signedIn is true only after this worker attaches a host-only session cookie
+// and the hub named the email. A passkey the hub accepts without a session
+// is not a sign-in. The session token never appears in JSON.
 
 const DOMAIN = "kide.us";
 const MAX_BODY = 20000;
@@ -72,17 +71,35 @@ function normalizeEmail(value) {
   return email;
 }
 
-// A sentence a parent can read. Error-code tokens and hub internals never
-// leave this worker, even when the hub put them in `message`.
+// A sentence a parent can read. Error-code tokens, the session token, and hub
+// internals never leave this worker, even when the hub put them in `message`.
 export function visitorSentence(value, fallback = GENERIC) {
   if (typeof value !== "string") return fallback;
   const msg = value.replace(/\s+/g, " ").trim();
   if (msg.length < 2 || msg.length > 240) return fallback;
   if (/^[a-z0-9_-]+$/i.test(msg)) return fallback;
-  if (/SMS_|TWILIO|TELNYX|wrangler|sessionToken|__Host|PortfolioMessaging|provider_|dry_run|error_/i.test(msg)) {
+  if (/SMS_|TWILIO|TELNYX|wrangler|sessionToken|__Host|PortfolioMessaging|provider_|dry_run|error_|attemptsRemaining/i.test(msg)) {
     return fallback;
   }
   return msg;
+}
+
+function secretsOf(result) {
+  const secrets = [];
+  if (!result || typeof result !== "object") return secrets;
+  if (typeof result.sessionToken === "string" && result.sessionToken.length >= 20) secrets.push(result.sessionToken);
+  if (typeof result.cookie === "string" && result.cookie) {
+    secrets.push(result.cookie);
+    const token = result.cookie.match(/__Host-rft_session=([A-Za-z0-9_-]{43})/);
+    if (token) secrets.push(token[1]);
+  }
+  return secrets;
+}
+
+function scrubText(value, result) {
+  let msg = typeof value === "string" ? value : "";
+  for (const secret of secretsOf(result)) msg = msg.split(secret).join("");
+  return msg.replace(/__Host-rft_session=[A-Za-z0-9_-]*/g, "");
 }
 
 function clientIp(request) {
@@ -179,15 +196,32 @@ function credentialForHub(raw) {
   return packed;
 }
 
-// What the browser is allowed to see. The hub's `error`, `provider`, `cookie`
-// and `sessionToken` stay on this side of the response.
+// What the browser is allowed to see. The hub's `error`, `provider`,
+// `attemptsRemaining`, `cookie`, and `sessionToken` stay on this side.
 export function parentView(result, extras = {}) {
   const ok = Boolean(result && result.ok === true);
-  const message = visitorSentence(result && result.message, ok ? "You are signed in." : GENERIC);
+  const message = visitorSentence(scrubText(result && result.message, result), ok ? "You are signed in." : GENERIC);
   const view = { ok, message, ...extras };
   const email = result && normalizeEmail(result.email);
-  if (ok && email) view.email = email;
+  if (ok && email && extras.signedIn === true) view.email = email;
   return view;
+}
+
+// Host-only cookie plus the hub's email. Anything else is not a sign-in,
+// including a passkey the hub accepted without minting a session.
+function signInView(result) {
+  const cookie = result && result.ok === true ? sessionCookie(result) : null;
+  const email = normalizeEmail(result && result.email);
+  const signedIn = Boolean(cookie && email);
+  const message = visitorSentence(
+    scrubText(result && result.message, result),
+    signedIn ? "You are signed in." : GENERIC,
+  );
+  const view = { ok: Boolean(result && result.ok === true), signedIn, message };
+  if (signedIn) view.email = email;
+  // Attach the host cookie whenever one was actually minted. signedIn still
+  // waits for the hub email, so a cookie alone does not paint "Signed in as".
+  return { view, cookie };
 }
 
 async function readJson(request) {
@@ -230,6 +264,17 @@ function withCookie(response, cookie) {
   return new Response(response.body, { status: response.status, headers });
 }
 
+// Last gate. If a session token survived into the JSON, do not send that body
+// and do not attach a cookie.
+function respond(view, status, result, cookie) {
+  const secrets = secretsOf(result);
+  let body = JSON.stringify(view);
+  if (secrets.some((secret) => secret && body.includes(secret))) {
+    return json({ ok: false, signedIn: false, message: GENERIC }, 502);
+  }
+  return withCookie(json(view, status), cookie);
+}
+
 export async function handleAccount(request, env) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, "") || "/";
@@ -242,47 +287,42 @@ export async function handleAccount(request, env) {
 
   if (path === "/api/account/signout") {
     const messaging = messagingOf(env);
-    if (messaging && typeof messaging.endSession === "function") {
-      await callHub(messaging, "endSession", {
-        domain: DOMAIN,
-        session: request.headers.get("cookie") || "",
-      });
+    const session = request.headers.get("cookie") || "";
+    if (!messaging || typeof messaging.endSession !== "function") {
+      return withCookie(json({ ok: false, signedIn: false, message: UNAVAILABLE }, 503), clearCookie());
     }
+    await callHub(messaging, "endSession", { domain: DOMAIN, session });
     return withCookie(json({ ok: true, signedIn: false, message: SIGNED_OUT }), clearCookie());
   }
 
   const messaging = messagingOf(env);
-  if (!messaging) return json({ ok: false, message: UNAVAILABLE }, 503);
-
   const ip = clientIp(request);
   const session = request.headers.get("cookie") || "";
 
   if (path === "/api/account/me") {
-    // sessionKnown is false when this worker cannot ask the hub who the cookie
-    // belongs to. The page may then keep showing the address from this browser
-    // tab. It is not a credential: passkey registration still sends the cookie
-    // to the hub, and the hub accepts or refuses it.
-    if (typeof messaging.currentSession !== "function") {
-      return json({ ok: true, signedIn: false, sessionKnown: false, message: NEED_SIGNIN });
+    // No reader on the binding means we cannot know who the cookie is.
+    // Fail closed: not signed in, and no address for the page to display.
+    if (!messaging || typeof messaging.currentSession !== "function") {
+      return json({ ok: false, signedIn: false, message: NEED_SIGNIN }, 503);
     }
     const result = await callHub(messaging, "currentSession", { domain: DOMAIN, session });
     const email = normalizeEmail(result.email);
     if (result.ok === true && email) {
-      return json({
+      return respond({
         ok: true,
         signedIn: true,
-        sessionKnown: true,
         email,
-        message: visitorSentence(result.message, "You are signed in."),
-      });
+        message: visitorSentence(scrubText(result.message, result), "You are signed in."),
+      }, 200, result, null);
     }
-    return json({
-      ok: true,
+    return respond({
+      ok: false,
       signedIn: false,
-      sessionKnown: true,
-      message: visitorSentence(result.message, NEED_SIGNIN),
-    });
+      message: visitorSentence(scrubText(result.message, result), NEED_SIGNIN),
+    }, 200, result, null);
   }
+
+  if (!messaging) return json({ ok: false, message: UNAVAILABLE }, 503);
 
   const body = await readJson(request);
   if (body.error) return json({ ok: false, message: "Something on that form wasn't right. Try again." }, 400);
@@ -296,16 +336,15 @@ export async function handleAccount(request, env) {
     if (!email) return json({ ok: false, message: BAD_EMAIL }, 400);
     const result = await callHub(messaging, "sendLoginCode", { domain: DOMAIN, email, ip });
     const status = result.ok === true ? 200 : 400;
-    return json(parentView(result, {}), status);
+    return respond(parentView(result, {}), status, result, null);
   }
 
   if (path === "/api/account/verify") {
     if (!email) return json({ ok: false, message: BAD_EMAIL }, 400);
     const code = typeof body.code === "string" ? body.code.trim() : "";
     const result = await callHub(messaging, "verifyCode", { domain: DOMAIN, email, code, ip });
-    const status = result.ok === true ? 200 : 400;
-    const view = parentView(result, result.ok === true ? { signedIn: true } : {});
-    return withCookie(json(view, status), result.ok === true ? sessionCookie(result) : null);
+    const { view, cookie } = signInView(result);
+    return respond(view, result.ok === true ? 200 : 400, result, cookie);
   }
 
   if (path === "/api/account/passkey/register/options" || path === "/api/account/passkey/signin/options") {
@@ -317,7 +356,7 @@ export async function handleAccount(request, env) {
     if (result.ok !== true) return json(parentView(result), 400);
     const publicKey = publicKeyForBrowser(result.publicKey);
     if (!publicKey) return json({ ok: false, message: GENERIC }, 502);
-    return json({ ...parentView(result), publicKey });
+    return respond({ ...parentView(result), publicKey }, 200, result, null);
   }
 
   if (path === "/api/account/passkey/register" || path === "/api/account/passkey/signin") {
@@ -328,12 +367,12 @@ export async function handleAccount(request, env) {
     const input = { domain: DOMAIN, ip, session, credential };
     if (email) input.email = email;
     const result = await callHub(messaging, method, input);
-    const status = result.ok === true ? 200 : 400;
-    const view = parentView(
-      result,
-      result.ok === true && method === "signInPasskey" ? { signedIn: true } : {},
-    );
-    return withCookie(json(view, status), result.ok === true ? sessionCookie(result) : null);
+    if (method === "signInPasskey") {
+      const { view, cookie } = signInView(result);
+      return respond(view, result.ok === true ? 200 : 400, result, cookie);
+    }
+    const saved = parentView(result, {});
+    return respond(saved, result.ok === true ? 200 : 400, result, null);
   }
 
   return json({ ok: false, message: "Open the account page to sign in." }, 404);
