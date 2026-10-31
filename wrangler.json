@@ -61,6 +61,12 @@
       "service": "newgrowthbusiness",
       "entrypoint": "PortfolioGrowthService",
       "remote": true
+    },
+    {
+      "binding": "PORTFOLIO_MESSAGING_SERVICE",
+      "service": "riskfreetrial",
+      "entrypoint": "PortfolioMessagingService",
+      "remote": true
     }
   ]
 }

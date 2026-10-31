@@ -85,9 +85,10 @@ says see a pediatrician. Parents in this segment consistently report having been
 by clinicians; being the thing that takes them seriously and points them correctly is
 worth more than pretending to solve it.
 
-**No accounts, no child data leaving the device.** Already true of the game. Keep it true,
-and keep saying so — it is a real differentiator in a category whose best-rated app is a
-diaper advertisement.
+**A child's game stays on the device.** Play does not ask a child to sign in, and nothing
+a child says leaves the device. A parent account is optional and is only the grown-up's
+email, through the portfolio sign-in service. Keep saying the child's half out loud — it
+is a real differentiator in a category whose best-rated app is a diaper advertisement.
 
 ## 5. Honesty
 

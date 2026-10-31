@@ -78,7 +78,7 @@ child. No overclaiming to the parent — if something isn't built yet, say so.
 
 | Don't | Do |
 |---|---|
-| Leverage our proprietary AI-powered adaptive learning engine to unlock your child's potential. | Pip notices what your child is ready for next — no accounts, no data leaving the device. |
+| Leverage our proprietary AI-powered adaptive learning engine to unlock your child's potential. | Pip notices what your child is ready for next. A parent account is optional, and a child's voice stays on the device. |
 | Oops! Wrong answer! Try harder! | Let's look again! |
 | Time's up. Session locked. | Pip is getting sleepy… should we tuck Pip in? |
 

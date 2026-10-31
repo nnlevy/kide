@@ -2,7 +2,7 @@
 
 Kide.us — a real product, not a placeholder. Pip the Sprout teaches toddlers colors,
 counting, shapes, and early screen-time awareness through a joyful, privacy-first game
-with no accounts, no ads, and nothing that ever leaves the device. Pip reads every
+with an optional parent account, no ads, and nothing a child says that ever leaves the device. Pip reads every
 question out loud, so a child who can't read yet can play unaided. Part of Quizbiz LLC's
 domain portfolio.
 
