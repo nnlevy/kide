@@ -149,6 +149,9 @@ console.log('--- the board is opt-in and anonymous ---');
 
 {
   eq('a blank nickname is refused', cleanHandle('  ').ok, false);
+  eq('markup is refused', cleanHandle('<b>Hi</b>').ok, false);
+  eq('seventeen letters is too long', cleanHandle('ABCDEFGHIJKLMNOPQ').ok, false);
+  eq('sixteen letters is allowed', cleanHandle('ABCDEFGHIJKLMNOP').ok, true);
   eq('an email is refused', cleanHandle('pip@kide.us').ok, false);
   eq('a link is refused', cleanHandle('kide.us/play').ok, false);
   eq('a phone number is refused', cleanHandle('5551234567').ok, false);
@@ -181,6 +184,9 @@ console.log('--- the board is opt-in and anonymous ---');
       questionId: first.body.question.id,
       choice: secret.answer,
       points: 999999,
+      elapsed: 1,
+      streak: 40,
+      now: NOW,
       email: 'child@example.com',
       childName: 'Sam',
     }),
@@ -205,11 +211,22 @@ console.log('--- the board is opt-in and anonymous ---');
 
   const off = await setHandle(kv, PID, 'Sunny Oak', false, NOW + 1000);
   eq('turning it off is allowed', off.body.show, false);
+  eq('turning it off drops the nickname from the server', kv.raw('chal:p:' + PID).handle, '');
   const gone = await getBoard(kv, NOW + 1000);
   eq('the nickname leaves the board', gone.body.entries.length, 0);
 
+  const wordy = await setHandle(kv, PID, 'Sunny Oak', 'yes', NOW + 1000);
+  eq('only a real yes turns the board on', wordy.body.show, false);
+  eq('a wordy yes does not store the nickname', kv.raw('chal:p:' + PID).handle, '');
+
   const refused = await setHandle(kv, PID, 'pip@kide.us', true, NOW + 1000);
   eq('an email cannot be shown', refused.status, 400);
+
+  const backOn = await setHandle(kv, PID, 'Oak', true, NOW + 1000);
+  eq('the board can be turned on again', backOn.body.show, true);
+  const offAnyway = await setHandle(kv, PID, '<b>Oak</b>', false, NOW + 1000);
+  eq('turning off still works when the field is markup', offAnyway.status, 200);
+  eq('markup is not what gets stored', kv.raw('chal:p:' + PID).handle, '');
 }
 
 {
@@ -223,6 +240,24 @@ console.log('--- the board is opt-in and anonymous ---');
   eq('and does not start a run', quick.body.streak, 0);
   const again = await answerQuestion(kv, PID, id, secret.answer, NOW + 2000);
   eq('that question cannot be retried more slowly', again.body.points, 0);
+
+  const staleKv = memoryKv();
+  const staleIssued = await issueQuestion(staleKv, PID, NOW, mulberry32(22));
+  const staleId = staleIssued.body.question.id;
+  const staleSecret = staleKv.raw('chal:q:' + staleId);
+  const firstScore = await answerQuestion(staleKv, PID, staleId, staleSecret.answer, NOW + 1000);
+  const settled = staleKv.raw('chal:p:' + PID).weekPoints;
+  const staleView = {
+    async get(key) {
+      if (key === 'chal:q:' + staleId) return JSON.stringify({ ...staleSecret, used: false });
+      return staleKv.get(key);
+    },
+    async put(key, value) { return staleKv.put(key, value); },
+  };
+  const replay = await answerQuestion(staleView, PID, staleId, staleSecret.answer, NOW + 1500);
+  eq('a stale copy of a settled question scores nothing', replay.body.points, 0);
+  eq('a stale copy does not stretch the run', replay.body.streak, firstScore.body.streak);
+  eq('the stored total does not grow', staleKv.raw('chal:p:' + PID).weekPoints, settled);
 
   const second = await issueQuestion(kv, PID, NOW + 3000, rng);
   const secret2 = kv.raw('chal:q:' + second.body.question.id);
@@ -277,6 +312,22 @@ console.log('--- the board is opt-in and anonymous ---');
   }, NOW);
   ok('unexpected fields are dropped', frozen.email === undefined && frozen.childName === undefined && frozen.audio === undefined && frozen.dob === undefined);
   eq('the nickname remains', frozen.handle, 'Oak');
+  const hiddenName = freezePlayer({ handle: 'Oak', show: false, weekPoints: 5 }, NOW);
+  eq('a nickname is not kept while the board is off', hiddenName.handle, '');
+  eq('the board flag stays off', hiddenName.show, false);
+}
+
+{
+  const kv = memoryKv();
+  const week = weekKey(new Date(NOW));
+  await kv.put('chal:w:' + week, JSON.stringify([
+    { id: PID, handle: '<img src=x onerror=alert(1)>', points: 9 },
+    { id: 'bbbbbbbbbbbbbbbb', handle: 'Oak', points: 4 },
+  ]));
+  const board = await getBoard(kv, NOW);
+  eq('markup in a stored nickname is not shown', board.body.entries.some((e) => /[<>]/.test(e.handle)), false);
+  eq('a plain nickname on that board is shown', board.body.entries[0].handle, 'Oak');
+  eq('a board row is only a nickname and points', Object.keys(board.body.entries[0]).sort().join(','), 'handle,points');
 }
 
 console.log('--- the pages a visitor actually sees ---');
@@ -303,6 +354,10 @@ console.log('--- the pages a visitor actually sees ---');
   const chalEnd = play.indexOf('function screenBoard(');
   const chalBody = play.slice(chalStart, chalEnd);
   ok('challenge taps are not written into the practice record', !chalBody.includes('recordPractice'));
+  ok('board names wrap instead of widening the page', /\.board-row b\{[^}]*overflow-wrap:\s*anywhere/.test(play));
+  ok('the nickname field is in Parent Corner', play.indexOf('id="chalHandle"') > play.indexOf('function screenSettings()'));
+  ok('Parent Corner still opens through the maths gate', /act==="parents"\)\{\s*state\.gateFrom="settings";\s*state\.screen="gate"/.test(play));
+  ok('challenge storage is not a D1 query', !/\b(prepare|SELECT|INSERT|UPDATE|DELETE)\b/.test(served));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

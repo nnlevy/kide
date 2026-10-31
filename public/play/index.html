@@ -193,10 +193,11 @@ p.lead{font-size:19px;color:var(--ink-soft);text-align:center;margin:0 0 18px;ma
 .chal-time{font-weight:800;font-size:16px;min-width:28px;text-align:right;color:var(--ink);}
 .chal-meta{width:100%;max-width:520px;display:flex;gap:8px;align-items:center;padding:0 2px 10px;flex-wrap:wrap;}
 .chal-pill{background:rgba(255,255,255,.88);border-radius:999px;padding:8px 14px;min-height:44px;display:inline-flex;align-items:center;font-weight:800;font-size:15px;color:var(--ink);box-shadow:0 3px 0 rgba(0,0,0,.06);border:none;font-family:inherit;cursor:pointer;}
-.board-list{width:100%;max-width:440px;background:var(--card);border-radius:var(--radius-lg);padding:8px 18px 12px;box-shadow:0 6px 0 rgba(0,0,0,.08);}
-.board-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:2px solid #F4F1EA;font-weight:800;font-size:17px;}
+.board-list{width:100%;max-width:440px;min-width:0;background:var(--card);border-radius:var(--radius-lg);padding:8px 18px 12px;box-shadow:0 6px 0 rgba(0,0,0,.08);}
+.board-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:2px solid #F4F1EA;font-weight:800;font-size:17px;min-width:0;}
 .board-row:last-child{border-bottom:none;}
-.board-row span{color:var(--ink-soft);font-variant-numeric:tabular-nums;}
+.board-row b{min-width:0;flex:1 1 auto;overflow-wrap:anywhere;word-break:break-word;}
+.board-row span{flex:0 0 auto;color:var(--ink-soft);font-variant-numeric:tabular-nums;}
 
 /* question card */
 .prompt-card{background:var(--card);border-radius:var(--radius-lg);padding:20px 22px;width:100%;max-width:460px;text-align:center;box-shadow:0 6px 0 rgba(0,0,0,.08);margin-bottom:16px;}
@@ -1860,7 +1861,7 @@ function screenSettings(){
       '<p style="margin-top:10px">The weekly board is a choice. Pick a nickname yourself, not your child\'s name. Only that nickname and the points are saved, and only while this is on. Turn it off and the nickname leaves the board. The other games stay on this device.</p>'+
       '<input class="field" id="chalHandle" maxlength="16" autocomplete="off" placeholder="A nickname you pick" value="'+esc(settings.chalHandle || "")+'">'+
       '<div class="toggle-row"><span class="tl">Show this nickname on the weekly board</span>'+
-        '<button class="switch" id="chalShow" type="button" role="switch" aria-checked="'+(settings.chalShow ? "true" : "false")+'" aria-label="Show this nickname on the weekly board"></button>'+
+        '<button class="switch" id="chalShow" type="button" role="switch" aria-checked="'+(settings.chalShow === true ? "true" : "false")+'" aria-label="Show this nickname on the weekly board"></button>'+
       '</div>'+
       '<div style="margin-top:10px"><button class="btn btn-secondary" id="chalSave" type="button" style="font-size:16px;padding:12px 22px">Save nickname</button></div>'+
       '<div class="lead-ok" id="chalNameOk" style="display:none"></div>'+
@@ -2147,7 +2148,7 @@ function screenBoard(){
     '<h2>This week</h2>'+
     '<p class="lead">Nicknames a grown-up chose. Just a nickname and points.</p>'+
     '<div class="board-list" id="boardList"><div class="board-row">Pip is looking…</div></div>'+
-    (settings.chalShow
+    (settings.chalShow === true
       ? ''
       : '<p class="lead" style="margin-top:16px">A grown-up can add a nickname in Parent Corner.</p>');
   chalFetch("/api/challenge/board").then(function(j){
@@ -2186,13 +2187,18 @@ function saveChallengeName(){
   }).then(function(j){
     if(!note) return;
     if(j && j.ok){
-      settings.chalHandle = j.handle || "";
-      settings.chalShow = !!j.show;
+      settings.chalShow = j.show === true;
+      if(settings.chalShow){
+        settings.chalHandle = j.handle || "";
+        input.value = settings.chalHandle;
+      }else{
+        settings.chalHandle = String(input.value || "").replace(/\s+/g, " ").trim().slice(0, 16);
+      }
       saveJSON(SETTINGS_KEY, settings);
-      input.value = settings.chalHandle;
-      note.textContent = j.show
+      sw.setAttribute("aria-checked", settings.chalShow ? "true" : "false");
+      note.textContent = settings.chalShow
         ? "On the board as " + j.handle + "."
-        : "Saved. The board will not show a nickname.";
+        : "Turned off. The nickname is not on the board.";
     }else{
       note.textContent = (j && j.error && j.error !== "rest")
         ? j.error

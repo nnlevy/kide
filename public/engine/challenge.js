@@ -358,6 +358,22 @@ export function randomId(rng) {
   return s;
 }
 
+function spentIds(list) {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  for (const id of list) {
+    if (typeof id === "string" && /^[a-z0-9]{8,24}$/.test(id) && out.indexOf(id) === -1) out.push(id);
+  }
+  return out.slice(-WINDOW_MAX);
+}
+
+function rememberSpent(player, id) {
+  if (typeof id !== "string" || !/^[a-z0-9]{8,24}$/.test(id)) return;
+  const next = spentIds(player.spent);
+  if (next.indexOf(id) === -1) next.push(id);
+  player.spent = next.slice(-WINDOW_MAX);
+}
+
 export function freshPlayer(now) {
   return {
     handle: "",
@@ -368,22 +384,28 @@ export function freshPlayer(now) {
     openId: null,
     windowStart: 0,
     windowCount: 0,
+    spent: [],
   };
 }
 
-/** Drop anything that is not the anonymous board record. */
+/** Drop anything that is not the anonymous board record.
+ *  The nickname is kept only while the board is on. `spent` is the list of
+ *  question ids already settled, stored beside the points so a second reply
+ *  cannot add to them. */
 export function freezePlayer(p, now) {
   const base = freshPlayer(now || Date.now());
-  const handle = cleanHandle(p && p.handle);
+  const cleaned = cleanHandle(p && p.handle);
+  const show = p?.show === true && cleaned.ok;
   return {
-    handle: handle.ok ? handle.handle : "",
-    show: !!(p && p.show) && handle.ok,
+    handle: show ? cleaned.handle : "",
+    show,
     week: typeof p?.week === "string" && /^\d{4}-W\d{2}$/.test(p.week) ? p.week : base.week,
     weekPoints: clampInt(p && p.weekPoints, 1000000),
     streak: clampInt(p && p.streak, 1000),
     openId: typeof p?.openId === "string" && /^[a-z0-9]{8,24}$/.test(p.openId) ? p.openId : null,
     windowStart: clampInt(p && p.windowStart, 1e15),
     windowCount: clampInt(p && p.windowCount, 100000),
+    spent: spentIds(p && p.spent),
   };
 }
 
@@ -429,11 +451,12 @@ async function loadBoard(kv, week) {
 }
 
 async function saveBoard(kv, week, rows) {
-  const clean = rows.slice(0, 50).map((r) => ({
-    id: r.id,
-    handle: r.handle,
-    points: clampInt(r.points, 1000000),
-  }));
+  const clean = [];
+  for (const r of rows.slice(0, 50)) {
+    const h = cleanHandle(r && r.handle);
+    if (!h.ok || !validPlayerId(r && r.id)) continue;
+    clean.push({ id: r.id, handle: h.handle, points: clampInt(r.points, 1000000) });
+  }
   await kv.put(keyB(week), JSON.stringify(clean));
 }
 
@@ -455,7 +478,7 @@ function withinWindow(player, now) {
   return player.windowCount < WINDOW_MAX;
 }
 
-async function closeOpen(kv, player, now) {
+async function closeOpen(kv, player) {
   if (!player.openId) return;
   const prev = await loadQuestion(kv, player.openId);
   if (prev && !prev.used) {
@@ -463,6 +486,7 @@ async function closeOpen(kv, player, now) {
     await saveQuestion(kv, prev);
     player.streak = 0;
   }
+  rememberSpent(player, player.openId);
   player.openId = null;
 }
 
@@ -473,7 +497,7 @@ export async function issueQuestion(kv, playerId, now, rng) {
     await savePlayer(kv, playerId, player, now);
     return { status: 429, body: { ok: false, error: "rest" } };
   }
-  await closeOpen(kv, player, now);
+  await closeOpen(kv, player);
   player.windowCount += 1;
   const tier = tierForStreak(player.streak);
   const id = randomId(rng);
@@ -510,6 +534,22 @@ async function takeOffBoard(kv, playerId, week) {
 export async function answerQuestion(kv, playerId, questionId, choice, now) {
   const player = await loadPlayer(kv, playerId, now);
   rollWeek(player, now);
+  // Settled ids live on the same record as the points. A replay that still
+  // sees the question as open — a second request, or a stale read — cannot
+  // add points or stretch the run.
+  if (questionId && player.spent.indexOf(questionId) !== -1) {
+    await savePlayer(kv, playerId, player, now);
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        correct: false,
+        points: 0,
+        streak: player.streak,
+        weekPoints: player.weekPoints,
+      },
+    };
+  }
   const q = questionId ? await loadQuestion(kv, questionId) : null;
   // A second delivery of a question that was already settled must not wipe a
   // run. Only the first reply counts, whichever way it went.
@@ -539,6 +579,7 @@ export async function answerQuestion(kv, playerId, questionId, choice, now) {
   if (judged.consume && !q.used) {
     q.used = true;
     await saveQuestion(kv, q);
+    rememberSpent(player, q.id);
   }
   if (player.openId === q.id) player.openId = null;
   if (!judged.accepted) {
@@ -568,29 +609,36 @@ export async function answerQuestion(kv, playerId, questionId, choice, now) {
 export async function setHandle(kv, playerId, handle, show, now) {
   const player = await loadPlayer(kv, playerId, now);
   rollWeek(player, now);
-  const want = !!show;
-  const cleaned = cleanHandle(handle);
-  if (want && !cleaned.ok) return { status: 400, body: { ok: false, error: cleaned.error } };
-  if (!want && String(handle || "").trim() && !cleaned.ok) {
-    return { status: 400, body: { ok: false, error: cleaned.error } };
+  // Only a literal yes opts in. A missing flag, or the word "true", stays off
+  // and does not keep a nickname.
+  const want = show === true;
+  if (!want) {
+    player.handle = "";
+    player.show = false;
+    await savePlayer(kv, playerId, player, now);
+    await takeOffBoard(kv, playerId, player.week);
+    return { status: 200, body: { ok: true, handle: "", show: false } };
   }
-  player.handle = cleaned.ok ? cleaned.handle : "";
-  player.show = want && cleaned.ok;
+  const cleaned = cleanHandle(handle);
+  if (!cleaned.ok) return { status: 400, body: { ok: false, error: cleaned.error } };
+  player.handle = cleaned.handle;
+  player.show = true;
   await savePlayer(kv, playerId, player, now);
-  if (player.show) await putOnBoard(kv, player, playerId);
-  else await takeOffBoard(kv, playerId, player.week);
-  return { status: 200, body: { ok: true, handle: player.handle, show: player.show } };
+  await putOnBoard(kv, player, playerId);
+  return { status: 200, body: { ok: true, handle: player.handle, show: true } };
 }
 
 export async function getBoard(kv, now) {
   const week = weekKey(new Date(now));
   const rows = await loadBoard(kv, week);
-  const entries = rows
-    .slice()
-    .sort((a, b) => b.points - a.points || a.handle.localeCompare(b.handle))
-    .slice(0, BOARD_CAP)
-    .map((r) => ({ handle: r.handle, points: r.points }));
-  return { status: 200, body: { ok: true, title: "This week", entries } };
+  const entries = [];
+  for (const r of rows) {
+    const h = cleanHandle(r.handle);
+    if (!h.ok) continue;
+    entries.push({ handle: h.handle, points: clampInt(r.points, 1000000) });
+  }
+  entries.sort((a, b) => b.points - a.points || a.handle.localeCompare(b.handle));
+  return { status: 200, body: { ok: true, title: "This week", entries: entries.slice(0, BOARD_CAP) } };
 }
 
 function jsonResponse(body, status) {
@@ -635,8 +683,11 @@ export async function dispatchChallenge(request, kv, now = Date.now(), rng = nul
     return jsonResponse(out.body, out.status);
   }
   if (path === "/api/challenge/answer") {
-    const choice = body.choice == null ? "" : body.choice;
-    const out = await answerQuestion(kv, body.playerId, String(body.questionId || ""), choice, now);
+    const choice = typeof body.choice === "string" ? body.choice : "";
+    const questionId = typeof body.questionId === "string" && /^[a-z0-9]{8,24}$/.test(body.questionId)
+      ? body.questionId
+      : "";
+    const out = await answerQuestion(kv, body.playerId, questionId, choice, now);
     return jsonResponse(out.body, out.status);
   }
   if (path === "/api/challenge/name") {
