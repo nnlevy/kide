@@ -68,3 +68,9 @@ of plays, and the very first run is always the whole happy sequence.
 assertions are negative on purpose (no mastery dots, no scoring vocabulary,
 no change to `totalCorrect`) — those are the ones that will catch a future
 change quietly turning this back into a game.
+
+## Challenge mode
+
+Money path: free Pip practice (a quick player stays with Pip) → `https://kide.us/pricing` → `/clinician/` ($39 licence). No new price, and Pip's Turn stays unscored.
+
+The quiz records milliseconds to each correct answer, on the device. After 10 or more, if the average is at or under 2.5 seconds, Pip offers a harder game: a timer, points, a streak, and questions that climb. Points are figured on the server from the server's own clock. A reply quicker than a person can move earns nothing, and a question cannot be replayed. The weekly board is off until a grown-up opts in with a nickname they chose — not a child's name. Only that nickname and the points are stored. `npm run test:challenge`.

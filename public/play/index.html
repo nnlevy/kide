@@ -185,6 +185,18 @@ p.lead{font-size:19px;color:var(--ink-soft);text-align:center;margin:0 0 18px;ma
 .hud-progress{flex:1;display:flex;gap:5px;}
 .hud-leaf{flex:1;height:9px;border-radius:6px;background:rgba(255,255,255,.5);overflow:hidden;}
 .hud-leaf i{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--grass),var(--grass-deep));transition:width .35s ease;}
+/* Same bar the session leaf uses: 9px, round, ease on the width.
+   The challenge timer is this bar with a sun fill and a number beside it,
+   so the time is never carried by motion alone. */
+.motion-bar{flex:1;height:9px;border-radius:6px;background:rgba(255,255,255,.5);overflow:hidden;}
+.motion-bar i{display:block;height:100%;width:100%;background:linear-gradient(90deg,var(--sun),var(--sun-deep));transition:width .35s ease;}
+.chal-time{font-weight:800;font-size:16px;min-width:28px;text-align:right;color:var(--ink);}
+.chal-meta{width:100%;max-width:520px;display:flex;gap:8px;align-items:center;padding:0 2px 10px;flex-wrap:wrap;}
+.chal-pill{background:rgba(255,255,255,.88);border-radius:999px;padding:8px 14px;min-height:44px;display:inline-flex;align-items:center;font-weight:800;font-size:15px;color:var(--ink);box-shadow:0 3px 0 rgba(0,0,0,.06);border:none;font-family:inherit;cursor:pointer;}
+.board-list{width:100%;max-width:440px;background:var(--card);border-radius:var(--radius-lg);padding:8px 18px 12px;box-shadow:0 6px 0 rgba(0,0,0,.08);}
+.board-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:2px solid #F4F1EA;font-weight:800;font-size:17px;}
+.board-row:last-child{border-bottom:none;}
+.board-row span{color:var(--ink-soft);font-variant-numeric:tabular-nums;}
 
 /* question card */
 .prompt-card{background:var(--card);border-radius:var(--radius-lg);padding:20px 22px;width:100%;max-width:460px;text-align:center;box-shadow:0 6px 0 rgba(0,0,0,.08);margin-bottom:16px;}
@@ -347,6 +359,8 @@ p.lead{font-size:19px;color:var(--ink-soft);text-align:center;margin:0 0 18px;ma
   .sc-hit.on{animation:none;box-shadow:0 0 0 7px rgba(255,209,102,.5);}
   .bub{animation:none;opacity:.9;}
   .scene .sc-pip{transition:none;}
+  .motion-bar i{transition:none;}
+  .hud-leaf i{transition:none;}
 }
 </style>
 <link rel="manifest" href="/site.webmanifest">
@@ -377,6 +391,10 @@ const DEFAULT_PROGRESS = {
   letters:  { tier: 1, streak: 0, miss: 0, best: 1 },
   feelings: { tier: 1, streak: 0, miss: 0, best: 1 },
   totalCorrect: 0,
+  // Milliseconds from the question appearing to each correct tap. Capped.
+  // Stays on this device. Used only to notice a very quick hand.
+  correctMs: [],
+  paceOffer: null,         // null | "later" | "on"
   goodbyes: 0,
   routineRuns: 0,
   // Handoff record: one entry per session handed to the child.
@@ -385,7 +403,7 @@ const DEFAULT_PROGRESS = {
   handoffs: []
 };
 const HANDOFF_CAP = 60;
-const DEFAULT_SETTINGS = { sessionMinutes: 8, email: "" };
+const DEFAULT_SETTINGS = { sessionMinutes: 8, email: "", chalHandle: "", chalShow: false };
 
 function loadJSON(key, fallback){
   try{
@@ -703,7 +721,9 @@ let state = {
   routine: null,          // { key, steps, i, taps }
   gateTarget: null,
   gateFrom: "settings",
-  qSerial: 0              // increments per question so repeats are not mistaken for re-renders
+  qSerial: 0,             // increments per question so repeats are not mistaken for re-renders
+  askedAt: 0,             // when the question on screen actually appeared
+  chal: null
 };
 
 let micStatus = "unsupported";   // available | downloadable | downloading | unsupported
@@ -754,6 +774,45 @@ function recordAnswer(levelKey, correct){
     if(lv.miss>=3 && lv.tier>1){ lv.tier--; lv.miss=0; }
   }
   saveJSON(STORE_KEY, progress);
+}
+
+/* Time-to-correct lives with the adaptive rules, not in the practice record.
+   A very quick mean, over enough answers, is what lets Pip offer a harder game. */
+function noteSpeed(ms){
+  if(ms == null) return;
+  speedQueue.push(ms);
+  if(!Challenge) return;
+  flushSpeed();
+}
+function flushSpeed(){
+  if(!Challenge) return;
+  while(speedQueue.length){
+    progress.correctMs = Challenge.noteCorrectTime(progress.correctMs || [], speedQueue.shift());
+  }
+  saveJSON(STORE_KEY, progress);
+}
+function maybePaceOffer(){
+  if(!Challenge) return false;
+  if(progress.paceOffer === "later" || progress.paceOffer === "on") return false;
+  if(sessionFraction() >= 0.85) return false;
+  return Challenge.speedRead(progress.correctMs || []).fast;
+}
+function finishCorrect(levelKey, word){
+  var ms = state.askedAt ? (Date.now() - state.askedAt) : null;
+  recordAnswer(levelKey, true);
+  recordPractice(word, true, answerSource);
+  answerSource = "tap";
+  noteSpeed(ms);
+}
+function advanceAfterCorrect(){
+  state.awaitingNext = false;
+  if(maybePaceOffer()){
+    state.screen = "pace";
+    render();
+    return;
+  }
+  newQuestion(state.level);
+  render();
 }
 
 /* ------------------------------- audio ----------------------------------
@@ -822,6 +881,13 @@ fetch("/data/play-targets.json").then(function(r){ return r.ok ? r.json() : null
 
 var Journal = null;
 import("/engine/journal.js").then(function(m){ Journal = m; }).catch(function(){});
+
+var Challenge = null;
+var speedQueue = [];
+import("/engine/challenge.js").then(function(m){
+  Challenge = m;
+  flushSpeed();
+}).catch(function(){});
 
 /* How the answer now on screen was given. Set by the mic handler just before
    it clicks the button, so answerWith() can tell speech from a tap. */
@@ -1121,6 +1187,7 @@ function clouds(){
 }
 
 function render(){
+  stopMotionBar();
   document.body.className = bodyStageClass();
   app.innerHTML = "";
   app.insertAdjacentHTML("afterbegin", clouds());
@@ -1159,6 +1226,9 @@ function renderScreen(){
   if(state.screen==="consent") return screenConsent();
   if(state.screen==="garden") return screenGarden();
   if(state.screen==="play") return screenPlay();
+  if(state.screen==="pace") return screenPace();
+  if(state.screen==="challenge") return screenChallenge();
+  if(state.screen==="board") return screenBoard();
   if(state.screen==="routine") return screenRoutine();
   if(state.screen==="goodbye") return screenGoodbye();
   if(state.screen==="gate") return screenGate();
@@ -1217,6 +1287,12 @@ function screenGarden(){
           '<div class="level-info"><b>'+cd.label+'</b><span>'+cd.sub+'</span><div class="leaf-row">'+leafDots+'</div></div>'+
         '</button>';
       }).join("")+
+      (progress.paceOffer === "on"
+        ? '<button class="level-card" data-act="challenge">'+
+            '<div class="level-emoji" style="background:#FFF3C4">⏱️</div>'+
+            '<div class="level-info"><b>Challenge</b><span>A timer, points, and trickier questions</span></div>'+
+          '</button>'
+        : '')+
     '</div>'+
     /* "Say it with me" sits between the quizzes and Pip's Turn because that is
        what it is: more than a quiz, less than a routine. It is a separate page
@@ -1249,6 +1325,7 @@ function screenGarden(){
 
 function newQuestion(levelKey){
   const lv = progress[levelKey];
+  state.askedAt = 0;
   state.missOnQuestion = 0;
   state.qSerial++;
   listenTries = 0;
@@ -1340,6 +1417,7 @@ function screenPlay(){
   const c = document.createElement("div");
   c.style.width="100%"; c.style.display="flex"; c.style.flexDirection="column"; c.style.alignItems="center"; c.style.flex="1";
   if(!state.question) newQuestion(state.level);
+  if(!state.askedAt) state.askedAt = Date.now();
   const q = state.question;
 
   const hudLeafPct = Math.min(100, (state.sessionCorrectByLevel[state.level]/5)*100);
@@ -1777,6 +1855,18 @@ function screenSettings(){
       '<p>Pip tracks a simple streak per game — a few in a row right and the game nudges up a notch; a few misses and it eases back down. That is the whole "adaptive" system: transparent rules, not a trained model, and it all runs on this device.</p>'+
     '</div>'+
     '<div class="settings-card">'+
+      '<h3>Challenge mode</h3>'+
+      '<p>If answers on this device are quick — ten or more, on average — Pip offers a harder game. A timer, points, a streak, and questions that get trickier. It is for a kid playing at a grown-up level, or for a grown-up.</p>'+
+      '<p style="margin-top:10px">The weekly board is a choice. Pick a nickname yourself, not your child\'s name. Only that nickname and the points are saved, and only while this is on. Turn it off and the nickname leaves the board. The other games stay on this device.</p>'+
+      '<input class="field" id="chalHandle" maxlength="16" autocomplete="off" placeholder="A nickname you pick" value="'+esc(settings.chalHandle || "")+'">'+
+      '<div class="toggle-row"><span class="tl">Show this nickname on the weekly board</span>'+
+        '<button class="switch" id="chalShow" type="button" role="switch" aria-checked="'+(settings.chalShow ? "true" : "false")+'" aria-label="Show this nickname on the weekly board"></button>'+
+      '</div>'+
+      '<div style="margin-top:10px"><button class="btn btn-secondary" id="chalSave" type="button" style="font-size:16px;padding:12px 22px">Save nickname</button></div>'+
+      '<div class="lead-ok" id="chalNameOk" style="display:none"></div>'+
+      '<div style="margin-top:12px"><button class="btn btn-ghost" id="chalGarden" type="button" style="font-size:16px;padding:12px 22px">Show Challenge in the garden</button></div>'+
+    '</div>'+
+    '<div class="settings-card">'+
       '<h3>Pip\'s voice</h3>'+
       '<p>Pip reads every question out loud, so a child who can\'t read yet can play alone. The voice is a set of recordings that ship with the game — no microphone, no internet needed, nothing sent anywhere.</p>'+
       '<div class="toggle-row"><span class="tl">Pip speaks</span>'+
@@ -1809,6 +1899,310 @@ function screenSettings(){
 
 /* ------------------------------ interactions ------------------------------- */
 
+/* ------------------------------ challenge --------------------------------
+   Offered only after a quick run of correct answers, or when a grown-up
+   turns it on. Points come back from /api/challenge — this page never
+   invents them. Pip's Turn is not part of this and must stay unscored.
+--------------------------------------------------------------------------- */
+
+function challengePlayerId(){
+  var key = "pip_chal_pid_v1";
+  var id = "";
+  try { id = localStorage.getItem(key) || ""; } catch(e){}
+  if(!/^[a-z0-9]{16,40}$/.test(id)){
+    var bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    id = Array.from(bytes, function(b){ return (b % 36).toString(36); }).join("");
+    try { localStorage.setItem(key, id); } catch(e){}
+  }
+  return id;
+}
+
+function chalFetch(path, body){
+  var opts = { method: body ? "POST" : "GET", headers: { "Content-Type": "application/json" } };
+  if(body) opts.body = JSON.stringify(body);
+  return fetch(path, opts).then(function(r){
+    return r.json().then(function(j){ j._status = r.status; return j; }, function(){ return { ok:false, _status:r.status }; });
+  });
+}
+
+var MARK_GLYPH = { star:"⭐", apple:"🍎", balloon:"🎈", leaf:"🍃", shell:"🐚" };
+var motionTimer = 0;
+
+function stopMotionBar(){
+  if(motionTimer){ clearInterval(motionTimer); motionTimer = 0; }
+}
+
+function startMotionBar(){
+  stopMotionBar();
+  var q = state.chal && state.chal.question;
+  if(!q || !state.chal.armedAt) return;
+  var bar = document.querySelector(".motion-bar i");
+  var label = document.getElementById("chalTime");
+  var node = document.querySelector(".motion-bar");
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function paint(){
+    var left = Math.max(0, q.limitMs - (performance.now() - state.chal.armedAt));
+    if(bar) bar.style.width = (left / q.limitMs * 100) + "%";
+    if(label) label.textContent = String(Math.ceil(left / 1000));
+    if(node){
+      node.setAttribute("aria-valuenow", String(Math.round(left / q.limitMs * 100)));
+    }
+    return left;
+  }
+  paint();
+  motionTimer = setInterval(function(){
+    var left = paint();
+    if(left <= 0){ stopMotionBar(); onChallengeTimeout(); }
+  }, reduce ? 1000 : 250);
+}
+
+function screenPace(){
+  var c = document.createElement("div");
+  c.style.width = "100%";
+  c.style.display = "flex";
+  c.style.flexDirection = "column";
+  c.style.alignItems = "center";
+  c.style.justifyContent = "center";
+  c.style.flex = "1";
+  c.innerHTML =
+    '<div class="home-pip" style="width:min(42vw,180px);height:min(42vw,180px)">'+pipHTML({ celebrate:true })+'</div>'+
+    '<div class="prompt-card">'+
+      '<div class="p-eyebrow">Pip noticed</div>'+
+      '<div class="p-main" style="font-size:clamp(20px,5vw,26px);line-height:1.35">Whoa. Either a kid is playing at a grown-up level, or a grown-up snuck in.</div>'+
+      '<p class="lead" style="margin:12px auto 0">Want to try Challenge mode? There\'s a timer, points, a streak, and the questions get trickier.</p>'+
+    '</div>'+
+    '<div class="home-actions">'+
+      '<button class="btn btn-primary" data-act="pace-yes">Yes, let\'s go</button>'+
+      '<button class="btn btn-ghost" data-act="pace-no">Keep this game</button>'+
+    '</div>';
+  return c;
+}
+
+function chalOptionHTML(o, i){
+  var label = esc(o.label || "");
+  if(o.shape === "circle" || o.shape === "square" || o.shape === "triangle"){
+    return shapeSvg(o.shape, SHAPE_FILLS[(i || 0) % SHAPE_FILLS.length]) + '<span class="oword">'+label+'</span>';
+  }
+  if(o.feel && FEELINGS[o.feel]){
+    return feelingSvg(o.feel) + '<span class="oword">'+label+'</span>';
+  }
+  if(o.emoji && o.swatch && /^#[0-9A-Fa-f]{6}$/.test(o.swatch) && !/[<>&"]/.test(o.emoji)){
+    return '<span class="oemoji">'+o.emoji+'</span><span class="oword" style="color:'+o.swatch+'">'+label+'</span>';
+  }
+  if(label.length === 1) return '<span class="oletter">'+label+'</span>';
+  return '<span class="oemoji">'+label+'</span>';
+}
+
+function screenChallenge(){
+  var c = document.createElement("div");
+  c.style.width = "100%";
+  c.style.display = "flex";
+  c.style.flexDirection = "column";
+  c.style.alignItems = "center";
+  c.style.flex = "1";
+  var chal = state.chal || { loading:true, streak:0, weekPoints:0, question:null, error:"" };
+  var hud =
+    '<div class="hud"><button class="hud-glow" data-act="sleepytap" aria-label="Finish playing"><div class="g">'+pipGlowIconHTML()+'</div></button>'+
+      '<div class="motion-bar" role="progressbar" aria-label="Time left" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><i></i></div>'+
+      '<div class="chal-time" id="chalTime"></div>'+
+      '<button class="icon-btn" data-act="garden" aria-label="Back to garden" style="width:44px;height:44px;font-size:18px;">✕</button>'+
+    '</div>'+
+    '<div class="chal-meta">'+
+      '<span class="chal-pill">'+(chal.weekPoints || 0)+' points</span>'+
+      '<span class="chal-pill">'+(chal.streak || 0)+' in a row</span>'+
+      '<button class="chal-pill" data-act="board" type="button">This week</button>'+
+    '</div>';
+  if(chal.error){
+    c.innerHTML = hud +
+      '<div class="prompt-card"><div class="p-main" style="font-size:22px;line-height:1.35">'+esc(chal.error)+'</div></div>'+
+      '<button class="btn btn-secondary" data-act="garden">Pip\'s Garden</button>';
+    return c;
+  }
+  if(!chal.question){
+    c.innerHTML = hud +
+      '<div class="prompt-card"><div class="p-eyebrow">Challenge</div><div class="p-main">Pip is getting one ready…</div></div>';
+    return c;
+  }
+  var q = chal.question;
+  var eyebrow = q.tier >= 4 ? "Trickier" : "Challenge";
+  var cluster = "";
+  var countN = Math.floor(Number(q.count));
+  if(q.kind === "counting" && MARK_GLYPH[q.mark] && countN > 0 && countN <= 14){
+    cluster = '<div style="margin-top:6px;font-size:34px;line-height:1.3">'+Array(countN).fill(MARK_GLYPH[q.mark]).join(" ")+'</div>';
+  }
+  var cue = q.cue ? '<div style="margin-top:8px;font-size:17px;font-weight:800">'+esc(q.cue)+'</div>' : "";
+  var opts = (q.options || []).slice(0, 6);
+  c.innerHTML = hud +
+    '<div class="prompt-card" data-qid="'+esc(q.id)+'" role="status" aria-live="polite"><div class="p-eyebrow">'+eyebrow+'</div>'+
+      '<div class="p-main" style="font-size:clamp(20px,5.4vw,28px);line-height:1.3">'+esc(q.prompt || "")+'</div>'+cluster+cue+
+    '</div>'+
+    '<div class="options '+(opts.length <= 2 ? "cols2" : "cols3")+'" id="optWrap">'+
+      opts.map(function(o, i){
+        return '<button class="opt" data-val="'+esc(o.id)+'">'+chalOptionHTML(o, i)+'</button>';
+      }).join("")+
+    '</div>';
+  return c;
+}
+
+function openChallenge(){
+  stopMotionBar();
+  state.chal = { question:null, streak: state.chal ? state.chal.streak : 0, weekPoints: state.chal ? state.chal.weekPoints : 0, loading:true, error:"", armedAt:0 };
+  state.screen = "challenge";
+  state.awaitingNext = false;
+  state.qSerial++;
+  render();
+  chalFetch("/api/challenge/question", { playerId: challengePlayerId() }).then(function(j){
+    if(state.screen !== "challenge") return;
+    if(!j || !j.ok || !j.question){
+      state.chal.loading = false;
+      state.chal.question = null;
+      state.chal.error = (j && j.error === "rest")
+        ? "Pip wants a little rest. The garden is right here."
+        : "Pip can't reach the challenge garden right now. The other games are right here.";
+      render();
+      return;
+    }
+    state.chal.loading = false;
+    state.chal.error = "";
+    state.chal.question = j.question;
+    state.chal.streak = j.streak || 0;
+    state.chal.weekPoints = j.weekPoints || 0;
+    state.chal.armedAt = performance.now();
+    state.qSerial++;
+    render();
+  }).catch(function(){
+    if(state.screen !== "challenge") return;
+    state.chal.loading = false;
+    state.chal.question = null;
+    state.chal.error = "Pip can't reach the challenge garden right now. The other games are right here.";
+    render();
+  });
+}
+
+function submitChallenge(choice, btn){
+  var q = state.chal && state.chal.question;
+  if(!q) return;
+  chalFetch("/api/challenge/answer", {
+    playerId: challengePlayerId(),
+    questionId: q.id,
+    choice: choice
+  }).then(function(j){
+    if(state.screen !== "challenge") return;
+    if(!j || !j.ok){
+      showAffirm("Here's another!");
+      state.awaitingNext = false;
+      openChallenge();
+      return;
+    }
+    state.chal.streak = j.streak || 0;
+    state.chal.weekPoints = j.weekPoints || 0;
+    var points = document.querySelector(".chal-meta .chal-pill");
+    if(points) points.textContent = (j.weekPoints || 0) + " points";
+    if(j.correct){
+      if(btn) btn.classList.add("correct-flash");
+      sfxCorrect();
+      if(btn) burstFromEl(btn, 12);
+      showAffirm((j.points || 0) + " points");
+    }else{
+      if(btn) btn.classList.add("wrong-flash");
+      sfxTry();
+      showAffirm(choice ? "Let's look again!" : "Time for a new one!");
+    }
+    afterSpeech(Promise.resolve(), 700).then(function(){
+      state.awaitingNext = false;
+      if(state.screen === "challenge") openChallenge();
+    });
+  }).catch(function(){
+    state.awaitingNext = false;
+    if(state.screen !== "challenge" || !state.chal) return;
+    state.chal.question = null;
+    state.chal.error = "Pip can't reach the challenge garden right now. The other games are right here.";
+    render();
+  });
+}
+
+function onChallengeTap(e){
+  var btn = e.target.closest("[data-val]");
+  if(!btn || state.awaitingNext || !state.chal || !state.chal.question) return;
+  state.awaitingNext = true;
+  stopMotionBar();
+  submitChallenge(btn.getAttribute("data-val"), btn);
+}
+
+function onChallengeTimeout(){
+  if(state.screen !== "challenge" || state.awaitingNext || !state.chal || !state.chal.question) return;
+  state.awaitingNext = true;
+  submitChallenge("", null);
+}
+
+function screenBoard(){
+  var c = document.createElement("div");
+  c.style.width = "100%";
+  c.style.display = "flex";
+  c.style.flexDirection = "column";
+  c.style.alignItems = "center";
+  c.innerHTML =
+    '<div class="topbar"><button class="icon-btn" data-act="board-back" aria-label="Back">←</button><div class="spacer"></div></div>'+
+    '<h2>This week</h2>'+
+    '<p class="lead">Nicknames a grown-up chose. Just a nickname and points.</p>'+
+    '<div class="board-list" id="boardList"><div class="board-row">Pip is looking…</div></div>'+
+    (settings.chalShow
+      ? ''
+      : '<p class="lead" style="margin-top:16px">A grown-up can add a nickname in Parent Corner.</p>');
+  chalFetch("/api/challenge/board").then(function(j){
+    if(state.screen !== "board") return;
+    var list = document.getElementById("boardList");
+    if(!list) return;
+    var entries = (j && j.ok && Array.isArray(j.entries)) ? j.entries : [];
+    if(!entries.length){
+      list.innerHTML = '<div class="board-row">The board is quiet this week.</div>';
+      return;
+    }
+    list.innerHTML = entries.map(function(row){
+      var pts = Math.max(0, Math.floor(Number(row.points) || 0));
+      return '<div class="board-row"><b>'+esc(row.handle || "")+'</b><span>'+pts+'</span></div>';
+    }).join("");
+  }).catch(function(){
+    if(state.screen !== "board") return;
+    var list = document.getElementById("boardList");
+    if(list) list.innerHTML = '<div class="board-row">Pip can\'t see the board right now.</div>';
+  });
+  return c;
+}
+
+function saveChallengeName(){
+  var input = document.getElementById("chalHandle");
+  var sw = document.getElementById("chalShow");
+  var note = document.getElementById("chalNameOk");
+  if(!input || !sw || !note) return;
+  var show = sw.getAttribute("aria-checked") === "true";
+  note.style.display = "block";
+  note.textContent = "Saving…";
+  chalFetch("/api/challenge/name", {
+    playerId: challengePlayerId(),
+    handle: input.value,
+    show: show
+  }).then(function(j){
+    if(!note) return;
+    if(j && j.ok){
+      settings.chalHandle = j.handle || "";
+      settings.chalShow = !!j.show;
+      saveJSON(SETTINGS_KEY, settings);
+      input.value = settings.chalHandle;
+      note.textContent = j.show
+        ? "On the board as " + j.handle + "."
+        : "Saved. The board will not show a nickname.";
+    }else{
+      note.textContent = (j && j.error && j.error !== "rest")
+        ? j.error
+        : "Try a different nickname.";
+    }
+  }).catch(function(){
+    if(note) note.textContent = "Pip couldn't save that just now. Try again in a moment.";
+  });
+}
+
 function showAffirm(text){
   let n = document.querySelector(".affirm");
   if(!n){ n = document.createElement("div"); n.className="affirm"; document.body.appendChild(n); }
@@ -1823,6 +2217,11 @@ function wireScreen(){
   if(state.screen==="play"){
     const optWrap = document.getElementById("optWrap");
     if(optWrap) optWrap.addEventListener("click", onOptionTap);
+  }
+  if(state.screen==="challenge"){
+    const optWrap = document.getElementById("optWrap");
+    if(optWrap) optWrap.addEventListener("click", onChallengeTap);
+    if(state.chal && state.chal.question) startMotionBar();
   }
   if(state.screen==="routine"){
     const sc = document.getElementById("scene");
@@ -1852,6 +2251,20 @@ function wireScreen(){
       if(!window.KideVoice) return;
       if(listenOn()){ KideVoice.setListenEnabled(false); render(); }
       else { state.screen = "consent"; render(); }   // never switch a mic on without the consent screen
+    });
+    const cs = document.getElementById("chalShow");
+    if(cs) cs.addEventListener("click", function(){
+      const on = cs.getAttribute("aria-checked") === "true";
+      cs.setAttribute("aria-checked", on ? "false" : "true");
+    });
+    const chalSave = document.getElementById("chalSave");
+    if(chalSave) chalSave.addEventListener("click", saveChallengeName);
+    const chalGarden = document.getElementById("chalGarden");
+    if(chalGarden) chalGarden.addEventListener("click", function(){
+      progress.paceOffer = "on";
+      saveJSON(STORE_KEY, progress);
+      const note = document.getElementById("chalNameOk");
+      if(note){ note.style.display = "block"; note.textContent = "Challenge is in the garden."; }
     });
   }
 }
@@ -1883,6 +2296,31 @@ function onAction(e){
     state.question = null;
     state.screen = "play";
     startSessionIfNeeded();
+    render();
+  }
+  else if(act==="pace-yes" || act==="challenge"){
+    progress.paceOffer = "on";
+    saveJSON(STORE_KEY, progress);
+    openChallenge();
+  }
+  else if(act==="pace-no"){
+    progress.paceOffer = "later";
+    saveJSON(STORE_KEY, progress);
+    state.awaitingNext = false;
+    if(state.level){
+      state.screen = "play";
+      newQuestion(state.level);
+    }else{
+      state.screen = "garden";
+    }
+    render();
+  }
+  else if(act==="board"){
+    state.screen = "board";
+    render();
+  }
+  else if(act==="board-back"){
+    state.screen = (state.chal && state.chal.question) ? "challenge" : "garden";
     render();
   }
   else if(act==="playroutine"){ startRoutine(e.currentTarget.getAttribute("data-routine")); }
@@ -1947,15 +2385,12 @@ function answerWith(btn){
       sfxCorrect(); burstFromEl(btn,8);
       document.getElementById("basketCount").textContent = q.got+" / "+q.need+" collected";
       if(q.got>=q.need){
-        recordAnswer("shapes", true);
-        recordPractice(q.target, true, answerSource); answerSource = "tap";
+        finishCorrect("shapes", q.target);
         state.awaitingNext = true;
         const ai = Math.floor(Math.random()*AFFIRM_WORDS.length);
         showAffirm(AFFIRM_WORDS[ai]);
         const pipC = document.getElementById("pipChar"); if(pipC) pipC.classList.add("celebrate");
-        afterSpeech(say("affirm-"+(ai+1)), 900).then(()=>{
-          state.awaitingNext=false; newQuestion("shapes"); render();
-        });
+        afterSpeech(say("affirm-"+(ai+1)), 900).then(advanceAfterCorrect);
       }
     }else{
       btn.classList.add("wrong"); sfxTry();
@@ -1978,12 +2413,9 @@ function answerWith(btn){
     // praising it — Pip says "Three!" and the praise stays on screen.
     const line = say(q.type==="counting" ? ("answer-"+q.target) : ("affirm-"+(ai+1)));
     const pipC = document.getElementById("pipChar"); if(pipC) pipC.classList.add("celebrate");
-    recordAnswer(state.level, true);
-    recordPractice(q.target, true, answerSource); answerSource = "tap";
+    finishCorrect(state.level, q.target);
     updateHudLeafBar();
-    afterSpeech(line, 950).then(()=>{
-      state.awaitingNext=false; newQuestion(state.level); render();
-    });
+    afterSpeech(line, 950).then(advanceAfterCorrect);
   }else{
     btn.classList.add("wrong-flash");
     sfxTry();
@@ -2013,6 +2445,9 @@ if (typeof window !== "undefined") {
     get state(){ return state; },
     newQuestion: function(l){ return newQuestion(l); },
     render: function(){ return render(); },
+    showPace: function(){ state.screen = "pace"; render(); },
+    openChallenge: function(){ progress.paceOffer = "on"; openChallenge(); },
+    openParents: function(){ state.screen = "settings"; render(); },
   };
 }
 
