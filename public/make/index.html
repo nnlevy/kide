@@ -417,9 +417,22 @@ function textInput(key, placeholder, max = 44) {
    cannot, there is no mic and the page says why rather than silently offering a
    worse thing. The typed field always works, and the phone keyboard's own
    dictation key has always worked — this is for the parent who never finds it. */
+function headlessChromium() {
+  try {
+    const brands = navigator.userAgentData && navigator.userAgentData.brands;
+    if (brands && brands.some((b) => /headless/i.test(b && b.brand || ''))) return true;
+  } catch { /* no client hints */ }
+  return /HeadlessChrome/i.test(navigator.userAgent || '');
+}
 async function localDictationAvailable() {
   const SR = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
   if (!SR || typeof SR.available !== 'function') return false;
+  // Same crash as /play: headless Chromium aborts inside the native
+  // on-device probe. No mic here is the safe answer; a cloud mic is not.
+  let native = false;
+  try { native = /\[native code\]/.test(Function.prototype.toString.call(SR.available)); }
+  catch { native = true; }
+  if (headlessChromium() && native) return false;
   try { return (await SR.available({ processLocally: true, langs: ['en-US'] })) === 'available'; }
   catch { return false; }
 }

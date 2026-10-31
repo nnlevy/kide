@@ -49,12 +49,22 @@ footer a,
 .nav-links a,
 .links a,
 a.cta,
-a.nav-play {
+a.nav-play,
+a.back-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-height: var(--tap);
   padding-inline: 10px;
+}
+
+/* FAQ summary rows on /for-slps and /sounds were 26px, and .back-link was
+   23px. Both are the control a thumb hits, so they take the same floor.
+   min-height on a list-item summary is honoured; the marker stays. */
+details > summary {
+  min-height: var(--tap);
+  padding-block: 12px;
+  cursor: pointer;
 }
 
 /* 2 -- never let iOS auto-zoom a form control */

@@ -240,6 +240,35 @@
 
   function SR() { return global.SpeechRecognition || global.webkitSpeechRecognition || null; }
 
+  /* Headless Chromium aborts the renderer inside
+     SpeechRecognition.available({ processLocally: true }) — and the matching
+     install() call — instead of resolving "unavailable" or "downloadable".
+     Playwright's mobile device profiles rewrite the UA to a phone string and
+     still leave the HeadlessChrome client hint, so /play died on load in
+     every one of those profiles: the mic probe runs before the first screen
+     is useful. Headed Chrome answers the same call. A crashed tab is not a
+     microphone, and a cloud recogniser is still refused, so the native probe
+     is skipped and listening stays off. A test double is ordinary JS and is
+     still called. */
+  function headlessChromium() {
+    try {
+      var brands = navigator.userAgentData && navigator.userAgentData.brands;
+      if (brands) {
+        for (var i = 0; i < brands.length; i++) {
+          if (/headless/i.test((brands[i] && brands[i].brand) || "")) return true;
+        }
+      }
+    } catch (e) {}
+    return /HeadlessChrome/i.test(navigator.userAgent || "");
+  }
+  function nativeFn(fn) {
+    try { return /\[native code\]/.test(Function.prototype.toString.call(fn)); }
+    catch (e) { return true; }
+  }
+  function onDeviceProbeWouldCrash(fn) {
+    return !!(fn && headlessChromium() && nativeFn(fn));
+  }
+
   /* The whole policy lives here. We require the on-device availability API
      AND an affirmative on-device answer. A browser that can only recognise
      speech in the cloud reports "unsupported" and never shows a mic.
@@ -251,7 +280,7 @@
   var supportCache = "unknown";
   function micSupport() {
     var S = SR();
-    if (!S || typeof S.available !== "function") {
+    if (!S || typeof S.available !== "function" || onDeviceProbeWouldCrash(S.available)) {
       supportCache = "unsupported";
       return Promise.resolve("unsupported");
     }
@@ -266,7 +295,7 @@
      someone's phone plan. */
   function micInstall() {
     var S = SR();
-    if (!S || typeof S.install !== "function") return Promise.resolve(false);
+    if (!S || typeof S.install !== "function" || onDeviceProbeWouldCrash(S.install)) return Promise.resolve(false);
     try {
       return S.install({ langs: [CFG.lang], processLocally: true, quality: "command" })
         .then(function (r) { return !!r; }).catch(function () { return false; });

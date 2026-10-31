@@ -408,11 +408,14 @@ t('pricing aliases 301 to /clinician/, the page that actually charges $39', () =
     'the alias map is no longer served as a 301');
 });
 
-t('the homepage names $39 and links to the page that sells it, without paywalling play', () => {
+t('the homepage links to the licence page without stating a price, and does not paywall play', () => {
   const home = readFileSync('index.html', 'utf8');
   const visible = home.replace(/<!--[\s\S]*?-->/g, '');
-  assert(/\$39/.test(visible), 'the homepage no longer names the $39 price in visible copy');
-  assert(/<a class="pro-buy" href="\/clinician\/">Buy a licence — \$39<\/a>/.test(visible),
+  // The number charged is the hub's, shown on /clinician/ next to checkout.
+  // A second copy on the homepage is an uncited price claim.
+  assert(!/\$\d+/.test(home), 'the homepage file states a dollar price');
+  assert(!/\$\d+/.test(visible), 'the homepage states a price in visible copy');
+  assert(/<a class="pro-buy" href="\/clinician\/">Buy a licence<\/a>/.test(visible),
     'the homepage has no paid href to /clinician/');
   const ctas = [...home.matchAll(/<a class="cta([^"]*)"\s+href="([^"]+)"/g)].map((m) => m[2]);
   assert(ctas.length >= 1, 'the homepage lost its play CTA');

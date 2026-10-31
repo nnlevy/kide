@@ -296,10 +296,11 @@ t('one coral call to action on the homepage, as the brand guide requires', () =>
     `the coral CTA must stay on free play, not a paid path; found ${destinations[0]}`);
 });
 
-t('the homepage has a $39 clinician buy path that is not a coral CTA', () => {
+t('the homepage has a clinician buy path that does not state a price and is not a coral CTA', () => {
   const home = read('index.html').replace(/<!--[\s\S]*?-->/g, '');
-  assert(/<a class="pro-buy" href="\/clinician\/">Buy a licence — \$39<\/a>/.test(home),
-    'the homepage has no $39 clinician href');
+  assert(!/\$\d+/.test(home), 'the homepage states a dollar price');
+  assert(/<a class="pro-buy" href="\/clinician\/">Buy a licence<\/a>/.test(home),
+    'the homepage has no clinician href');
   assert(!/<a class="cta[^"]*"\s+href="\/clinician/.test(home),
     'the clinician buy path stole the coral CTA and would paywall the front door');
 });
