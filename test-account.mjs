@@ -404,7 +404,10 @@ await t('the homepage links the account page and still sells play in coral', () 
   assert.match(home, /href="\/account"/);
   assert.equal(/<span>No accounts<\/span>/.test(home), false);
   assert.match(home, /href="\/play"/);
-  assert.match(home, /Buy a licence — \$39/);
+  // The dollar amount stays on /clinician/, next to checkout. The homepage
+  // only points at that page, so a second "$39" is not an uncited price claim.
+  assert.equal(/\$\d+/.test(home), false);
+  assert.match(home, /<a class="pro-buy" href="\/clinician\/">Buy a licence<\/a>/);
 });
 
 console.log('\n320px');

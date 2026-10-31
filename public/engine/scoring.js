@@ -184,9 +184,27 @@ async function loadOrt() {
  *  Mirrors voice.js's check exactly, including reading the property back --
  *  on a browser without on-device support the assignment silently does
  *  nothing, and starting anyway would ship a child's audio to a server. */
+function headlessChromium() {
+  if (typeof navigator === 'undefined') return false;
+  try {
+    const brands = navigator.userAgentData && navigator.userAgentData.brands;
+    if (brands && brands.some((b) => /headless/i.test(b && b.brand || ''))) return true;
+  } catch { /* no client hints */ }
+  return /HeadlessChrome/i.test(navigator.userAgent || '');
+}
+
+/** Headless Chromium kills the renderer on the native on-device probe.
+ *  Headed Chrome answers it. Skipping the native call keeps the tab alive
+ *  and still refuses a cloud microphone. */
+function nativeProbeWouldCrash(fn) {
+  if (!fn || !headlessChromium()) return false;
+  try { return /\[native code\]/.test(Function.prototype.toString.call(fn)); }
+  catch { return true; }
+}
+
 export async function nativeOnDeviceAvailable() {
   const SR = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
-  if (!SR || typeof SR.available !== 'function') return false;
+  if (!SR || typeof SR.available !== 'function' || nativeProbeWouldCrash(SR.available)) return false;
   try {
     const state = await SR.available({ processLocally: true });
     return state === 'available';

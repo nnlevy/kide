@@ -14,10 +14,9 @@
 // can never be correct, and re-recording the voice pack would silently change
 // the failure rate without touching a line of source.
 //
-// This suite guards it three ways, none of which needs a browser -- the /play
-// page cannot be rendered in this sandbox (verified: the committed version
-// crashes headless Chromium here too), and a guard that only runs somewhere
-// else is not a guard.
+// This suite guards it three ways, none of which needs a browser. Loading
+// /play itself is test-play-mobile.mjs. A timing guard that only runs in a
+// browser would miss the clip-length bug this file exists to catch.
 //
 //   1. the real afterSpeech() implementation, lifted out of the page and
 //      executed, so its actual timing semantics are checked;
