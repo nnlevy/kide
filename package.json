@@ -21,6 +21,7 @@
 		"voice:words": "node tools/voice/words-manifest.mjs",
 		"test:routines": "npm run build && node test-routines.js",
 		"test:engine": "node test-engine.mjs",
+		"test:challenge": "node test-challenge.mjs",
 		"test:scene": "node test-scene.mjs",
 		"test:clinical": "node test-clinical.mjs",
 		"test:speech": "node test-speech.mjs",
@@ -39,7 +40,7 @@
 		"lexicon:build": "python3 tools/lexicon/build_lexicon.py && python3 tools/lexicon/build_play_targets.py",
 		"calibrate": "python3 tools/calibrate/calibrate.py",
 		"share:render": "node tools/share/card.js",
-		"test": "npm run test:engine && npm run test:scene && npm run test:clinical && npm run test:speech && npm run test:journal && npm run test:words-voice && npm run test:words-browser && npm run test:voice-pack && npm run test:voice-game && npm run test:seo && npm run test:billing && npm run test:packs && npm run test:gift && npm run test:slps && npm run test:mobile && npm run test:voice && node test-routines.js",
+		"test": "npm run test:engine && npm run test:challenge && npm run test:scene && npm run test:clinical && npm run test:speech && npm run test:journal && npm run test:words-voice && npm run test:words-browser && npm run test:voice-pack && npm run test:voice-game && npm run test:seo && npm run test:billing && npm run test:packs && npm run test:gift && npm run test:slps && npm run test:mobile && npm run test:voice && node test-routines.js",
 		"demo:render": "npm run build && node tools/share/demo.js"
 	},
 	"devDependencies": {

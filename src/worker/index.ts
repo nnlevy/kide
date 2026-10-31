@@ -1,6 +1,7 @@
 // Sitemap and robots are GENERATED from the pages that actually exist -- the
 // hand-written version silently went stale and was missing five live pages.
 import { SITEMAP, ROBOTS, PUBLIC_ROUTES } from "./seo-generated";
+import { dispatchChallenge } from "../../public/engine/challenge.js";
 
 // kide.us is a leaf on the Quizbiz portfolio billing hub (riskfreetrial) and
 // growth control plane (newgrowthbusiness) -- see wrangler.json "services".
@@ -148,6 +149,13 @@ export default {
 
     if (url.pathname === "/api/notify" && request.method === "POST") {
       return handleNotify(request, env);
+    }
+
+    // Harder play for a quick hand. Points are figured in challenge.js.
+    // The weekly board stores a grown-up's nickname and a point total.
+    // The practice record never arrives on this route.
+    if (url.pathname.startsWith("/api/challenge")) {
+      return dispatchChallenge(request, env.KIDE_LEADS);
     }
 
     // The only paid surface on kide.us: the chart-ready practice record at
