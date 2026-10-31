@@ -41,7 +41,7 @@ const TITLE = 'Kide for speech-language pathologists: home-practice evidence you
 const DESC =
   'Per-phoneme accuracy with Jeffreys ' + pct(CI_MASS) + ' credible intervals, adherence, and trend '
   + 'detection — generated from a child\'s own home practice, on the family\'s device. Free for '
-  + 'families. No audio, no voiceprints, no account, and nothing reaches a server.';
+  + 'families. No audio, no voiceprints, and nothing from the practice record reaches a server.';
 
 // Description sent explicitly: without it the portfolio OG renderer falls back
 // to the brand tagline, and kide.us is not in that registry, so every share of
@@ -88,7 +88,7 @@ const FAQS = [
    + 'right for the child and meaningless as measurement.'],
 
   ['Do I become a data processor if a family shares a record with me?',
-   'No. The record never reaches us and there is no account. It lives in the family\'s browser, and '
+   'No. The record never reaches us, and sharing it does not create an account. It lives in the family\'s browser, and '
    + 'sharing produces a link with the data encoded in the URL, which opens on your device directly. '
    + 'No audio, no voiceprint, no embedding — the record holds phoneme-level outcomes, timestamps '
    + 'and a first name. The amended COPPA Rule lists voiceprints as biometric personal information, '
@@ -249,7 +249,7 @@ const html = `<!DOCTYPE html>
   </div>
 
   <h2>You do not become a data processor</h2>
-  <p>There are no accounts. Nothing a child says is recorded, transmitted or stored: scoring
+  <p>A parent account is separate from this record, and a family does not need one to share it. Nothing a child says is recorded, transmitted or stored: scoring
      happens on the device, and the record holds phoneme-level outcomes, timestamps and a first
      name. No audio, no voiceprint, no embedding that could re-identify a child — the amended COPPA
      Rule lists voiceprints as biometric personal information, which is one reason none is ever
@@ -260,8 +260,8 @@ const html = `<!DOCTYPE html>
 
   <h2>What it costs</h2>
   <p><b>Nothing, for the family, permanently.</b> The game is free, the practice record is free, and
-     a parent can hand you the complete record — every number on it — without paying and without an
-     account. There is no trial, and no upgrade prompt pointed at parents.</p>
+     a parent can hand you the complete record — every number on it — without paying and without
+     signing in. There is no trial, and no upgrade prompt pointed at parents.</p>
   <p><b>$39 once, for you, and only for the paperwork.</b> The professional edition adds a header
      identifying you, your setting, the child by your own chart reference and the period covered;
      the full method appendix in a form a colleague or a funder can check; and an attestation and
@@ -276,8 +276,8 @@ const html = `<!DOCTYPE html>
   </div>
 
   <h2>How a family starts</h2>
-  <p>They open <a href="/words">kide.us/words</a> and play. Nothing to install, no account to make,
-     no card. Practice starts producing a record immediately, and the parent surface at
+  <p>They open <a href="/words">kide.us/words</a> and play. Nothing to install, no card, and no account is required to start.
+     Practice starts producing a record immediately, and the parent surface at
      <a href="/parent">kide.us/parent</a> is where they generate the link for you.</p>
   <p>If you would rather point a family at a specific sound, every phoneme the game practices has a
      page written for parents — <a href="/sounds">kide.us/sounds</a> — with the acquisition norms,

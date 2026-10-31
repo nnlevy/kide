@@ -126,7 +126,7 @@ const cap = (t0, t1, text) => CAPS.push({ t0, t1, text });
   await page.evaluate((w) => window.__emit([w]), MUSHY[target] || target);
   await page.waitForTimeout(1800);
   t = await mark();
-  cap(t + 600, t + 6200, "No accounts. No ads.\\nNothing leaves the device.");
+  cap(t + 600, t + 6200, "A parent account is optional.\\nNo ads. Nothing a child says leaves the device.");
   await page.waitForTimeout(1200);
 
   // Ride out the wind-down to the invitation — the part that IS the product.

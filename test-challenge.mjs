@@ -339,7 +339,7 @@ console.log('--- the pages a visitor actually sees ---');
   ok('the timer uses the motion bar', play.includes('class="motion-bar"'));
   ok('reduced motion snaps the bar', /prefers-reduced-motion:\s*reduce[\s\S]*\.motion-bar i\{transition:none/.test(play));
   ok('the grown-up nickname warning is on the page', /not your child/i.test(play));
-  ok('the no-accounts sentence is untouched', play.includes('No accounts. No ads shown to your child.'));
+  ok('parent account copy replaced the old no-accounts line', play.includes('A parent account is optional, on <a href="/account">its own page</a>. No ads shown to your child.'));
   ok('visitor copy does not name the machinery', !/anti-cheat|anti cheat|phase P|P1 accounts|wrangler|KIDE_LEADS/i.test(play));
   const served = readFileSync('./public/engine/challenge.js', 'utf8');
   ok('the script a browser can open does not name the machinery', !/anti-cheat|anti cheat|phase P|P1 accounts|wrangler|KIDE_LEADS/i.test(served));

@@ -2,6 +2,7 @@
 // hand-written version silently went stale and was missing five live pages.
 import { SITEMAP, ROBOTS, PUBLIC_ROUTES } from "./seo-generated";
 import { dispatchChallenge } from "../../public/engine/challenge.js";
+import { handleAccount } from "./account.js";
 
 // kide.us is a leaf on the Quizbiz portfolio billing hub (riskfreetrial) and
 // growth control plane (newgrowthbusiness) -- see wrangler.json "services".
@@ -53,6 +54,18 @@ export interface Env {
   PORTFOLIO_AI_SERVICE?: PortfolioAiServiceBinding;
   PORTFOLIO_BILLING_SERVICE?: PortfolioBillingServiceBinding;
   PORTFOLIO_GROWTH_SERVICE?: unknown;
+  // PortfolioMessagingService on riskfreetrial. Email codes and passkeys.
+  // SMS stays on that worker's own flag. See src/worker/account.js.
+  PORTFOLIO_MESSAGING_SERVICE?: {
+    sendLoginCode: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    verifyCode: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    preparePasskeyRegistration: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    registerPasskey: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    preparePasskeySignIn: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    signInPasskey: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    currentSession?: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    endSession?: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  };
 }
 
 
@@ -141,6 +154,7 @@ export default {
             portfolioBilling: !!env.PORTFOLIO_BILLING_SERVICE,
             portfolioAi: !!env.PORTFOLIO_AI_SERVICE,
             portfolioGrowth: !!env.PORTFOLIO_GROWTH_SERVICE,
+            portfolioMessaging: !!env.PORTFOLIO_MESSAGING_SERVICE,
           },
         }),
         { headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
@@ -156,6 +170,11 @@ export default {
     // The practice record never arrives on this route.
     if (url.pathname.startsWith("/api/challenge")) {
       return dispatchChallenge(request, env.KIDE_LEADS);
+    }
+
+    // Parent signup. Codes and passkeys live on PortfolioMessagingService.
+    if (url.pathname.startsWith("/api/account")) {
+      return handleAccount(request, env);
     }
 
     // The only paid surface on kide.us: the chart-ready practice record at
@@ -243,8 +262,8 @@ async function handleModelAsset(request: Request, env: Env, key: string): Promis
   return new Response(object.body, { status, headers });
 }
 
-// Minimal KV-backed waitlist. No accounts, no third-party processor — just an
-// email address a parent chose to give us, stored once per address.
+// Minimal KV-backed waitlist. Not the parent account — just an email address a
+// parent chose to give us, stored once per address, with no third-party processor.
 async function handleNotify(request: Request, env: Env): Promise<Response> {
   const json = (data: unknown, status = 200) =>
     new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
@@ -304,10 +323,12 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
 //      100 reports for $9 instead of 5 for $39, and -- far worse -- an unlocked
 //      POST here could drain credits somebody bought on a completely different
 //      domain.
-//   2. There is no session on this domain by design (no accounts, that is the
-//      product). An endpoint that spends money on the strength of an emailed-in
-//      string is a remote unauthenticated financial-loss bug, and CSRF-able
-//      besides, since request.json() ignores Content-Type.
+//   2. A parent can sign in now. That session still must not spend money.
+//      An endpoint that spends on the strength of an emailed-in string is a
+//      remote financial-loss bug, and CSRF-able besides, since request.json()
+//      ignores Content-Type. The parent session is not a licence
+//      (no accounts, that is the old shape this licence check was built
+//      against, and a session cookie is not a reason to start spending).
 //
 // Entitlement is now derived from PURCHASE HISTORY, which is read-only: has
 // this address ever bought the kide.us clinician licence? Nothing this Worker
@@ -512,10 +533,10 @@ function renderGift(url: URL): Response {
       ? `${castNames.slice(0, -1).join(", ")} and ${castNames[castNames.length - 1]} are waiting inside.`
       : "";
   const description = note
-    || (castLine && `${castLine} It's free, there are no accounts and no ads, and nothing a `
+    || (castLine && `${castLine} It's free, a parent account is optional, there are no ads, and nothing a `
         + "child says ever leaves the device.")
-    || `${to || "Someone little"} can play this on any phone or tablet. It's free, there are no `
-     + "accounts and no ads, and nothing a child says ever leaves the device.";
+    || `${to || "Someone little"} can play this on any phone or tablet. It's free, a parent account is optional, there are no `
+     + "ads, and nothing a child says ever leaves the device.";
 
   // Same portfolio OG renderer every other page on this domain uses, so the
   // message preview looks like Kide rather than like a bare link.
@@ -674,7 +695,7 @@ function renderGift(url: URL): Response {
       play on their own — and Pip gets sleepy at the end and asks to be tucked in, so screen time
       finishes without a fight.</p>
     <ul>
-      <li>Free, with no accounts and no ads</li>
+      <li>Free to play. A parent account is optional, and there are no ads</li>
       <li>Nothing your child says ever leaves the device</li>
       <li>Nothing is scored, and there is no way to lose</li>
     </ul>
