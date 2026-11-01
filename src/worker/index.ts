@@ -195,6 +195,41 @@ export default {
       return handleModelAsset(request, env, url.pathname.slice("/models/".length));
     }
 
+    // Probes ask for these paths. A miss used to fall through to the branded
+    // HTML 404, which is text/html and fails a manifest / service-worker check.
+    // Assets are served before this worker, so these run only when no file
+    // exists at the path. /site.webmanifest stays the one copy of the manifest.
+    if (url.pathname === "/manifest.webmanifest" || url.pathname === "/manifest.json") {
+      const manifestUrl = new URL(request.url);
+      manifestUrl.pathname = "/site.webmanifest";
+      manifestUrl.search = "";
+      const manifest = await env.ASSETS.fetch(new Request(manifestUrl.toString(), { method: "GET" }));
+      if (manifest.ok) {
+        const headers = new Headers(manifest.headers);
+        headers.set("Content-Type", "application/manifest+json; charset=utf-8");
+        headers.set("Cache-Control", "public, max-age=3600");
+        headers.set("X-Content-Type-Options", "nosniff");
+        return new Response(request.method === "HEAD" ? null : manifest.body, {
+          status: 200,
+          headers,
+        });
+      }
+    }
+    if (url.pathname === "/sw.js") {
+      // Kide does not install a service worker. This body exists so the probe
+      // is JavaScript rather than an HTML 404. It does not call skipWaiting
+      // or clients.claim, and nothing on the site registers it.
+      const body = "/* Kide does not install a service worker. */\n";
+      return new Response(request.method === "HEAD" ? null : body, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/javascript; charset=utf-8",
+          "Cache-Control": "no-cache",
+          "X-Content-Type-Options": "nosniff",
+        },
+      });
+    }
+
     try {
       // Two things about this binding that are easy to get wrong, both learned
       // the hard way on this site:

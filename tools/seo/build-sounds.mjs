@@ -21,12 +21,60 @@
 
 import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { LEX } from '../../public/engine/lexicon.js';
-import { NORMS, STAGES, CITATION, SUBSTITUTIONS, ageWords, ageLabel } from '../../public/engine/norms.js';
+import { NORMS, STAGES, CITATION, CITATION_US, SUBSTITUTIONS, ageWords } from '../../public/engine/norms.js';
 import { SOUND_NOTES, SEEN_LINE, SHORT_ANSWER } from './sound-notes.mjs';
 
 const OUT = 'public/sounds';
 const ORIGIN = 'https://kide.us';
 const POS_LABEL = { initial: 'at the start', medial: 'in the middle', final: 'at the end' };
+
+const ext = (href, label) => `<a href="${href}" rel="nofollow noopener">${label}</a>`;
+const usLink = ext(CITATION_US.doi, 'Crowe &amp; McLeod (2020)');
+const mlLink = ext(CITATION.doi, 'McLeod &amp; Crowe (2018)');
+
+/* 90% mean bands, Crowe & McLeod 2020, children acquiring English in the US.
+   Year-long bands, not a single month, and not an all-positions rule. */
+const BAND = {
+  p: '2;0–2;11', b: '2;0–2;11', m: '2;0–2;11', n: '2;0–2;11',
+  h: '2;0–2;11', w: '2;0–2;11', d: '2;0–2;11',
+  t: '3;0–3;11', k: '3;0–3;11', g: '3;0–3;11', ng: '3;0–3;11',
+  f: '3;0–3;11', y: '3;0–3;11',
+  l: '4;0–4;11', v: '4;0–4;11', sh: '4;0–4;11', ch: '4;0–4;11',
+  j: '4;0–4;11', s: '4;0–4;11', z: '4;0–4;11',
+  r: '5;0–5;11', dh: '5;0–5;11', zh: '5;0–5;11',
+  th: '6;0–6;11',
+};
+
+function ageLede(code) {
+  const n = NORMS[code];
+  const words = ageWords(n.mastery);
+  const onTime = `If yours can't yet and they're younger than that, they are on time.`;
+  if (code === 's') {
+    return `Most children are not expected to have a tidy &ldquo;${n.letters}&rdquo; early. `
+      + `This page says by about <b>${words}</b> so a parent is not told to worry at the first late week. `
+      + `${usLink} found a 90% mean of 51.33 months for this sound, with studies ranging from 24 to 84 months `
+      + `(${CITATION_US.doi}). Five and a half sits inside that spread, not on the average. ${onTime}`;
+  }
+  return `Most children can say &ldquo;${n.letters}&rdquo; reliably by about <b>${words}</b>. `
+    + `${usLink} place the 90% mean for this sound in the ${BAND[code]} band among children acquiring `
+    + `English in the United States (${CITATION_US.doi}). ${onTime}`;
+}
+
+function ageExplain(code) {
+  const n = NORMS[code];
+  const words = ageWords(n.mastery);
+  if (code === 's') {
+    return `For &ldquo;${n.letters}&rdquo;, ${usLink} report a 90% mean of 51.33 months, and the 12 studies `
+      + `ranged from 24 to 84 months (${CITATION_US.doi}). &ldquo;By about ${words}&rdquo; sits inside that `
+      + `spread. It is not the average those studies found.`;
+  }
+  const where = n.mastery % 12 === 0
+    ? `the birthday just after that band, which is the conservative way to say it to a parent`
+    : `a point inside that band`;
+  return `For &ldquo;${n.letters}&rdquo;, ${usLink} place the 90% mean in the ${BAND[code]} band `
+    + `(${CITATION_US.doi}). &ldquo;By about ${words}&rdquo; is ${where}. It is not a claim that every `
+    + `study found that exact month.`;
+}
 
 /* -- shared chrome, identical to /guides so nothing looks bolted on -------- */
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -102,12 +150,19 @@ ${keywords ? `<meta name="keywords" content="${esc(keywords)}">\n` : ''}<link re
                color:var(--ink);box-shadow:0 4px 0 rgba(0,0,0,.05);display:block}
   .soundgrid b{display:block;font-size:25px;line-height:1.1}
   .soundgrid span{font-size:12.5px;color:var(--ink-soft)}
-  .stage{margin:22px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint)}
+  .stage{margin:22px 0 6px;font-size:15px;line-height:1.45;color:var(--ink-soft)}
   .cite{font-size:13px;color:var(--ink-soft);border-top:1px solid #EFE9DA;padding-top:14px;margin-top:26px}
   .agebar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
   .agebar button{font:inherit;font-size:15px;font-weight:700;padding:11px 16px;min-height:46px;
     border-radius:999px;border:2px solid #EFE9DA;background:#fff;color:var(--ink);cursor:pointer}
   .agebar button[aria-pressed="true"]{background:var(--sun);border-color:var(--sun-deep)}
+  .agebar button a{display:block;font-size:12px;font-weight:650;line-height:1.2}
+  .soundcard{background:var(--card);border-radius:16px;padding:15px 13px;color:var(--ink);
+             box-shadow:0 4px 0 rgba(0,0,0,.05)}
+  .soundcard a{text-decoration:none;color:inherit}
+  .soundcard b{display:block;font-size:25px;line-height:1.1}
+  .soundcard span{display:block;font-size:12.5px;color:var(--ink-soft);margin-top:4px}
+  .soundcard span a{font-size:12.5px}
 </style>
 </head>
 <body>
@@ -174,9 +229,8 @@ for (const code of codes) {
       ? `The "${L}" sound: when children learn it, and words to practice`
       : `The "${L}" sound: when should my child be saying it?`;
   const description =
-    `Most children have "${L}" by about ${ageWords(n.mastery)} (${CITATION.short}). `
-    + `If your child isn't saying it yet, here's whether that's on time — and `
-    + `${rows.length} words to practice it with, with no pressure and no scoring.`;
+    `When children usually learn the "${L}" sound, whether a missing one is on time, `
+    + `and words to practice it. The studies are named on the page. Nothing is scored.`;
 
   // The higher-intent half of the search: what a parent actually HEARS. This
   // also carries the pages whose word list is short -- the reassurance and the
@@ -185,15 +239,12 @@ for (const code of codes) {
   const sub = SUBSTITUTIONS[code];
   const subBlock = sub ? `
   <h2>If your child says &ldquo;${esc(sub.eg[1])}&rdquo; instead of &ldquo;${esc(sub.eg[0])}&rdquo;</h2>
-  <p>Swapping &ldquo;${sub.says}&rdquo; in for &ldquo;${L}&rdquo; is not a random mistake. It has a
-     name — <b>${sub.name}</b> — and it is one of the most common and best documented patterns in
-     young children's speech. Nearly every child does some version of it.</p>
-  <p>It usually sorts itself out by around <b>${ageWords(sub.by)}</b>. Before then it is a normal
-     stage, not an error to be corrected. ${
-       sub.by > 60
-         ? 'This one lasts longer than parents expect, which is exactly why it causes so much unnecessary worry.'
-         : 'If it is still there well after that, it is worth mentioning — not because something is wrong, but because that is when someone should take a proper look.'
-     }</p>
+  <p>Swapping &ldquo;${esc(sub.says)}&rdquo; in for &ldquo;${L}&rdquo; is a pattern clinicians call
+     <b>${esc(sub.name)}</b>. Hearing that swap while the sound is still settling is ordinary.</p>
+  <p>This page does not give that pattern its own age. The age that is published, and linked
+     above, is for the sound itself. If the swap is still the main way your child says the word
+     well after that, mention it — not because the pattern's name means something is wrong, but
+     because that is when someone should listen properly.</p>
   <p><b>Don't correct it in the moment.</b> Saying &ldquo;no, say ${esc(sub.eg[0])}&rdquo; teaches a
      child that talking is a test they can fail, and a child who thinks that talks less. Say the
      word yourself, warmly, and carry on — they get the model without the verdict.</p>
@@ -212,25 +263,26 @@ for (const code of codes) {
      already own the mouth position for the other, which is a much smaller gap than it sounds.</p>` : ''}
 
   <h2>${esc(note.heading)}</h2>
-  <p>${note.insight}</p>
+  <p>${note.insight}${note.source?.url
+    ? ` <a href="${esc(note.source.url)}" rel="nofollow noopener">${esc(note.source.short)}</a> (${esc(note.source.url)}).`
+    : ''}</p>
   <p><b>Try this.</b> ${note.tip}</p>
 ` : '';
 
   const faqs = [
     ...(note?.faq || []),
     ...(sub ? [[`My child says "${sub.eg[1]}" instead of "${sub.eg[0]}". Is that normal?`,
-      `Yes — very. Substituting "${sub.says}" for "${L}" is a documented pattern called `
-      + `${sub.name}, and it typically resolves on its own by around ${ageWords(sub.by)}. `
-      + `Don't correct it in the moment; just say the word yourself and move on.`]] : []),
+      `Yes. Hearing "${sub.eg[1]}" for "${sub.eg[0]}" is a familiar pattern, called `
+      + `${sub.name}. Don't correct it in the moment; say the word yourself and move on.`]] : []),
     [`When should my child be able to say "${L}"?`,
-     `Around ${ageWords(n.mastery)}. That figure is the 90% mastery age from ${CITATION.short}, `
-     + `meaning 90% of typically developing children produce "${L}" correctly in every `
-     + `position in a word by then. The 10% who take longer are still typical.`],
+     code === 's'
+       ? `This page says around ${ageWords(n.mastery)}. ${usLink} (${CITATION_US.doi}) report a 90% mean of 51.33 months for this sound, and the studies ranged from 24 to 84 months. Children who take longer than the mean are still part of typical acquisition.`
+       : `Around ${ageWords(n.mastery)}. ${usLink} (${CITATION_US.doi}) place the 90% mean for this sound in the ${BAND[code]} band for children acquiring English in the United States. Children who take longer are still typical.`],
     [`My child is younger than that and can't say "${L}". Should I worry?`,
-     `No. A child below the expected age who isn't producing a sound is doing exactly what `
-     + `the research predicts. It is worth mentioning to your doctor if the sound is still `
-     + `absent well after ${ageWords(n.mastery)}, or if you or other people often can't `
-     + `understand what your child is saying — that second one matters more than any single sound.`],
+     `No. A child younger than the age above who isn't producing the sound is doing what the studies describe. `
+     + `It is worth mentioning to your doctor if the sound is still absent well after ${ageWords(n.mastery)}, `
+     + `or if you or other people often can't understand what your child is saying — that second one matters `
+     + `more than any single sound. ${usLink} (${CITATION_US.doi}).`],
     [`How do I practice the "${L}" sound at home?`,
      `Say the word yourself, clearly and unhurried, and let your child have a go. Don't correct `
      + `a wrong attempt — say the word again warmly and move on. Practice works because it is `
@@ -245,8 +297,7 @@ for (const code of codes) {
   <a class="back-link" href="/sounds">← All sounds</a>
   <p class="eyebrow">Speech sounds</p>
   <h1>The &ldquo;${L}&rdquo; sound</h1>
-  <p class="lede">Most children can say &ldquo;${L}&rdquo; reliably by about <b>${ageWords(n.mastery)}</b>.
-     If yours can't yet and they're younger than that, they are on time.</p>
+  <p class="lede">${ageLede(code)}</p>
 
   <div class="verdict">
     <span class="tag">The short answer</span>
@@ -262,7 +313,7 @@ for (const code of codes) {
           : `&ldquo;${L}&rdquo; is one of the earlier sounds, usually in place by around ${ageWords(n.mastery)}. `
             + `If your child is past that and still isn't using it, it's worth a mention to your doctor — `
             + `not because something is wrong, but because they're the person who can actually tell you.`)
-    }</p>
+    } ${usLink} (${CITATION_US.doi}).</p>
   </div>
 
   ${mouthBlock}
@@ -270,19 +321,20 @@ for (const code of codes) {
        half" trimmed to "5" would misstate the norm), and the letter is in the
        heading because seven sounds share the 3-year figure and a heading built
        from the age alone would be identical across all of them. -->
-  <h2>Where the &ldquo;${L}&rdquo; figure of ${ageWords(n.mastery)} comes from</h2>
-  <p>${CITATION.short} reviewed consonant acquisition across 64 studies and reported the age by
-     which 90% of typically developing children produce each sound correctly — in the beginning,
-     middle <i>and</i> end of words. For &ldquo;${L}&rdquo; that age is <b>${ageLabel(n.mastery)}</b>
-     (${ageWords(n.mastery)}).</p>
-  <p>The 90% figure is deliberately conservative. Older charts used 50% or 75%, which produce much
-     earlier ages and flag ordinary late acquisition as a problem. We use the conservative number on
-     purpose: an earlier one would manufacture worry rather than answer it.</p>
+  <h2>Where this age comes from</h2>
+  <p>${mlLink} reviewed 60 articles describing 64 studies of 26,007 children in 27 languages
+     (${CITATION.doi}). For English, using a 90%–100% criterion across eight studies, they report
+     mean ages in year-long bands. When a study's ages differed by word position, they recorded the
+     youngest age. They did not use an all-positions rule for every study.</p>
+  <p>${ageExplain(code)}</p>
+  <p>A 50% or 75% criterion lands earlier. ${usLink} tabulate those criteria next to the 90% figures
+     (${CITATION_US.doi}). We talk about the later criterion so an early chart does not turn ordinary
+     acquisition into a worry.</p>
 
   ${subBlock}
   <h2>Words to practice, and where the sound falls</h2>
   <p>Every word below was checked at build time to confirm the &ldquo;${L}&rdquo; sound really does
-     occur where we claim it does — and that it's a word a two- to seven-year-old can picture.</p>
+     occur where we claim it does — and that it's a word a young child can picture.</p>
   ${wordsByPos.map(([p, ws]) => `
   <p style="margin-bottom:2px"><b>&ldquo;${L}&rdquo; ${POS_LABEL[p] || p} of the word</b></p>
   <div class="wordgrid">${ws.map((w) => `<span>${esc(w)}</span>`).join('')}</div>`).join('')}
@@ -304,10 +356,13 @@ for (const code of codes) {
   ${faqs.map(([q, a]) => `<details><summary>${esc(q)}</summary><p>${a}</p></details>`).join('\n  ')}
 
   <p class="cite"><b>Source.</b> ${esc(CITATION.full)}
-     <a href="${CITATION.doi}" rel="nofollow noopener">${CITATION.doi}</a><br>${note?.source ? `
+     <a href="${CITATION.doi}" rel="nofollow noopener">${CITATION.doi}</a><br>
+     <b>United States ages.</b> ${esc(CITATION_US.full)}
+     <a href="${CITATION_US.doi}" rel="nofollow noopener">${CITATION_US.doi}</a><br>${note?.source ? `
      <b>Also.</b> ${esc(note.source.full)} — ${esc(note.source.note)}.${
        note.source.url ? ` <a href="${note.source.url}" rel="nofollow noopener">${note.source.url}</a>` : ''}<br>` : ''}
-     Figures are ${CITATION.criterion}. Kide is practice, not therapy — nothing here
+     Figures follow a ${CITATION_US.criterion}. The cross-linguistic review uses a ${CITATION.criterion}.
+     Kide is practice, not therapy — nothing here
      diagnoses anything, and a child outside these ages may be perfectly typical. If you are
      worried about your child's speech, a speech-language pathologist is the right person to ask.</p>
 `;
@@ -323,7 +378,10 @@ for (const code of codes) {
           author: { '@type': 'Organization', name: 'Kide', url: ORIGIN },
           publisher: { '@type': 'Organization', name: 'Kide', url: ORIGIN },
           mainEntityOfPage: ORIGIN + path,
-          citation: { '@type': 'ScholarlyArticle', name: CITATION.full, url: CITATION.doi } },
+          citation: [
+            { '@type': 'ScholarlyArticle', name: CITATION.full, url: CITATION.doi },
+            { '@type': 'ScholarlyArticle', name: CITATION_US.full, url: CITATION_US.doi },
+          ] },
         { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({
           '@type': 'Question', name: q,
           acceptedAnswer: { '@type': 'Answer', text: a.replace(/<[^>]+>/g, '') } })) },
@@ -337,37 +395,44 @@ for (const code of codes) {
 // one child. Making them read a table is making them do the work; the age
 // buttons answer it in a tap. It also gives the page a reason to be linked to.
 const hubTitle = 'Speech sounds by age: what your child should be saying, and when';
-const hubDesc = 'Enter your child\'s age and see which sounds are expected and which are still '
-  + 'developing — based on McLeod & Crowe (2018), the 90% standard clinicians use. Plus '
-  + 'validated word lists to practice each sound at home. Free, and nothing is scored.';
+const hubDesc = 'Tap an age and see which sounds are usually in place and which are still '
+  + 'developing. The ages come from the reviews linked on the page. Word lists to practice '
+  + 'at home. Free, and nothing is scored.';
 
 const hubBody = `
   <p class="eyebrow">Speech sounds</p>
   <h1>Which sounds should my child have by now?</h1>
-  <p class="lede">Tap an age. We'll show you which sounds are usually in place by then, and which
-     ones are still perfectly normal to be missing — using the same 90% figures a
-     speech-language pathologist would use.</p>
+  <p class="lede">Tap your child's age. A sound that is still missing is ordinary when the 90% mean in
+     ${usLink} falls later than that age (${CITATION_US.doi}).</p>
 
   <div class="agebar" id="agebar" role="group" aria-label="Child's age">
     ${[24, 30, 36, 42, 48, 60, 72, 84].map((m) =>
-      `<button data-m="${m}" aria-pressed="false">${ageWords(m).replace(' years old', '')}${
-        m % 12 === 0 ? ' yrs' : ''}</button>`).join('\n    ')}
+      `<button type="button" data-m="${m}" aria-pressed="false">${ageWords(m).replace(' years old', '')}${
+        m % 12 === 0 ? ' yrs' : ''} ${usLink}</button>`).join('\n    ')}
   </div>
   <div id="verdict" class="verdict" hidden><span class="tag">At this age</span><p></p></div>
 
   <h2>Every sound, in the order children learn them</h2>
-  <p>These are 90% mastery ages: the point by which 90% of typically developing children produce
-     the sound correctly in every position in a word. The other 10% are still typical.</p>
+  <p>These groups follow the 90% criterion in ${usLink}: the mean age by which 90% of children in the
+     included US studies produced the sound (${CITATION_US.doi}). Means are grouped into year-long
+     bands. Children outside a band are still typical.</p>
   ${STAGES.map((st) => {
     const have = st.codes.filter((c) => NORMS[c]);
     if (!have.length) return '';
-    return `<p class="stage">${st.name} — usually by ${ageWords(st.by)}</p>
+    const note = {
+      'Early sounds': `90% means in the 2;0–2;11 band, ${usLink} (${CITATION_US.doi})`,
+      'Next sounds': `90% means in the 3;0–3;11 band, ${usLink} (${CITATION_US.doi})`,
+      'Middle sounds': `90% means in the 3;0–3;11 band, ${usLink} (${CITATION_US.doi})`,
+      'Later sounds': `90% means in the 4;0–4;11 band, ${usLink} (${CITATION_US.doi}). For /s/ the 90% mean was 51.33 months, and studies ranged from 24 to 84 months`,
+      'Latest sounds': `90% means: /r/, voiced th and zh in the 5;0–5;11 band, voiceless th in the 6;0–6;11 band, ${usLink} (${CITATION_US.doi})`,
+    }[st.name] || usLink;
+    return `<p class="stage">${st.name} — ${note}</p>
   <div class="soundgrid">${have.map((c) => {
     const n = NORMS[c];
     const link = built.find((b) => b.code === c);
-    const inner = `<b>${n.letters}</b><span>by ${ageWords(n.mastery)}</span>`;
-    return link ? `<a href="${link.path}">${inner}</a>`
-                : `<a href="/words" style="opacity:.62">${inner}</a>`;
+    const href = link ? link.path : '/words';
+    const dim = link ? '' : ' style="opacity:.62"';
+    return `<div class="soundcard"${dim}><a href="${href}"><b>${n.letters}</b></a><span>${BAND[c]} · ${usLink}</span></div>`;
   }).join('')}</div>`;
   }).join('\n  ')}
 
@@ -391,9 +456,11 @@ const hubBody = `
      pathologist? There's <a href="/for-slps">a page about the home-practice record</a> —
      what's in it, what it refuses to claim, and why it never leaves the family's device.</p>
 
-  <p class="cite"><b>Source.</b> ${esc(CITATION.full)}
+  <p class="cite"><b>Source.</b> ${esc(CITATION_US.full)}
+     <a href="${CITATION_US.doi}" rel="nofollow noopener">${CITATION_US.doi}</a><br>
+     <b>Cross-linguistic review.</b> ${esc(CITATION.full)}
      <a href="${CITATION.doi}" rel="nofollow noopener">${CITATION.doi}</a><br>
-     Figures are ${CITATION.criterion}. Kide is practice, not therapy, and nothing here diagnoses
+     US ages follow a ${CITATION_US.criterion}. Kide is practice, not therapy, and nothing here diagnoses
      anything.</p>
 
 <script type="module">
@@ -401,6 +468,7 @@ import { NORMS, ageWords } from '/engine/norms.js';
 const bar = document.getElementById('agebar');
 const box = document.getElementById('verdict');
 bar.addEventListener('click', (e) => {
+  if (e.target.closest('a')) return;
   const b = e.target.closest('button'); if (!b) return;
   [...bar.querySelectorAll('button')].forEach((x) => x.setAttribute('aria-pressed', x === b));
   const m = +b.dataset.m;
@@ -409,11 +477,12 @@ bar.addEventListener('click', (e) => {
   const later = codes.filter((c) => NORMS[c].mastery > m);
   const list = (cs) => [...new Set(cs.map((c) => NORMS[c].letters))].map((l) => '"' + l + '"').join(', ');
   box.hidden = false;
-  box.querySelector('p').innerHTML = due.length
+  const src = '<br><br><a href="${CITATION_US.doi}" rel="nofollow noopener">Crowe &amp; McLeod (2020)</a>';
+  box.querySelector('p').innerHTML = (due.length
     ? '<b>Usually in place by ' + ageWords(m) + ':</b> ' + list(due)
       + (later.length ? '<br><br><b>Still developing — normal to be missing:</b> ' + list(later) : '')
     : '<b>At ' + ageWords(m) + ', every sound is still developing.</b> That is expected: '
-      + list(later.slice(0, 8)) + ' and the rest all arrive later.';
+      + list(later.slice(0, 8)) + ' and the rest all arrive later.') + src;
 });
 </script>
 `;
@@ -430,11 +499,13 @@ writeFileSync(`${OUT}/index.html`, page({
         '@type': 'ListItem', position: i + 1, name: `The "${b.letters}" sound`, url: ORIGIN + b.path })) },
     { '@type': 'FAQPage', mainEntity: [
       ['At what age should my child have all their speech sounds?',
-       'Most English consonants are in place by about 5, but a few of the latest — "r", "th" and '
-       + '"zh" — are not expected until 6 or 7. A child still missing those at 5 is typical.'],
+       'Crowe & McLeod (2020) place most English consonants in 90% bands by the 4;0–4;11 year, '
+       + 'with /r/ and a few fricatives later (https://doi.org/10.1044/2020_AJSLP-19-00168). '
+       + 'A child still missing the latest sounds is typical.'],
       ['My 4-year-old says "wabbit" instead of "rabbit". Is that normal?',
-       'Yes. The "r" sound has a 90% mastery age of about 6 years, so substituting "w" at 4 is '
-       + 'squarely within the typical range.'],
+       'Yes. Crowe & McLeod (2020) place the 90% mean for /r/ in the 5;0–5;11 band '
+       + '(https://doi.org/10.1044/2020_AJSLP-19-00168), so substituting "w" at 4 is still inside '
+       + 'the ages those studies describe.'],
       ['When should I actually see a speech-language pathologist?',
        'If a sound is still missing well past its expected age, or if people outside your family '
        + 'often struggle to understand your child. Overall intelligibility matters more than any '

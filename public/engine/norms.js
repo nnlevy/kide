@@ -10,21 +10,29 @@
 // likely to trust the thing that told them than the site that implied a
 // problem. Reassurance is the acquisition strategy, not a footnote to it.
 //
-// SOURCE. McLeod, S., & Crowe, K. (2018). Children's consonant acquisition in
-// 27 languages: A cross-linguistic review. American Journal of Speech-Language
+// SOURCE. Two reviews, and they are not the same claim.
+//
+// McLeod, S., & Crowe, K. (2018). Children's consonant acquisition in 27
+// languages: A cross-linguistic review. American Journal of Speech-Language
 // Pathology, 27(4), 1546-1571. doi:10.1044/2018_AJSLP-17-0100
+//   60 articles, 64 studies, 26,007 children, 27 languages. English 90%–100%
+//   means are year-long bands from eight studies. When a study's ages differed
+//   by word position, the youngest age was recorded. This is not an
+//   all-positions rule.
 //
-// The figure used is the 90% mastery age at the ALL-POSITIONS criterion: the
-// age by which 90% of typically developing children produce the sound
-// correctly in initial, medial AND final position. The 90% criterion is the
-// current evidence-based standard; older charts using 50% (Templin 1957) or
-// 75% (Sander 1972) give earlier ages and over-flag ordinary late acquisition
-// as delay. Using the conservative figure is the whole point -- an early
-// number would manufacture exactly the worry this page exists to defuse.
+// Crowe, K., & McLeod, S. (2020). Children's English consonant acquisition in
+// the United States: A review. American Journal of Speech-Language Pathology.
+// doi:10.1044/2020_AJSLP-19-00168
+//   15 studies, 18,907 US children. The parent-facing "by about" ages on
+//   /sounds follow these 90% year bands (the birthday just after the band, or
+//   a point inside it). /s/ is the exception: the 90% mean is 51.33 months
+//   (range 24–84), and the page must say so rather than call 5½ the paper's
+//   figure. `mastery` months are unchanged so the game's "on time" behaviour
+//   stays put.
 //
-// WHAT THIS IS NOT. A screening tool, and nothing here is a diagnosis. The 10%
-// of children who acquire a sound later than the listed age are still typical.
-// Every page built from this says so, in those words.
+// WHAT THIS IS NOT. A screening tool, and nothing here is a diagnosis. Children
+// who acquire a sound later than the listed age are still typical. Every page
+// built from this says so, in those words.
 
 export const CITATION = {
   short: 'McLeod & Crowe (2018)',
@@ -32,7 +40,16 @@ export const CITATION = {
       + 'languages: A cross-linguistic review. American Journal of Speech-Language '
       + 'Pathology, 27(4), 1546-1571.',
   doi: 'https://doi.org/10.1044/2018_AJSLP-17-0100',
-  criterion: '90% mastery, all-positions criterion',
+  criterion: '90%–100% criterion, reported as year-long mean bands',
+};
+
+/** US English ages parents are actually asking about. Not the 2018 cross-linguistic means. */
+export const CITATION_US = {
+  short: 'Crowe & McLeod (2020)',
+  full: "Crowe, K., & McLeod, S. (2020). Children's English consonant acquisition in "
+      + 'the United States: A review. American Journal of Speech-Language Pathology.',
+  doi: 'https://doi.org/10.1044/2020_AJSLP-19-00168',
+  criterion: '90% criterion, children acquiring English in the United States',
 };
 
 /** months -> "3;6" (the years;months convention every SLP report uses) */
@@ -134,9 +151,9 @@ export const STAGES = [
  * it's extremely common, and it usually goes by about four" is both true and
  * the most useful sentence they will read that night.
  *
- * `by` is the age (in months) by which the pattern has typically resolved.
- * Sources: standard phonological process descriptions as used in clinical
- * practice, consistent with the acquisition ages above.
+ * `by` is a clinical rule of thumb in months, NOT a figure from McLeod & Crowe
+ * (2018) or Crowe & McLeod (2020). Public pages must not print it as a
+ * published resolution age. The pattern name is a label, not a citation.
  */
 export const SUBSTITUTIONS = {
   k:  { says: 't',      name: 'velar fronting',  by: 42, eg: ['cat', 'tat'] },

@@ -85,7 +85,7 @@ export const SOUND_NOTES = {
     seen: 'visible',
     twin: { letters: 'p', same: 'the lips do exactly the same thing', diff: 'the voice runs for "b" and stops for "p"' },
     insight:
-      'Across the 27 languages in the acquisition review, sounds made with the lips arrive '
+      'Across the languages in the acquisition review, sounds made with the lips arrive '
       + 'first almost everywhere. There is a mechanical reason: a baby can see lips. Every '
       + 'feeding, every face leaning over the cot, every exaggerated smile is a demonstration. '
       + 'Sounds made behind the teeth get no such tuition. This is also why "ba" shows up in '
@@ -306,8 +306,8 @@ export const SOUND_NOTES = {
     insight:
       'This is the one page on this site where the useful thing is a distinction, so here it '
       + 'is plainly. If your child pushes their tongue between their teeth and "sun" comes out '
-      + 'as "thun", that is an interdental lisp: extremely common, and it typically resolves on '
-      + 'its own by around four and a half. If instead the sound comes out wet or slushy, with '
+      + 'as "thun", that is an interdental lisp: common, and it often eases as other sounds '
+      + 'settle. If instead the sound comes out wet or slushy, with '
       + 'the air escaping over the sides of the tongue rather than down the middle, that is a '
       + 'lateral lisp — and a lateral lisp is not a stage children pass through. It does not '
       + 'usually resolve by itself at any age, so it is worth mentioning to a speech-language '
@@ -318,10 +318,11 @@ export const SOUND_NOTES = {
     faq: [[
       'How do I tell which kind of lisp my child has?',
       'Listen for where the air goes. Tongue poking between the teeth with a "th"-like sound '
-      + 'is the interdental kind, and it usually sorts itself out by around four and a half. '
-      + 'A wet, slushy sound with air spilling over the sides of the tongue is a lateral lisp, '
+      + 'is the interdental kind, and it often eases as other sounds settle. '
+      +       'A wet, slushy sound with air spilling over the sides of the tongue is a lateral lisp, '
       + 'and that one does not typically resolve on its own — worth raising whenever you '
-      + 'notice it.',
+      + 'notice it. <a href="https://www.speech-language-therapy.com/clinical-topics/lisping-when-s-and-z-are-hard-to-say" rel="nofollow noopener">Bowen, speech-language-therapy.com</a> '
+      + '(https://www.speech-language-therapy.com/clinical-topics/lisping-when-s-and-z-are-hard-to-say).',
     ], [
       'My five-year-old still says "thun" for "sun". Is that still fine?',
       'It is past the age most children have moved on, so it is reasonable to mention it at '
@@ -522,7 +523,7 @@ export const SHORT_ANSWER = {
   s: '&ldquo;s&rdquo; is one of the later sounds, and &ldquo;tun&rdquo; for &ldquo;sun&rdquo; at '
    + 'four is on time. The one thing genuinely worth listening for is whether the sound is wet '
    + 'and slushy rather than simply off, because those two go in different directions.',
-  r: '&ldquo;r&rdquo; is the last consonant to arrive in English. A four-year-old saying '
+  r: '&ldquo;r&rdquo; is one of the latest consonants in English. A four-year-old saying '
    + '&ldquo;wabbit&rdquo; is squarely on time — this one usually is not settled until around '
    + '6 years old, and pushing it early costs more goodwill than it gains.',
 };
