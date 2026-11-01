@@ -71,8 +71,8 @@ export const SOUND_NOTES = {
        + 'It turns an invisible difference into a game with a visible answer.',
     faq: [[
       'My child says "big" instead of "pig". Is that a problem with their lips?',
-      'No — the lips are doing the right thing. "p" and "b" are made identically; the only '
-      + 'difference is whether the voice box is running. Your child has the movement and is '
+      'No — the lips are doing the right thing. "p" and "b" are made identically; what differs '
+      + 'is whether the voice box is running. Your child has the movement and is '
       + 'leaving the voice on. That is called voicing, and it is one of the earliest patterns '
       + 'to settle on its own.',
     ]],
@@ -102,7 +102,7 @@ export const SOUND_NOTES = {
   },
 
   m: {
-    heading: 'The only sound you can make with your mouth shut',
+    heading: 'A sound you can make with your mouth shut',
     angle: 'the sound you can make with your mouth closed',
     mouth: 'Lips closed, voice on, and the air goes out through the nose instead of the mouth.',
     seen: 'visible',
@@ -165,7 +165,7 @@ export const SOUND_NOTES = {
   },
 
   t: {
-    heading: 'The most borrowed sound in English',
+    heading: 'The sound other sounds borrow',
     angle: 'the stand-in for half the alphabet',
     mouth: 'Tongue tip taps the ridge behind the top teeth and releases a small puff of air.',
     seen: 'hidden',
@@ -201,7 +201,7 @@ export const SOUND_NOTES = {
       + 'nothing to see: the whole event happens behind the tongue, out of sight, with the '
       + 'lips and jaw doing nothing informative. That invisibility is the reason children '
       + 'substitute the nearest sound they CAN see and feel — "tat" for "cat" — and the reason '
-      + 'this particular swap is the most studied pattern in child speech.',
+      + 'this particular swap is studied throughout child speech.',
     tip: 'Lie your child on their back on the floor and play there for a bit. Gravity pulls '
        + 'the tongue body backwards, and the sound often turns up on its own without anyone '
        + 'having to explain where it lives. A pretend cough — "ackk" — works the same way.',
@@ -238,14 +238,14 @@ export const SOUND_NOTES = {
       'Like its twin, "g" happens entirely out of view, so a child has no way to copy it by '
       + 'watching. What they do instead is substitute the closest sound they can place with '
       + 'confidence — the tongue tip — and "go" becomes "doe". Notice that the swap is not '
-      + 'random or lazy: it keeps the voicing, keeps the rhythm, and moves only the one thing '
+      + 'random or lazy: it keeps the voicing, keeps the rhythm, and moves the one thing '
       + 'the child cannot yet aim at. That is a child solving a problem, not failing a task.',
     tip: 'Gargle-play at bath time, or a dramatic "glug glug glug" as a cup empties. Both put '
        + 'the tongue in the right place while nobody is being asked to say anything.',
     faq: [[
       'My child says "doe" for "go" and "dot" for "got". Same issue?',
       'Yes, the same one. The back of the tongue is not in play yet, so the tongue tip stands '
-      + 'in for it. The child keeps everything else about the word intact and moves only the '
+      + 'in for it. The child keeps everything else about the word intact and moves the '
       + 'part they cannot yet aim at.',
     ]],
   },
@@ -263,7 +263,7 @@ export const SOUND_NOTES = {
       + '"at" for "hat". Worth knowing too that dropping it at the start of words is a feature '
       + 'of plenty of perfectly ordinary accents across the English-speaking world, so an '
       + 'adult in the house may be modelling exactly what the child is doing.',
-    tip: 'Fog up a cold window or a mirror and draw in it. The fog only appears with a proper '
+    tip: 'Fog up a cold window or a mirror and draw in it. The fog appears with a proper '
        + 'breathy "h", so the sound produces its own reward and nobody has to judge it.',
     faq: [[
       'My child drops the "h" at the start of words. Is that a speech issue or an accent?',
@@ -297,7 +297,7 @@ export const SOUND_NOTES = {
   },
 
   s: {
-    heading: 'Two different lisps, and only one sorts itself out',
+    heading: 'Two different lisps, and one of them sorts itself out',
     angle: 'the two lisps, and which one to mention',
     mouth: 'The tongue tip sits close to — not touching — the ridge behind the top teeth, and '
          + 'air travels down a narrow groove along the middle of the tongue.',
@@ -311,7 +311,7 @@ export const SOUND_NOTES = {
       + 'the air escaping over the sides of the tongue rather than down the middle, that is a '
       + 'lateral lisp — and a lateral lisp is not a stage children pass through. It does not '
       + 'usually resolve by itself at any age, so it is worth mentioning to a speech-language '
-      + 'pathologist whenever you notice it rather than waiting to see. Most parents are never '
+      + 'pathologist whenever you notice it rather than waiting to see. Parents are rarely '
       + 'told there are two, and wait out the one that does not go away.',
     tip: 'Snake play — a long "ssss" with teeth lightly closed. Closed teeth make the '
        + 'between-the-teeth version physically difficult without anyone being corrected.',
@@ -325,7 +325,7 @@ export const SOUND_NOTES = {
       + '(https://www.speech-language-therapy.com/clinical-topics/lisping-when-s-and-z-are-hard-to-say).',
     ], [
       'My five-year-old still says "thun" for "sun". Is that still fine?',
-      'It is past the age most children have moved on, so it is reasonable to mention it at '
+      'It is past the age on this page, so it is reasonable to mention it at '
       + 'your next appointment. That is not cause for alarm — plenty of children get there a '
       + 'little later — it just means a professional is now the right person to ask rather '
       + 'than the internet.',
@@ -339,7 +339,7 @@ export const SOUND_NOTES = {
       full: 'Bowen, C. Lisping — when /s/ and /z/ are hard to say. '
           + 'speech-language-therapy.com.',
       url: 'https://www.speech-language-therapy.com/clinical-topics/lisping-when-s-and-z-are-hard-to-say',
-      note: 'on the difference between an interdental and a lateral lisp, and why only one of them resolves on its own',
+      note: 'on the difference between an interdental and a lateral lisp, and why one of them resolves on its own',
     },
   },
 
@@ -403,7 +403,7 @@ export const SOUND_NOTES = {
     tip: 'Sing "la la la" up and down a scale. Singing holds the tongue tip up for longer than '
        + 'speech does, which is the exact thing this sound needs.',
     faq: [[
-      'My child says "leaf" perfectly but "baw" for "ball". Why only sometimes?',
+      'My child says "leaf" perfectly but "baw" for "ball". Why not every time?',
       'Because those are two different sounds wearing one letter. The "l" at the start of a '
       + 'word is made at the front and comes first; the "l" at the end is made further back '
       + 'and arrives later. Having one and not the other is the normal order, not '
@@ -447,7 +447,7 @@ export const SOUND_NOTES = {
     mouth: 'Lips round into a small tight circle, then open outward as the voice runs.',
     seen: 'visible',
     insight:
-      'Most pages here are about a sound a child does not have yet. This one is the opposite. '
+      'Pages here are often about a sound a child does not have yet. This one is the opposite. '
       + '"w" arrives early and easily, and children then put it to work covering for the '
       + 'sounds that have not turned up — "wabbit" for rabbit, "weaf" for leaf. So if you are '
       + 'hearing a lot of "w", it is not a sign of a problem with "w" at all; it is a sign '
@@ -481,15 +481,15 @@ export const SOUND_NOTES = {
 export const SHORT_ANSWER = {
   p: '&ldquo;p&rdquo; is one of the first sounds children get, usually by around 3 years old. '
    + 'If what you are hearing is &ldquo;big&rdquo; for &ldquo;pig&rdquo;, the lips are already '
-   + 'doing the right thing — only the voice is in the wrong place.',
+   + 'doing the right thing — the voice is in the wrong place.',
   b: '&ldquo;b&rdquo; is usually one of the very first sounds a child produces, in place by '
-   + 'around 3 years old. Most children arrive at it without anyone ever setting out to teach it.',
+   + 'around 3 years old. Children often arrive at it without anyone ever setting out to teach it.',
   m: '&ldquo;m&rdquo; is one of the earliest sounds of all, usually there by around 3 years old. '
    + 'If it vanishes for a week, check whether your child has a cold before you consider '
    + 'anything else — this is the first sound a blocked nose takes away.',
   n: '&ldquo;n&rdquo; usually settles by around 3 years old. If it comes and goes depending on '
    + 'the week, that is almost always the nose rather than the speech.',
-  h: '&ldquo;h&rdquo; is usually in place by around 3 years old. It is also the sound most often '
+  h: '&ldquo;h&rdquo; is usually in place by around 3 years old. It is also a sound often '
    + 'simply dropped rather than swapped — and in plenty of ordinary accents the adults in the '
    + 'room drop it too.',
   w: '&ldquo;w&rdquo; arrives early, usually by around 3 years old. If your child is using it in '
@@ -497,10 +497,10 @@ export const SHORT_ANSWER = {
   d: '&ldquo;d&rdquo; is one of the earliest sounds, usually in place by around 3 years old. '
    + 'Hearing a great deal of it is ordinary — several other sounds pass through &ldquo;d&rdquo; '
    + 'on their way in.',
-  t: '&ldquo;t&rdquo; usually settles by around 3 and a half. It is also the sound children '
-   + 'borrow most often to stand in for harder ones, so hearing it everywhere is expected.',
+  t: '&ldquo;t&rdquo; usually settles by around 3 and a half. It is also a sound children '
+   + 'often borrow to stand in for harder ones, so hearing it everywhere is expected.',
   k: '&ldquo;k&rdquo; usually arrives by around 3 and a half. &ldquo;tat&rdquo; for '
-   + '&ldquo;cat&rdquo; before then is the most common and best documented swap in all of child '
+   + '&ldquo;cat&rdquo; before then is a familiar, documented swap in child '
    + 'speech — and there is a reason a mirror never helps with it.',
   g: '&ldquo;g&rdquo; usually arrives by around 3 and a half. &ldquo;doe&rdquo; for '
    + '&ldquo;go&rdquo; before then is expected: the back of the tongue is the last part of the '

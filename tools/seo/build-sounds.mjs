@@ -50,12 +50,12 @@ function ageLede(code) {
   const words = ageWords(n.mastery);
   const onTime = `If yours can't yet and they're younger than that, they are on time.`;
   if (code === 's') {
-    return `Most children are not expected to have a tidy &ldquo;${n.letters}&rdquo; early. `
+    return `Children are not expected to have a tidy &ldquo;${n.letters}&rdquo; early. `
       + `This page says by about <b>${words}</b> so a parent is not told to worry at the first late week. `
       + `${usLink} found a 90% mean of 51.33 months for this sound, with studies ranging from 24 to 84 months `
       + `(${CITATION_US.doi}). Five and a half sits inside that spread, not on the average. ${onTime}`;
   }
-  return `Most children can say &ldquo;${n.letters}&rdquo; reliably by about <b>${words}</b>. `
+  return `Children can usually say &ldquo;${n.letters}&rdquo; reliably by about <b>${words}</b>. `
     + `${usLink} place the 90% mean for this sound in the ${BAND[code]} band among children acquiring `
     + `English in the United States (${CITATION_US.doi}). ${onTime}`;
 }
@@ -304,7 +304,7 @@ for (const code of codes) {
      + `a wrong attempt — say the word again warmly and move on. Practice works because it is `
      + `repeated and pleasant, not because it is accurate. Kide is built on exactly that rule: `
      + `nothing is scored, and there is no way to fail.`],
-    [`Which words are best for practicing "${L}"?`,
+    [`Which words to practice for "${L}"?`,
      `Short, concrete words for things a child can picture: ${rows.slice(0, 5).map((r) => r.w).join(', ')}. `
      + `Every word on this page was checked to be sure the "${L}" sound really does occur where we say it does.`],
   ];
@@ -317,8 +317,8 @@ for (const code of codes) {
 
   <div class="verdict">
     <span class="tag">The short answer</span>
-    <!-- Per-sound, from sound-notes.mjs. The fallback template below is only
-         reached for a sound with no note written yet; it used to be the ONLY
+    <!-- Per-sound, from sound-notes.mjs. The fallback template below is
+         reached for a sound with no note written yet; it used to be the
          path, which is how seven pages came to open with the same sentence. -->
     <p>${
       SHORT_ANSWER[code]
@@ -457,7 +457,7 @@ const hubBody = `
      understand your child, that's worth raising with your doctor or a speech-language pathologist.
      Being understood matters much more than any individual sound.</p>
   <p>If everything is on time — which it usually is — practice is still good for it, and it works
-     best when it doesn't feel like practice.</p>
+     and it helps when it doesn't feel like practice.</p>
 
   <div class="cta-row">
     <p style="margin-bottom:0">A game your child plays alone. Every line is spoken aloud,
@@ -465,7 +465,7 @@ const hubBody = `
     <a class="cta" href="/words">Say it with me — it's free</a>
   </div>
 
-  <!-- The hub is where a speech-language pathologist most plausibly lands from
+  <!-- The hub is where a speech-language pathologist can land from
        organic search, since these are the queries their own clients arrive
        with. One line, no interruption to the parent reading. -->
   <p style="margin-top:26px;font-size:15px;color:var(--ink-soft)">Are you a speech-language
@@ -515,7 +515,7 @@ writeFileSync(`${OUT}/index.html`, page({
         '@type': 'ListItem', position: i + 1, name: `The "${b.letters}" sound`, url: ORIGIN + b.path })) },
     { '@type': 'FAQPage', mainEntity: [
       ['At what age should my child have all their speech sounds?',
-       'Crowe & McLeod (2020) place most English consonants in 90% bands by the 4;0–4;11 year, '
+       'Crowe & McLeod (2020) place English consonants in 90% bands by the 4;0–4;11 year, '
        + 'with /r/ and a few fricatives later (https://doi.org/10.1044/2020_AJSLP-19-00168). '
        + 'A child still missing the latest sounds is typical.'],
       ['My 4-year-old says "wabbit" instead of "rabbit". Is that normal?',

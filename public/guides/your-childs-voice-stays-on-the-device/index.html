@@ -40,8 +40,8 @@
   <p>The rule we actually build to is one line: <b>if a browser can't understand speech without sending it to a server, we don't turn the microphone on there at all.</b> Not "we ask before sending" — we simply don't offer listening as an option on that device. There is no setting that enables a cloud fallback, because there is no cloud fallback in the code to enable.</p>
 
   <h2>What that looks like today</h2>
-  <p>Before Pip ever listens, three things all have to be true: the browser reports an on-device speech model is actually installed and ready; a grown-up has been through the Parent Corner and read the consent screen; and — checked again, separately, because the first check isn't always trustworthy — the on-device-only flag we set is confirmed to have taken effect, not silently ignored.</p>
-  <p>In Pip's garden — the colours, counting and shapes games — that combination is available in current desktop and Android browsers that can do the recognition on the device. On an iPad the microphone doesn't appear there at all.</p>
+  <p>Before Pip ever listens, three things all have to be true: the browser reports an on-device speech model is actually installed and ready; a grown-up has been through the Parent Corner and read the consent screen; and — checked again, separately, because the first check isn't always trustworthy — the on-device flag we set is confirmed to have taken effect, not silently ignored.</p>
+  <p>In Pip's garden — the colours, counting and shapes games — Pip offers the microphone after those three checks pass. On an iPad the microphone doesn't appear there at all.</p>
 
   <p><b>In <a href="/words">Say it with me</a>, word practice can run on iPad too</b>, by a different route: instead of asking the browser to recognise speech, we ship our own small speech model and run it inside the page. It never contacts a server because there is nothing to contact — the model is on the device, in the tab, and the audio never leaves the function that scores it. Scoring is meant to finish inside the turn, before the game moves on.</p>
 
@@ -51,16 +51,16 @@
   <p>When listening is on, there's no recording, no upload, and nothing saved. What your child says is compared with the answers already on the screen, and then it's gone. We'd rather a mumbled answer get a gentle "I didn't quite hear that, try again?" than guess wrong, so ties and low-confidence guesses are always treated as "didn't hear it," never as a coin flip.</p>
 
   <h2>Speaking, not just listening</h2>
-  <p>The microphone is only half of it. A child who cannot read needs the game to <i>talk</i>, and in <a href="/words">Say it with me</a> every line is now spoken as well as shown. That speech is subject to the same one-line rule: it is produced on the device, and if your browser only offers an online voice — one that would send the words to a server to be read — we decline it and show the line as text instead.</p>
-  <p>Being precise about what you'll hear today: the lines are pre-recorded and delivered as ordinary audio files, so what your child hears is the same on every device and is not generated while they play. If a clip can't be fetched, the browser's own built-in voice reads the line instead — and if that isn't available either, the line is shown as text. The Parent Corner tells you which of the three your device is actually using rather than making you guess.</p>
+  <p>The microphone is half of it. A child who cannot read needs the game to <i>talk</i>, and in <a href="/words">Say it with me</a> every line is now spoken as well as shown. That speech is subject to the same one-line rule: it is produced on the device, and if your browser offers an online voice — one that would send the words to a server to be read — we decline it and show the line as text instead.</p>
+  <p>Being precise about what you'll hear today: the lines are pre-recorded and delivered as ordinary audio files, so what your child hears is the same on every device and is not generated while they play. If a clip can't be fetched, the browser's own built-in voice reads the line instead — and if that can't read the line either, the line is shown as text. The Parent Corner tells you which of the three your device is actually using rather than making you guess.</p>
 
   <h2>What we're testing for the devices this doesn't cover yet</h2>
   <p>Word practice does not have to stay silent on iPad, and the honest caveat has moved rather than disappeared. Running our own model in the page tells us how the sounds in a word compare with what was expected. That comparison is not a judgement a child is shown. A word does not get a right-or-wrong mark, and a later try can still move the game on.</p>
 
-  <p>Two things are still true and worth saying plainly. The thresholds behind that scoring were tuned on adult recordings, not children's, so they are a sensible starting point rather than a finished calibration. And Pip's original garden games still use the browser's own recogniser, so on an iPad they remain tap-only. Both will change; neither will change the one-line rule: it's your child's voice, so it stays on your child's device, or the feature doesn't ship at all.</p>
+  <p>Two things are still true and worth saying plainly. The thresholds behind that scoring were tuned on adult recordings, not children's, so they are a sensible starting point rather than a finished calibration. And Pip's original garden games still use the browser's own recogniser, so on an iPad they stay tap-to-answer. Both will change; neither will change the one-line rule: it's your child's voice, so it stays on your child's device, or the feature doesn't ship at all.</p>
 
   <div class="cta-row">
-    <p style="margin-bottom:0">See what's tap-only vs. voice-enabled on your device.</p>
+    <p style="margin-bottom:0">See what is tap-to-answer and what listens on your device.</p>
     <a class="cta" href="/play">Let's Play — it's free</a>
   </div>
 

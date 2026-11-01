@@ -44,9 +44,11 @@
         padding:11px 13px;border-radius:0 8px 8px 0;margin-top:12px}
   .note b{color:var(--ink)}
   .row{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 0}
-  button{font:inherit;font-size:16px;font-weight:700;padding:13px 20px;min-height:48px;
-         border-radius:999px;border:2px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
-  button.primary{background:var(--sunstone);color:var(--ink);border-color:var(--sunstone)}
+  button, a#btnBuy{font:inherit;font-size:16px;font-weight:700;padding:13px 20px;min-height:48px;
+         border-radius:999px;border:2px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;
+         text-decoration:none}
+  button.primary, a#btnBuy{background:var(--sunstone);color:var(--ink);border-color:var(--sunstone);
+         display:inline-flex;align-items:center;justify-content:center}
   /* Professional edition. Everything here is documentation scaffolding around
      the same numbers -- it never changes, hides or adds a single measurement. */
   .hidden{display:none !important}
@@ -69,6 +71,9 @@
   .appendix td:first-child{font-weight:700;width:38%}
   .status{font-size:12.5px;color:var(--ink-soft);margin:10px 0 0;min-height:1em}
   .status.err{color:var(--sunstone-ink)}
+  @media (max-width: 700px) {
+    .row > a#btnBuy { flex: 1 1 auto; min-width: 44%; }
+  }
   @media print{
     body{background:#fff;padding:0}
     .sheet{box-shadow:none;max-width:none;border-radius:0;padding:0}
@@ -164,15 +169,14 @@
 
     <div class="pro-lock" id="proLocked">
       <h3>Put this record in a chart</h3>
-      <p>The figures above are free and always will be — a parent can hand you this link and you can
-      read all of it. The professional edition wraps the same numbers in the document a chart
-      actually needs:</p>
+      <p>A parent can hand you this link and you can read all of it. The professional edition wraps
+      the same numbers in the document a chart actually needs:</p>
       <ul>
         <li>A header identifying you, the setting, the child by <em>your</em> chart reference, and the period covered</li>
         <li>The full method appendix — intervals, thresholds, exclusions and known limitations, stated so a colleague or a funder can check them</li>
         <li>An attestation and signature block that says plainly what this is and is not</li>
       </ul>
-      <p style="margin-top:12px"><b>$39 once. No subscription, no per-report charge, no account.</b>
+      <p style="margin-top:12px"><b><a href="/pricing">$39</a> once. No subscription, no per-report charge, no account.</b>
       One licence covers every child on your caseload, on this device and any other you sign in
       from with the same email. <a href="/terms/">Terms</a> · <a href="/privacy/">Privacy</a></p>
       <p style="margin-top:8px;font-size:13px"><a href="/for-slps">What this is, what it refuses to
@@ -182,7 +186,7 @@
                style="flex:1;min-width:200px;font:inherit;font-size:16px;padding:11px 16px;
                       border-radius:999px;border:2px solid var(--line);color:var(--ink);background:#fff">
         <button id="btnUse">Check my licence</button>
-        <button class="primary" id="btnBuy">Buy a licence — $39</button>
+        <a class="primary" id="btnBuy" href="/pricing">Buy a licence — $39</a>
       </div>
       <p class="status" id="proStatus"></p>
     </div>
@@ -256,14 +260,14 @@ function render(rec) {
   }).join('') : '<tr><td colspan="5" style="color:var(--ink-faint)">No sounds practiced yet.</td></tr>';
 
   $('method').innerHTML =
-    `<b>Method.</b> Rates are the proportion of attempts scored as clearly produced, from audio only — `
+    `<b>Method.</b> Rates are the proportion of attempts scored as clearly produced, from the audio — `
     + `taps and attempts resolved on the encouragement cap are excluded `
     + `(${rec.excludedTaps} and ${rec.excludedForcedResolutions} respectively here). `
     + `Intervals are Jeffreys ${Math.round(CI_MASS * 100)}% credible intervals. `
     + `<a href="https://doi.org/10.1214/ss/1009213286">Brown, Cai, and DasGupta (2001)</a> `
     + `recommend equal-tailed Jeffreys intervals at small samples because Wald coverage is erratic `
     + `near 0% and 100%. The ${Math.round(CI_MASS * 100)}% mass is this method's choice, not a figure `
-    + `from that paper (https://doi.org/10.1214/ss/1009213286). A change is only reported `
+    + `from that paper (https://doi.org/10.1214/ss/1009213286). A change is reported `
     + `when the earlier and later intervals do not overlap. `
     + `<br><br><b>${rec.disclaimer}</b>`;
 
@@ -404,10 +408,12 @@ $('btnUse').addEventListener('click', async () => {
   }
 });
 
-$('btnBuy').addEventListener('click', async () => {
+$('btnBuy').addEventListener('click', async (ev) => {
+  ev.preventDefault();
+  if ($('btnBuy').getAttribute('aria-disabled') === 'true') return;
   const email = $('proEmail').value.trim();
   if (!email.includes('@')) return say('Enter your email so the licence can be attached to it.', true);
-  $('btnBuy').disabled = true;
+  $('btnBuy').setAttribute('aria-disabled', 'true');
   say('Opening secure checkout…');
   try {
     const out = await api('/api/clinician/checkout', {
@@ -420,7 +426,7 @@ $('btnBuy').addEventListener('click', async () => {
   } catch {
     say('Checkout is not available right now — try again shortly.', true);
   } finally {
-    $('btnBuy').disabled = false;
+    $('btnBuy').removeAttribute('aria-disabled');
   }
 });
 

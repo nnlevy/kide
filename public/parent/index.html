@@ -53,10 +53,17 @@
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .field, label.field{display:flex;flex-direction:column;gap:4px;font-size:12px;text-transform:uppercase;
          letter-spacing:.05em;color:var(--ink-faint);font-weight:700}
-  #giftDest{min-height:44px;box-sizing:border-box}
   .field input,.field select{font:inherit;font-size:16px;text-transform:none;letter-spacing:0;
     font-weight:400;color:var(--ink);padding:12px 14px;border:2px solid #EFE9DA;border-radius:14px;
     background:#fff;min-height:48px;width:100%}
+  /* The select itself, not the label. A native menulist ignores min-height and
+     line-height and stays about 25px; appearance:none lets those properties size it. */
+  select#giftDest{box-sizing:border-box;display:block;width:100%;min-height:44px;height:44px;
+    padding:0 36px 0 14px;line-height:44px;font-size:16px;font-weight:400;color:var(--ink);
+    appearance:none;-webkit-appearance:none;-moz-appearance:none;
+    background-color:#fff;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1.5 L6 6.5 L11 1.5' fill='none' stroke='%232E3A3F' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat:no-repeat;background-position:right 14px center;background-size:12px 8px}
   /* A mock of the message card, because the whole reason this page exists is
      what the link looks like in somebody else's texts. */
   .preview{display:flex;gap:12px;align-items:stretch;margin-top:14px;border:2px solid #EFE9DA;
@@ -89,7 +96,7 @@
   <div class="card">
     <h2>Try these in the car</h2>
     <p class="muted" id="carIntro">Once there is a little practice, this is where the
-      words most likely to come up next will appear.</p>
+      words likely to come up next will appear.</p>
     <div class="carlist" id="carlist"></div>
     <div class="note">
       These are not a generic tip. They are literally the words the game would
@@ -122,7 +129,7 @@
              placeholder="4" autocomplete="off">
     </label>
     <p class="muted" style="margin-top:4px;font-size:12.5px">Years. Stays on this device,
-      like everything else here — it is only used to compare against the research.</p>
+      like everything else here — it is used to compare against the research.</p>
     <div id="visitOut" style="margin-top:14px"></div>
   </div>
 
@@ -171,7 +178,7 @@
     <p class="muted" id="storageNote">—</p>
     <div class="note">
       <b>Nothing here is audio.</b> No recording, no voiceprint, nothing that could
-      identify your child by their voice — only which word was practiced and whether
+      identify your child by their voice — which word was practiced and whether
       it was heard. It is kept on this device and nowhere else.
     </div>
     <div class="row" style="margin-top:12px">
@@ -207,7 +214,7 @@
       <input id="giftNote" placeholder="Thought Elie might love this one." maxlength="140" autocomplete="off">
     </label>
     <label class="field" style="margin-top:10px">Opens
-      <select id="giftDest">
+      <select id="giftDest" style="box-sizing:border-box;display:block;width:100%;min-height:44px;height:44px;padding:0 36px 0 14px;line-height:44px;font-size:16px;appearance:none;-webkit-appearance:none">
         <option value="/play">Pip's game — colors, counting, shapes, letters, feelings</option>
         <option value="/words">Say it with me — the speech practice</option>
         <option value="/sounds">Speech sounds by age — for a worried parent</option>
@@ -247,7 +254,7 @@
     <h2>New packs, when there are new packs</h2>
     <p class="muted">Letters and Feelings are in the game now. If you'd like an email the next
       time something lands, leave an address — one message per release, nothing else, and it is
-      the only thing on this page that ever reaches a server.</p>
+      the thing on this page that reaches a server.</p>
     <form class="row" id="notifyForm" style="margin-top:10px">
       <input type="email" id="notifyEmail" placeholder="you@email.com" required autocomplete="email"
              style="flex:1;min-width:200px;box-sizing:border-box;min-height:44px;font:inherit;font-size:16px;padding:13px 18px;
@@ -457,7 +464,7 @@ function renderVisit() {
   } else {
     const names = raise.map((r) => `"${NORMS[r.phoneme].letters}"`).join(' and ');
     verdictBlock = '<div class="note" style="margin-top:12px"><b>Worth mentioning: '
-      + `${names}.</b> Past the age most children have it, and still coming out clear `
+      + `${names}.</b> Past the age on the research page, and still coming out clear `
       + 'less than half the time here. That is not a diagnosis and it is not an '
       + 'emergency — it is the specific thing to say out loud so the person in front '
       + 'of you can decide.<br><br><b>What to ask.</b> "Kide has heard my child try '
@@ -525,12 +532,12 @@ function render() {
   $('carlist').innerHTML = words.map((w) => `<span class="carword">${w}</span>`).join('');
   $('carIntro').textContent = words.length
     ? 'Say these together — they are what the game would choose next.'
-    : 'Once there is a little practice, this is where the words most likely to come up next will appear.';
+    : 'Once there is a little practice, this is where the words likely to come up next will appear.';
 
   const bytes = Journal.sizeBytes();
   $('storageNote').textContent = Journal.storageAvailable()
     ? `${Journal.count()} practice moments kept on this device (${(bytes / 1024).toFixed(1)} KB).`
-    : 'This browser will not let us keep a record between visits, so only this '
+    : 'This browser will not let us keep a record between visits, so this '
       + 'session is shown. Everything else still works.';
 }
 
@@ -581,9 +588,9 @@ $('btnClear').addEventListener('click', () => {
     recorded: ["Pip's own recorded voice.", null],
     device: ['Your device\'s built-in voice, which reads the lines out on the device itself. '
            + 'Pip\'s recorded voice is being made now and will replace it.',
-             'Nothing is sent anywhere to make this speech. If your browser only offered '
+             'Nothing is sent anywhere to make this speech. If your browser offered '
            + 'an online voice, we decline it and stay quiet rather than send the words to a server.'],
-    silent: ['This browser has no built-in voice available, so the lines are shown as text only. '
+    silent: ['This browser has no built-in voice for these lines, so the lines are shown as text. '
            + 'Everything still works — you may need to read them out.', null],
   }[route];
   document.getElementById('voiceState').textContent = copy[0];

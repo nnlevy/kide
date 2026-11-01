@@ -68,7 +68,7 @@ const FAQS = [
 
   ['How many attempts before a figure means anything?',
    'A rate is not reported until a target has enough spoken tries. A direction of change is not '
-   + 'claimed until there are more tries, and even then only when the earlier and later credible '
+   + 'claimed until there are more tries, and even then when the earlier and later credible '
    + 'intervals do not overlap and the change clears this method\'s minimum. Those floors are '
    + 'rules of this method, not a published norm, and they are printed on the report. A short '
    + 'stretch of home practice is often not enough to separate a real improvement from noise, '
@@ -84,7 +84,7 @@ const FAQS = [
   ['What is excluded from the accuracy figures?',
    'Two things, and both counts are printed on the report rather than quietly dropped. Taps are '
    + 'excluded, because the child produced no speech and counting them would inflate every rate — '
-   + 'most for the children who talk least, which is precisely backwards. Attempts resolved on the '
+   + 'especially for the children who talk least, which is precisely backwards. Attempts resolved on the '
    + 'encouragement cap are excluded too: the game moves on regardless of what was heard, which is '
    + 'right for the child and meaningless as measurement.'],
 
@@ -215,7 +215,7 @@ const html = `<!DOCTYPE html>
         <td>Days practiced out of days elapsed, number of sessions, attempts per session, longest
             break, and days since last practice.</td></tr>
     <tr><td>Direction of change</td>
-        <td>Earlier half versus later half of the record, reported only when the evidence supports
+        <td>Earlier half versus later half of the record, reported when the evidence supports
             a claim — see the thresholds below.</td></tr>
     <tr><td>Exclusions, disclosed</td>
         <td>Counts of taps and of attempts resolved on the encouragement cap, printed on the
@@ -235,11 +235,11 @@ const html = `<!DOCTYPE html>
       <li><b>No rate until there are enough spoken tries.</b> That floor is a rule of this
           method, printed on the report. An interval over a handful of attempts is not evidence,
           and printing one invites over-interpretation.</li>
-      <li><b>No direction of change until there are more tries</b>, and then only
+      <li><b>No direction of change until there are more tries</b>, and then
           when the intervals do not overlap <i>and</i> the change clears this method&rsquo;s
           minimum. Those cutoffs are rules of this method, printed on the report.</li>
       <li><b>A tap is not counted as speech.</b> The child produced nothing to score. Counting taps
-          would inflate every rate, and most for the children who talk least.</li>
+          would inflate every rate, and especially for the children who talk least.</li>
       <li><b>It never reads the game&rsquo;s own scheduling state.</b> The engine keeps a decayed,
           deliberately biased estimate to choose what to practice next; that is correct for
           selection and wrong for inference. The evidence layer keeps a separate accumulator over
@@ -264,7 +264,7 @@ const html = `<!DOCTYPE html>
   <p><b>Nothing, for the family, permanently.</b> The game is free, the practice record is free, and
      a parent can hand you the complete record — every number on it — without paying and without
      signing in. There is no trial, and no upgrade prompt pointed at parents.</p>
-  <p><b>A one-time licence, for you, and only for the paperwork.</b> The price is on the
+  <p><b>A one-time licence, for you, for the paperwork.</b> The price is on the
      <a class="tap" href="/clinician/">clinician page</a>, next to the licence. The professional edition adds a
      header identifying you, your setting, the child by your own chart reference and the period covered;
      the full method appendix in a form a colleague or a funder can check; and an attestation and
@@ -272,7 +272,7 @@ const html = `<!DOCTYPE html>
      Not a subscription, not per child, not per report.</p>
 
   <div class="cta-row">
-    <p style="margin-bottom:0">The fastest way to judge this is to look at one. The worked example
+    <p style="margin-bottom:0">To judge it, look at one. The worked example
        includes a genuine lapse, an improving target, a flat target and one with
        too little data to report — so you can see what it does when the evidence is thin.</p>
     <a class="cta" href="/clinician/?demo=1">Open a worked example</a>
