@@ -350,19 +350,16 @@ export const SOUND_NOTES = {
          + 'see — the lips push forward and round.',
     seen: 'partly',
     insight:
-      '"sh" is made of two things happening together, and children very often get one and not '
-      + 'the other. The tongue position is hidden and hard; the lip rounding is right there on '
-      + 'the front of the face and easy to copy. So the common near-miss is a sound sitting '
-      + 'somewhere between "s" and "sh" — the tongue still forward, the lips already correct. '
-      + 'That is a child halfway there rather than a child who is missing the sound, and the '
-      + 'visible half is the half you can help with.',
+      'The lips round forward for "sh", and that part is on the front of the face, so you can '
+      + 'show it. The tongue sits further back than it does for "s", and that part is hidden. '
+      + 'A sound that still sits between the two has the lips in place and the tongue not yet '
+      + 'back — the half you can help with is the half you can see.',
     tip: 'The "quiet" gesture — finger to lips, a long "shhhh". Children already know this one '
        + 'socially, which means they will produce it without it feeling like practice at all.',
     faq: [[
       'My child\'s "sh" sounds like something between "s" and "sh".',
-      'That is the usual near-miss, and it is a good sign. "sh" needs the lips rounded and the '
-      + 'tongue pulled back; the lips are visible and get learned first. Exaggerate the round '
-      + 'lips when you say the word and the visible half takes care of itself.',
+      '"sh" needs the lips rounded and the tongue pulled back. The lips are the part you can '
+      + 'see. Round your own lips when you say the word, and let your child copy that half.',
     ]],
   },
 
@@ -514,9 +511,8 @@ export const SHORT_ANSWER = {
   l: '&ldquo;l&rdquo; is one of the later sounds. A four-year-old who says &ldquo;weaf&rdquo; for '
    + '&ldquo;leaf&rdquo; is not behind — and &ldquo;baw&rdquo; for &ldquo;ball&rdquo; lasts '
    + 'longer still, because those are two different jobs wearing one letter.',
-  sh: '&ldquo;sh&rdquo; is one of the later sounds, and a four-year-old saying &ldquo;soo&rdquo; '
-    + 'for &ldquo;shoe&rdquo; is on time. The rounded lips are the half you can see, which makes '
-    + 'them the half you can help with.',
+  sh: '&ldquo;sh&rdquo; is one of the later sounds. The rounded lips are the half you can see, '
+    + 'which makes them the half you can help with.',
   ch: '&ldquo;ch&rdquo; is one of the later sounds. &ldquo;tip&rdquo; for &ldquo;chip&rdquo; at '
     + 'four is not a missing sound — it is the first half of one, produced correctly and then '
     + 'stopped.',

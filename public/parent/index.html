@@ -67,7 +67,7 @@
   .preview-txt b{font-size:14.5px;line-height:1.3}
   .preview-txt span{font-size:12.5px;color:var(--ink-soft);line-height:1.35;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  .preview-txt i{font-size:11px;color:var(--ink-faint);font-style:normal;text-transform:uppercase;
+  .preview-txt i{font-size:12px;color:var(--ink-faint);font-style:normal;text-transform:uppercase;
     letter-spacing:.04em}
   .link{word-break:break-all;font-size:12px;color:var(--ink-faint);margin-top:10px}
   .muted a{display:inline-flex;align-items:center;min-height:44px;padding:6px 2px}
@@ -250,7 +250,7 @@
       the only thing on this page that ever reaches a server.</p>
     <form class="row" id="notifyForm" style="margin-top:10px">
       <input type="email" id="notifyEmail" placeholder="you@email.com" required autocomplete="email"
-             style="flex:1;min-width:200px;font:inherit;font-size:16px;padding:13px 18px;
+             style="flex:1;min-width:200px;box-sizing:border-box;min-height:44px;font:inherit;font-size:16px;padding:13px 18px;
                     border-radius:999px;border:2px solid var(--line,#DFE5E9);color:var(--ink);background:#fff">
       <button class="primary" type="submit">Email me</button>
     </form>
