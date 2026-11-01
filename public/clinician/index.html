@@ -25,6 +25,8 @@
   table{width:100%;border-collapse:collapse;font-size:14px}
   th{text-align:left;font-size:13px;text-transform:uppercase;letter-spacing:.04em;
      color:var(--ink-faint);font-weight:700;padding:8px 8px;border-bottom:1px solid var(--line)}
+  th a, td a, .note a{display:inline-flex;align-items:center;min-height:44px;text-transform:none;
+     letter-spacing:0;font-size:13px}
   td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
   td.num{text-align:right;font-variant-numeric:tabular-nums}
   .ci{position:relative;height:16px;background:#F1F4F6;border-radius:8px;min-width:130px}
@@ -103,7 +105,7 @@
   <h2>Produced correctly, by sound</h2>
   <table id="targets">
     <thead><tr>
-      <th>Sound</th><th class="num">Attempts</th><th>Rate (90% credible interval)</th>
+      <th>Sound</th><th class="num">Attempts</th><th>Rate (90% credible interval; <a href="https://doi.org/10.1214/ss/1009213286">Brown, Cai, and DasGupta, 2001</a>. 90% is our method's mass, not theirs.)</th>
       <th class="num">Rate</th><th>Change</th>
     </tr></thead>
     <tbody></tbody>
@@ -113,16 +115,24 @@
   <section id="proAppendix" class="hidden">
     <h2>Method appendix</h2>
     <table class="appendix"><tbody>
-      <tr><td>Interval</td><td>Jeffreys, Beta(x+½, n−x+½), <span id="apxMass">90</span>% credible</td></tr>
-      <tr><td>Why Jeffreys</td><td>Wald intervals are badly wrong at small n and near 0% or 100% —
-        exactly where a struggling phoneme sits — and can return a zero-width interval at 0/n.</td></tr>
-      <tr><td>Why 90%, not 95%</td><td>At the sample sizes a home programme actually produces, a 95%
-        interval is so wide it reads as "we know nothing", which is its own kind of misleading.</td></tr>
-      <tr><td>Minimum to report a rate</td><td><span id="apxMinAttempts">8</span> attempts</td></tr>
+      <tr><td>Interval</td><td>Jeffreys, Beta(x+½, n−x+½), <span id="apxMass">90</span>% credible.
+        <a href="https://doi.org/10.1214/ss/1009213286">Brown, Cai, and DasGupta (2001)</a> recommend
+        an equal-tailed Jeffreys interval for a binomial proportion at small samples. The 90% mass
+        is this method's choice (https://doi.org/10.1214/ss/1009213286).</td></tr>
+      <tr><td>Why Jeffreys</td><td><a href="https://doi.org/10.1214/ss/1009213286">Brown, Cai, and DasGupta (2001)</a>
+        show Wald intervals cover erratically at small n and near 0% or 100% — exactly where a
+        struggling phoneme sits — and can return a zero-width interval at 0/n
+        (https://doi.org/10.1214/ss/1009213286).</td></tr>
+      <tr><td>Interval mass</td><td>Choosing a 90% mass rather than a wider one is this method's
+        choice, so the interval stays readable at the sample sizes a home programme produces. It is
+        not a recommendation from
+        <a href="https://doi.org/10.1214/ss/1009213286">Brown, Cai, and DasGupta (2001)</a>.</td></tr>
+      <tr><td>Minimum to report a rate</td><td><span id="apxMinAttempts">8</span> attempts. This floor
+        is a rule of this method, not a published norm.</td></tr>
       <tr><td>Minimum to claim a direction</td><td>20 attempts, <em>and</em> non-overlapping intervals,
-        <em>and</em> ≥ 0.15 absolute change. Separated intervals alone admitted a false direction in
-        2.5% of simulated pure-noise learners; adding a minimum effect size was not cosmetic.</td></tr>
-      <tr><td>Measured false-positive rate</td><td>3.0% over 200 simulated coin-flip learners</td></tr>
+        <em>and</em> at least 0.15 absolute change. Those cutoffs are rules of this method. This
+        report does not quote a false-positive rate from an internal simulation.</td></tr>
+      <tr><td>False-positive rate</td><td>Not quoted. An internal simulation is not a published figure.</td></tr>
       <tr><td>Excluded from all rates</td><td>Taps (the child produced no speech) and attempts resolved
         on the encouragement cap (the scene resolved regardless of what was heard). Both counts are
         disclosed above rather than silently dropped.</td></tr>
@@ -249,8 +259,11 @@ function render(rec) {
     `<b>Method.</b> Rates are the proportion of attempts scored as clearly produced, from audio only — `
     + `taps and attempts resolved on the encouragement cap are excluded `
     + `(${rec.excludedTaps} and ${rec.excludedForcedResolutions} respectively here). `
-    + `Intervals are Jeffreys ${Math.round(CI_MASS * 100)}% credible intervals, which behave correctly `
-    + `at small samples and near 0% or 100% where a struggling sound sits. A change is only reported `
+    + `Intervals are Jeffreys ${Math.round(CI_MASS * 100)}% credible intervals. `
+    + `<a href="https://doi.org/10.1214/ss/1009213286">Brown, Cai, and DasGupta (2001)</a> `
+    + `recommend equal-tailed Jeffreys intervals at small samples because Wald coverage is erratic `
+    + `near 0% and 100%. The ${Math.round(CI_MASS * 100)}% mass is this method's choice, not a figure `
+    + `from that paper (https://doi.org/10.1214/ss/1009213286). A change is only reported `
     + `when the earlier and later intervals do not overlap. `
     + `<br><br><b>${rec.disclaimer}</b>`;
 

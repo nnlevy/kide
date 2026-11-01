@@ -36,12 +36,16 @@ const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
   .replace(/"/g, '&quot;');
 
 const pct = (x) => `${Math.round(x * 100)}%`;
+const BROWN_DOI = 'https://doi.org/10.1214/ss/1009213286';
+const BROWN = `<a href="${BROWN_DOI}" rel="nofollow noopener">Brown, Cai, and DasGupta (2001)</a>`;
+const ECFR = 'https://www.ecfr.gov/current/title-16/chapter-I/subchapter-C/part-312/section-312.2';
+const ECFR_LINK = `<a href="${ECFR}" rel="nofollow noopener">16 CFR 312.2</a>`;
 
 const TITLE = 'Kide for speech-language pathologists: home-practice evidence you can put in a chart';
 const DESC =
-  'Per-phoneme accuracy with Jeffreys ' + pct(CI_MASS) + ' credible intervals, adherence, and trend '
-  + 'detection — generated from a child\'s own home practice, on the family\'s device. Free for '
-  + 'families. No audio, no voiceprints, and nothing from the practice record reaches a server.';
+  'A home-practice record with per-phoneme accuracy, adherence, and trend detection — '
+  + 'generated on the family\'s device. Free for families. No audio, no voiceprints, and nothing '
+  + 'from the practice record reaches a server.';
 
 // Description sent explicitly: without it the portfolio OG renderer falls back
 // to the brand tagline, and kide.us is not in that registry, so every share of
@@ -69,16 +73,16 @@ const FAQS = [
    `A rate is not reported at all below ${MIN_ATTEMPTS_PER_TARGET} attempts for a target. A `
    + `direction of change is not claimed below ${MIN_ATTEMPTS_FOR_TREND} attempts, and even then `
    + 'only when the earlier and later credible intervals do not overlap AND the change is at least '
-   + `${MIN_REPORTABLE_EFFECT.toFixed(2)} in absolute terms. A fortnight of home practice is `
-   + 'usually not enough to separate even a genuine 25-point improvement, and the report will say '
-   + 'so rather than call it.'],
+   + `${MIN_REPORTABLE_EFFECT.toFixed(2)} in absolute terms. Those floors are rules of this method, `
+   + 'not a published norm. A short stretch of home practice is often not enough to separate a real '
+   + 'improvement from noise, and the report will say so rather than call it.'],
 
-  ['Why 90% intervals rather than 95%?',
-   `At the sample sizes a home programme actually produces, a 95% interval is so wide it reads as `
-   + `"we know nothing", which is its own kind of misleading. ${pct(CI_MASS)} Jeffreys intervals `
-   + 'are used throughout and the mass is stated on every report, so nothing is hidden by the '
-   + 'choice. Jeffreys rather than Wald because Wald misbehaves badly at small n and near 0% or '
-   + '100% — exactly where a struggling phoneme sits.'],
+  ['Why this interval, rather than a wider one?',
+   `${BROWN} (${BROWN_DOI}) show that Wald intervals for a binomial proportion have erratic coverage `
+   + `at small samples, including near 0% and 100%, and recommend an equal-tailed Jeffreys interval `
+   + `for small n. The ${pct(CI_MASS)} probability mass, rather than a wider one, is a choice of this `
+   + `method: at the sample sizes a home programme produces, a very wide interval is easy to misread. `
+   + `The mass is printed on every report.`],
 
   ['What is excluded from the accuracy figures?',
    'Two things, and both counts are printed on the report rather than quietly dropped. Taps are '
@@ -91,8 +95,8 @@ const FAQS = [
    'No. The record never reaches us, and sharing it does not create an account. It lives in the family\'s browser, and '
    + 'sharing produces a link with the data encoded in the URL, which opens on your device directly. '
    + 'No audio, no voiceprint, no embedding — the record holds phoneme-level outcomes, timestamps '
-   + 'and a first name. The amended COPPA Rule lists voiceprints as biometric personal information, '
-   + 'which is one reason none is ever created.'],
+   + 'and a first name. The amended COPPA Rule lists voiceprints as biometric personal information '
+   + `(${ECFR_LINK}, ${ECFR}), which is one reason none is ever created.`],
 
   ['What does it cost the family?',
    'Nothing, permanently. The game is free, the practice record is free, and a parent can hand you '
@@ -128,7 +132,7 @@ const JSONLD = {
       citation: { '@type': 'ScholarlyArticle', name: CITATION.full, url: CITATION.doi } },
     { '@type': 'FAQPage', mainEntity: FAQS.map(([q, a]) => ({
       '@type': 'Question', name: q,
-      acceptedAnswer: { '@type': 'Answer', text: a } })) },
+      acceptedAnswer: { '@type': 'Answer', text: a.replace(/<[^>]+>/g, '') } })) },
   ],
 };
 
@@ -193,19 +197,23 @@ const html = `<!DOCTYPE html>
 
   <div class="verdict">
     <span class="tag">What this is</span>
-    <p>Kide is a free speech-practice game for two- to seven-year-olds. It runs on the family&rsquo;s
+    <p>Kide is a free speech-practice game for young children. It runs on the family&rsquo;s
        device, scores pronunciation attempts on-device, and keeps a record of what was practiced
        and what happened.</p>
     <p>A parent can hand you that record as a link. You get per-phoneme accuracy with credible
-       intervals, adherence figures nobody has previously been able to produce, and a trend
-       readout that refuses to call a direction it cannot support.</p>
+       intervals (${BROWN} recommend Jeffreys intervals at small samples, ${BROWN_DOI}), adherence
+       figures nobody has previously been able to produce, and a trend readout that refuses to call
+       a direction it cannot support.</p>
   </div>
 
   <h2>What is actually in the record</h2>
   <table class="spec"><tbody>
     <tr><td>Produced correctly, by target</td>
         <td>Proportion of attempts scored as clearly produced, per phoneme and word position, with
-            a Jeffreys ${pct(CI_MASS)} credible interval on each.</td></tr>
+            a Jeffreys ${pct(CI_MASS)} credible interval on each. ${BROWN} (${BROWN_DOI}) recommend
+            an equal-tailed Jeffreys interval when the sample is small, because Wald coverage is
+            erratic near 0% and 100%. The ${pct(CI_MASS)} mass is this method's choice, not a figure
+            from that paper.</td></tr>
     <tr><td>Adherence</td>
         <td>Days practiced out of days elapsed, number of sessions, attempts per session, longest
             break, and days since last practice. This is the figure a home programme has never
@@ -229,13 +237,13 @@ const html = `<!DOCTYPE html>
       <li><b>It never diagnoses.</b> Per-attempt scoring of young children&rsquo;s speech is not
           reliable enough to support that, and the design treats that as permanent rather than as
           a limitation to engineer away.</li>
-      <li><b>No rate below ${MIN_ATTEMPTS_PER_TARGET} attempts.</b> An interval over three attempts
-          is not evidence, and printing one invites over-interpretation.</li>
+      <li><b>No rate below ${MIN_ATTEMPTS_PER_TARGET} attempts.</b> That floor is a rule of this
+          method. An interval over a handful of attempts is not evidence, and printing one invites
+          over-interpretation.</li>
       <li><b>No direction of change below ${MIN_ATTEMPTS_FOR_TREND} attempts</b>, and then only
           when the intervals do not overlap <i>and</i> the change is at least
-          ${MIN_REPORTABLE_EFFECT.toFixed(2)} absolute. Non-overlap alone admitted a false
-          direction in 2.5% of simulated pure-noise learners; adding a minimum effect size brought
-          measured false positives to 3.0% over 200 simulated coin-flip learners.</li>
+          ${MIN_REPORTABLE_EFFECT.toFixed(2)} absolute. Those cutoffs are rules of this method.
+          The page does not quote a false-positive rate from an internal simulation.</li>
       <li><b>A tap is not counted as speech.</b> The child produced nothing to score. Counting taps
           would inflate every rate, and most for the children who talk least.</li>
       <li><b>It never reads the game&rsquo;s own scheduling state.</b> The engine keeps a decayed,
@@ -252,8 +260,8 @@ const html = `<!DOCTYPE html>
   <p>A parent account is separate from this record, and a family does not need one to share it. Nothing a child says is recorded, transmitted or stored: scoring
      happens on the device, and the record holds phoneme-level outcomes, timestamps and a first
      name. No audio, no voiceprint, no embedding that could re-identify a child — the amended COPPA
-     Rule lists voiceprints as biometric personal information, which is one reason none is ever
-     created.</p>
+     Rule lists voiceprints as biometric personal information (${ECFR_LINK}, ${ECFR}), which is one
+     reason none is ever created.</p>
   <p>Sharing is a link with the data encoded in the URL. It opens on your device straight from the
      link. The record does not reach our servers on the way, because there is no route by which it
      could.</p>
@@ -285,11 +293,13 @@ const html = `<!DOCTYPE html>
      position.</p>
 
   <h2>Questions</h2>
-  ${FAQS.map(([q, a]) => `<details><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join('\n  ')}
+  ${FAQS.map(([q, a]) => `<details><summary>${esc(q)}</summary><p>${a}</p></details>`).join('\n  ')}
 
   <p class="cite"><b>Acquisition norms.</b> ${esc(CITATION.full)}
      <a href="${CITATION.doi}" rel="nofollow noopener">${CITATION.doi}</a>
-     Figures are ${CITATION.criterion}.<br>
+     That review reports a ${esc(CITATION.criterion)}.
+     <a href="https://doi.org/10.1044/2020_AJSLP-19-00168" rel="nofollow noopener">Crowe &amp; McLeod (2020)</a>
+     is the US review the sound pages use for a parent's age.<br>
      Kide is practice, not therapy. Nothing here diagnoses anything, nothing here is a standardised
      assessment, and none of it replaces clinical judgement. It reports what a child practiced and
      what happened, with the uncertainty attached, so that a qualified person can decide what it

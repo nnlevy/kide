@@ -48,7 +48,7 @@
     font-family:-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{height:100%}
+  html,body{height:auto}
   body{margin:0;background:linear-gradient(180deg,var(--sky-top),var(--sky-bottom));
        color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;
        display:flex;flex-direction:column;min-height:100dvh}
@@ -58,11 +58,11 @@
   .iconbtn{width:44px;height:44px;min-width:44px;border-radius:50%;border:0;flex:0 0 auto;
     background:rgba(255,255,255,.75);font-size:19px;cursor:pointer;display:flex;
     align-items:center;justify-content:center}
-  /* The screen scrolls when, and only when, its content does not fit. Same
-     lesson as /play, where a fixed height with no scroll container put the
-     bottom of the Parent Corner out of reach on every phone. */
-  main{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;
-       -webkit-overflow-scrolling:touch;padding:6px 18px calc(24px + var(--safe-b))}
+  /* The document is the only scroller. A height-locked body plus overflow on
+     main made two scrollports (the page and the panel), and mobile.css's
+     bottom padding made the outer one move as well. */
+  main{flex:1 0 auto;min-height:0;overflow:visible;
+       padding:6px 18px calc(24px + var(--safe-b))}
   .inner{max-width:560px;margin:0 auto;text-align:center}
   h1{font-size:clamp(24px,6vw,34px);color:#fff;text-shadow:0 3px 0 rgba(0,0,0,.08);margin:10px 0 4px}
   .hint{color:#fff;opacity:.95;font-size:15.5px;margin:0 auto 18px;max-width:420px}
