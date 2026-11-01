@@ -16,7 +16,7 @@ export function httpsUrl(value) {
 
 /**
  * Fields the billing hub already reads for the clinician licence, plus the
- * placeholder price id. The offering is fixed here. The browser cannot swap it.
+ * live family price id. The offering is fixed here. The browser cannot swap it.
  */
 export function checkoutInput({ origin, email }) {
   return {

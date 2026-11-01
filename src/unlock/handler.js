@@ -2,7 +2,7 @@
 //
 // Family play reuses PORTFOLIO_BILLING_SERVICE createCheckout and getCredits.
 // It does not talk to Stripe, does not hold a secret key, and does not read a
-// child's practice record. The price id is the placeholder in config.js.
+// child's practice record. The price id is the live family price in config.js.
 //
 // Unpaid play stores a day total in KV, per device and per signed-in parent.
 // A stored unlock (or a purchase history hit) skips that total.

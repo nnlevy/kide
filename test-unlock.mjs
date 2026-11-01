@@ -13,6 +13,7 @@ import {
   FREE_PLAY_MINUTES,
   OFFERING_ID,
   STRIPE_PRICE_ID,
+  STRIPE_PRODUCT_ID,
 } from './src/unlock/config.js';
 import { checkoutInput, httpsUrl } from './src/unlock/checkout.js';
 import { COPY, readable } from './src/unlock/copy.js';
@@ -76,10 +77,11 @@ function cookiePair(res) {
 
 const SESSION = '__Host-rft_session=abcdefghijklmnopqrstuvwxyzABCDEFGHIJK12345';
 
-console.log('\nconfig stays a placeholder');
+console.log('\nconfig names the live family price');
 
-await t('price id is a placeholder and not a secret', () => {
-  assert.equal(STRIPE_PRICE_ID, 'price_PLACEHOLDER_FAMILY_UNLOCK');
+await t('price id is the live family price and not a secret', () => {
+  assert.equal(STRIPE_PRICE_ID, 'price_1UWqYjIzTeKgjbPrOtu7jVAG');
+  assert.equal(STRIPE_PRODUCT_ID, 'prod_VXwRuRo0HAZXKh');
   assert.equal(OFFERING_ID, 'family_unlock');
   assert.equal(AMOUNT_CENTS, 1500);
   assert.equal(AMOUNT_LABEL, '$15');
@@ -90,6 +92,7 @@ await t('price id is a placeholder and not a secret', () => {
   ].map((p) => readFileSync(p, 'utf8')).join('\n');
   assert(!/sk_live|sk_test|rk_live|rk_test|whsec_/.test(files), 'a live secret landed in the unlock module');
   assert(!/api\.stripe\.com/.test(files), 'unlock code calls Stripe directly');
+  assert(!/PLACEHOLDER/.test(files), 'the family price is still a placeholder');
 });
 
 await t('checkout input reuses the hub fields and returns to play on cancel', () => {

@@ -22,6 +22,15 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
     return res.end(JSON.stringify({ parentId: null, unlocked: false }));
   }
+  // /play asks the worker how much free time is left. This file serves dist/
+  // only, so answer that poll here. A 404 is a console error, and the suite
+  // treats any console error as a broken page.
+  if (p.startsWith("/api/unlock")) {
+    res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+    return res.end(JSON.stringify({
+      ok: true, unlocked: false, gated: false, countdownSeconds: 10, playedSeconds: 0,
+    }));
+  }
   let f = path.join(ROOT, p);
   if (fs.existsSync(f) && fs.statSync(f).isDirectory()) f = path.join(f, "index.html");
   if (!fs.existsSync(f)) { res.writeHead(404); return res.end("nope"); }
