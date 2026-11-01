@@ -6,6 +6,7 @@ import { handleAccount } from "./account.js";
 import { routeParentAccount } from "../account/router.js";
 import { handlePlayEvents } from "../perf/http.js";
 import { handleCompete } from "../compete/http.js";
+import { handleUnlock } from "../unlock/handler.js";
 
 // kide.us is a leaf on the Quizbiz portfolio billing hub (riskfreetrial) and
 // growth control plane (newgrowthbusiness) -- see wrangler.json "services".
@@ -202,9 +203,14 @@ export default {
       return handleAccount(request, env);
     }
 
-    // The only paid surface on kide.us: the chart-ready practice record at
-    // /clinician, sold to clinicians (docs/WEDGE.md). Everything a child or
-    // parent touches is free and always will be.
+    // Family play: minute count and the $15 unlock. Same billing RPC as the
+    // clinician licence. A child's practice record never reaches this route.
+    if (url.pathname.startsWith("/api/unlock")) {
+      return handleUnlock(request, env);
+    }
+
+    // Clinician licence: the chart-ready practice record at /clinician
+    // (docs/WEDGE.md). Checkout stays on this route and this offering set.
     if (url.pathname.startsWith("/api/clinician/")) {
       return handleClinicianApi(request, env, url);
     }
