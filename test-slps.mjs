@@ -98,18 +98,30 @@ t('every threshold quoted matches engine/clinical.js', () => {
   // MIN_ATTEMPTS_PER_TARGET from 8 to 12 without rebuilding the page left the
   // suite green, because "12" also appears in the og:image width of 1200.
   // Found by mutation-testing this file.
-  const expected = [
-    [new RegExp(`Jeffreys ${Math.round(CI_MASS * 100)}% credible interval`), 'credible interval mass'],
-    [new RegExp(`No rate below ${MIN_ATTEMPTS_PER_TARGET} attempts`), 'minimum attempts before a rate'],
-    [new RegExp(`not reported at all below ${MIN_ATTEMPTS_PER_TARGET} attempts`), 'the same minimum, in the FAQ'],
-    [new RegExp(`below ${MIN_ATTEMPTS_FOR_TREND} attempts`), 'minimum attempts before a direction is claimed'],
-    [new RegExp(`${MIN_REPORTABLE_EFFECT.toFixed(2).replace('.', '\\.')} (absolute|in absolute terms)`),
-     'minimum reportable effect size'],
-    [new RegExp(METHOD_VERSION.replace(/[.]/g, '\\.')), 'method version'],
-  ];
-  for (const [re, what] of expected) {
-    assert(re.test(text),
-      `/for-slps no longer states the ${what} as clinical.js defines it — run "npm run seo"`);
+  // The indexed page does not quote the numeric floors. Those are rules of this
+  // method, printed on the report (the noindex clinician page), and stating them
+  // here without a paper that owns the number is an uncited claim. What this
+  // page must keep is the label, so a reader is not told they are a published norm.
+  assert(/rules of this method, not a published norm/i.test(text),
+    '/for-slps no longer says the floors are rules of this method');
+  assert(/printed on the report/i.test(text),
+    '/for-slps no longer points at the report for the floors');
+  assert(new RegExp(METHOD_VERSION.replace(/[.]/g, '\\.')).test(text),
+    '/for-slps no longer states the method version — run "npm run seo"');
+  assert(new RegExp(`Jeffreys ${Math.round(CI_MASS * 100)}% credible interval`).test(text),
+    '/for-slps no longer names the interval the report prints');
+  const clinicianText = clinician.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  assert(clinicianText.includes(`${MIN_ATTEMPTS_PER_TARGET} attempts`),
+    'the clinician report no longer states the rate floor from clinical.js');
+  assert(clinicianText.includes(`${MIN_ATTEMPTS_FOR_TREND} attempts`),
+    'the clinician report no longer states the trend floor from clinical.js');
+  assert(clinicianText.includes(MIN_REPORTABLE_EFFECT.toFixed(2)),
+    'the clinician report no longer states the minimum effect from clinical.js');
+  // A digit that does appear must still be the constant, not a drifted copy.
+  for (const m of text.matchAll(/below (\d+) attempts/g)) {
+    const n = +m[1];
+    assert(n === MIN_ATTEMPTS_PER_TARGET || n === MIN_ATTEMPTS_FOR_TREND,
+      `/for-slps says below ${n} attempts, which is not a floor in clinical.js`);
   }
 });
 
@@ -161,14 +173,20 @@ if (!HUB) {
     const cents = [...block.matchAll(/,\s*(\d{3,6}),\s*\n/g)].map((m) => +m[1]);
     assert(cents.length, 'no price found in the kide.us catalog block');
     const dollars = [...new Set(cents.map((c) => `$${c / 100}`))];
+    // The indexed page does not repeat the dollar amount. The licence button
+    // on /clinician is where the price sits next to checkout. A dollar figure
+    // here, away from that button, is an uncited price claim.
+    assert(!/\$\d+/.test(text), '/for-slps states a dollar price');
+    assert(/href="\/clinician\/"/.test(page), '/for-slps no longer links the licence page');
+    const clinicianText = clinician.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
     for (const d of dollars) {
-      assert(text.includes(d),
-        `the hub charges ${d} for a kide.us offering and /for-slps never mentions that price`);
+      assert(clinicianText.includes(d),
+        `the hub charges ${d} for a kide.us offering and /clinician never mentions that price`);
     }
-    const advertised = [...new Set([...text.matchAll(/\$(\d+)\b/g)].map((m) => +m[1]))];
+    const advertised = [...new Set([...clinicianText.matchAll(/\$(\d+)\b/g)].map((m) => +m[1]))];
     for (const a of advertised) {
       assert(cents.includes(a * 100),
-        `/for-slps advertises $${a}, which is not a price in riskfreetrial's kide.us catalog`);
+        `/clinician advertises $${a}, which is not a price in riskfreetrial's kide.us catalog`);
     }
   });
 }
@@ -193,11 +211,13 @@ t('the page carries no practice record and no share payload', () => {
 });
 
 t('the worked example still contains what the page promises a clinician will see', () => {
-  // The page tells a clinician the example spans 28 days, includes a lapse, an
-  // improving target, a flat one, and one with too little data. If the example
-  // changes and the description does not, the first thing a sceptical
-  // professional does is catch us out.
-  assert(/28[- ]day|28 days/.test(text), '/for-slps no longer describes the example span');
+  // The page names the shapes of the example (lapse, improving, flat, thin)
+  // without a day count. The count stays in the generator, which is what a
+  // sceptical reader can actually open.
+  assert(/genuine lapse/.test(text), '/for-slps no longer mentions the lapse');
+  assert(/improving target/.test(text), '/for-slps no longer mentions the improving target');
+  assert(/flat target/.test(text), '/for-slps no longer mentions the flat target');
+  assert(/too little data/.test(text), '/for-slps no longer mentions the thin target');
   const demo = (clinician.match(/function loadWorkedExample[\s\S]*?\n\}/) || [''])[0];
   assert(/for \(let d = 0; d < 28; d\+\+\)/.test(demo), 'the worked example no longer spans 28 days');
   assert(/continue;\s*\/\/ a real lapse/.test(demo), 'the worked example no longer contains a lapse');

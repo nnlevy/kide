@@ -237,7 +237,19 @@ for (const code of codes) {
   // named pattern are the substance, and they do not depend on how many words
   // the game happens to practice for this sound.
   const sub = SUBSTITUTIONS[code];
-  const subBlock = sub ? `
+  // /sh used to call the swap "ordinary" and name it palatal fronting without a
+  // source that states that. The age above is the cited one; this block does
+  // not add a second factual claim.
+  const subBlock = !sub ? '' : code === 'sh' ? `
+  <h2>If your child says &ldquo;${esc(sub.eg[1])}&rdquo; instead of &ldquo;${esc(sub.eg[0])}&rdquo;</h2>
+  <p>You may hear &ldquo;${esc(sub.eg[0])}&rdquo; come out closer to &ldquo;${esc(sub.eg[1])}&rdquo;.
+     This page does not give that swap its own age. The age linked above is for the sound itself.
+     If the swap is still the main way your child says the word well after that, mention it to
+     your doctor or a speech-language pathologist.</p>
+  <p><b>Don't correct it in the moment.</b> Saying &ldquo;no, say ${esc(sub.eg[0])}&rdquo; teaches a
+     child that talking is a test they can fail, and a child who thinks that talks less. Say the
+     word yourself, warmly, and carry on — they get the model without the verdict.</p>
+` : `
   <h2>If your child says &ldquo;${esc(sub.eg[1])}&rdquo; instead of &ldquo;${esc(sub.eg[0])}&rdquo;</h2>
   <p>Swapping &ldquo;${esc(sub.says)}&rdquo; in for &ldquo;${L}&rdquo; is a pattern clinicians call
      <b>${esc(sub.name)}</b>. Hearing that swap while the sound is still settling is ordinary.</p>
@@ -248,7 +260,7 @@ for (const code of codes) {
   <p><b>Don't correct it in the moment.</b> Saying &ldquo;no, say ${esc(sub.eg[0])}&rdquo; teaches a
      child that talking is a test they can fail, and a child who thinks that talks less. Say the
      word yourself, warmly, and carry on — they get the model without the verdict.</p>
-` : '';
+`;
 
   // How the sound is physically made, whether you can show it, and its
   // voiced/voiceless twin. This is the half of the page a parent can act on
@@ -271,9 +283,13 @@ for (const code of codes) {
 
   const faqs = [
     ...(note?.faq || []),
-    ...(sub ? [[`My child says "${sub.eg[1]}" instead of "${sub.eg[0]}". Is that normal?`,
-      `Yes. Hearing "${sub.eg[1]}" for "${sub.eg[0]}" is a familiar pattern, called `
-      + `${sub.name}. Don't correct it in the moment; say the word yourself and move on.`]] : []),
+    ...(sub ? [code === 'sh'
+      ? [`What should I do if my child says "${sub.eg[1]}" instead of "${sub.eg[0]}"?`,
+        `Say the word yourself and move on. This page does not give that swap an age of its own. `
+        + `The age above is for the sound.`]
+      : [`My child says "${sub.eg[1]}" instead of "${sub.eg[0]}". Is that normal?`,
+        `Yes. Hearing "${sub.eg[1]}" for "${sub.eg[0]}" is a familiar pattern, called `
+        + `${sub.name}. Don't correct it in the moment; say the word yourself and move on.`]] : []),
     [`When should my child be able to say "${L}"?`,
      code === 's'
        ? `This page says around ${ageWords(n.mastery)}. ${usLink} (${CITATION_US.doi}) report a 90% mean of 51.33 months for this sound, and the studies ranged from 24 to 84 months. Children who take longer than the mean are still part of typical acquisition.`
@@ -408,7 +424,7 @@ const hubBody = `
   <div class="agebar" id="agebar" role="group" aria-label="Child's age">
     ${[24, 30, 36, 42, 48, 60, 72, 84].map((m) =>
       `<button type="button" data-m="${m}" aria-pressed="false">${ageWords(m).replace(' years old', '')}${
-        m % 12 === 0 ? ' yrs' : ''} ${usLink}</button>`).join('\n    ')}
+        m % 12 === 0 ? ' yrs' : ''}</button>`).join('\n    ')}
   </div>
   <div id="verdict" class="verdict" hidden><span class="tag">At this age</span><p></p></div>
 

@@ -58,6 +58,19 @@ a.back-link {
   padding-inline: 10px;
 }
 
+/* Citation and body links were inline, so min-height was ignored and the
+   line box stayed under 44px. inline-flex gives the same floor without
+   taking them out of the sentence. */
+p a,
+li a,
+td a,
+th a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding-inline: 2px;
+}
+
 /* FAQ summary rows on /for-slps and /sounds were 26px, and .back-link was
    23px. Both are the control a thumb hits, so they take the same floor.
    min-height on a list-item summary is honoured; the marker stays. */

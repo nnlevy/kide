@@ -24,7 +24,7 @@
 
 import { writeFileSync, mkdirSync } from 'node:fs';
 import {
-  CI_MASS, MIN_ATTEMPTS_PER_TARGET, MIN_ATTEMPTS_FOR_TREND, MIN_REPORTABLE_EFFECT, METHOD_VERSION,
+  CI_MASS, METHOD_VERSION,
 } from '../../public/engine/clinical.js';
 import { CITATION } from '../../public/engine/norms.js';
 
@@ -58,24 +58,21 @@ const ogUrl = `https://www.growth.business/api/og?domain=kide.us&title=${encodeU
    them rather than the way a landing page would. */
 const FAQS = [
   ['Is this an assessment?',
-   'No, and it is not built to become one. Per-attempt scoring of young children\'s speech is not '
-   + 'reliable enough for that, and pretending otherwise would be the fastest way to lose your '
-   + 'trust. What it is: a longitudinal record of what a child practiced at home and what happened '
-   + 'when they did. It describes; you interpret.'],
+   'No, and it is not built to become one. What it is: a longitudinal record of what a child '
+   + 'practiced at home and what happened when they did. It describes; you interpret.'],
 
   ['Does it replace the probe data I take in session?',
    'No. Your probes are elicited, controlled and scored by a clinician. This is unelicited home '
    + 'practice scored on a device. They answer different questions — yours answers "what can this '
-   + 'child do when I ask", this answers "what happened on the twenty-six days I was not there". '
-   + 'The second question is the one nobody has been able to answer.'],
+   + 'child do when I ask", this answers what happened on the days you were not in the room.'],
 
   ['How many attempts before a figure means anything?',
-   `A rate is not reported at all below ${MIN_ATTEMPTS_PER_TARGET} attempts for a target. A `
-   + `direction of change is not claimed below ${MIN_ATTEMPTS_FOR_TREND} attempts, and even then `
-   + 'only when the earlier and later credible intervals do not overlap AND the change is at least '
-   + `${MIN_REPORTABLE_EFFECT.toFixed(2)} in absolute terms. Those floors are rules of this method, `
-   + 'not a published norm. A short stretch of home practice is often not enough to separate a real '
-   + 'improvement from noise, and the report will say so rather than call it.'],
+   'A rate is not reported until a target has enough spoken tries. A direction of change is not '
+   + 'claimed until there are more tries, and even then only when the earlier and later credible '
+   + 'intervals do not overlap and the change clears this method\'s minimum. Those floors are '
+   + 'rules of this method, not a published norm, and they are printed on the report. A short '
+   + 'stretch of home practice is often not enough to separate a real improvement from noise, '
+   + 'and the report will say so rather than call it.'],
 
   ['Why this interval, rather than a wider one?',
    `${BROWN} (${BROWN_DOI}) show that Wald intervals for a binomial proportion have erratic coverage `
@@ -180,6 +177,7 @@ const html = `<!DOCTYPE html>
   .refuse ul{margin:0;padding-left:20px}
   .refuse li{margin:7px 0}
   .cite{font-size:13px;color:var(--ink-soft);border-top:1px solid #EFE9DA;padding-top:14px;margin-top:26px}
+  a.tap{display:inline-flex;align-items:center;min-height:44px;padding:0 2px}
 </style>
 </head>
 <body>
@@ -191,9 +189,9 @@ const html = `<!DOCTYPE html>
 
   <p class="eyebrow">For speech-language pathologists</p>
   <h1>&ldquo;Parent reports good carryover.&rdquo;</h1>
-  <p class="lede">That sentence is in thousands of progress notes, and it is the only evidence
-     behind it. Home practice is the one part of a child&rsquo;s programme documented entirely from
-     recall — a laminated sheet goes home, and nobody ever learns whether it was used.</p>
+  <p class="lede">That sentence is what a lot of progress notes have to go on. Home practice is
+     the part of a child&rsquo;s programme that usually comes back as recall — a laminated sheet
+     goes home, and the note cannot show whether it was used.</p>
 
   <div class="verdict">
     <span class="tag">What this is</span>
@@ -202,8 +200,7 @@ const html = `<!DOCTYPE html>
        and what happened.</p>
     <p>A parent can hand you that record as a link. You get per-phoneme accuracy with credible
        intervals (${BROWN} recommend Jeffreys intervals at small samples, ${BROWN_DOI}), adherence
-       figures nobody has previously been able to produce, and a trend readout that refuses to call
-       a direction it cannot support.</p>
+       from the practice itself, and a trend readout that refuses to call a direction it cannot support.</p>
   </div>
 
   <h2>What is actually in the record</h2>
@@ -216,8 +213,7 @@ const html = `<!DOCTYPE html>
             from that paper.</td></tr>
     <tr><td>Adherence</td>
         <td>Days practiced out of days elapsed, number of sessions, attempts per session, longest
-            break, and days since last practice. This is the figure a home programme has never
-            been able to give you.</td></tr>
+            break, and days since last practice.</td></tr>
     <tr><td>Direction of change</td>
         <td>Earlier half versus later half of the record, reported only when the evidence supports
             a claim — see the thresholds below.</td></tr>
@@ -234,16 +230,14 @@ const html = `<!DOCTYPE html>
   <div class="refuse">
     <h3>What it refuses to do — which is the part worth reading</h3>
     <ul>
-      <li><b>It never diagnoses.</b> Per-attempt scoring of young children&rsquo;s speech is not
-          reliable enough to support that, and the design treats that as permanent rather than as
-          a limitation to engineer away.</li>
-      <li><b>No rate below ${MIN_ATTEMPTS_PER_TARGET} attempts.</b> That floor is a rule of this
-          method. An interval over a handful of attempts is not evidence, and printing one invites
-          over-interpretation.</li>
-      <li><b>No direction of change below ${MIN_ATTEMPTS_FOR_TREND} attempts</b>, and then only
-          when the intervals do not overlap <i>and</i> the change is at least
-          ${MIN_REPORTABLE_EFFECT.toFixed(2)} absolute. Those cutoffs are rules of this method.
-          The page does not quote a false-positive rate from an internal simulation.</li>
+      <li><b>It does not diagnose.</b> It is not an assessment, and it is not built to become one.
+          The design treats that as permanent rather than as a limitation to engineer away.</li>
+      <li><b>No rate until there are enough spoken tries.</b> That floor is a rule of this
+          method, printed on the report. An interval over a handful of attempts is not evidence,
+          and printing one invites over-interpretation.</li>
+      <li><b>No direction of change until there are more tries</b>, and then only
+          when the intervals do not overlap <i>and</i> the change clears this method&rsquo;s
+          minimum. Those cutoffs are rules of this method, printed on the report.</li>
       <li><b>A tap is not counted as speech.</b> The child produced nothing to score. Counting taps
           would inflate every rate, and most for the children who talk least.</li>
       <li><b>It never reads the game&rsquo;s own scheduling state.</b> The engine keeps a decayed,
@@ -270,15 +264,16 @@ const html = `<!DOCTYPE html>
   <p><b>Nothing, for the family, permanently.</b> The game is free, the practice record is free, and
      a parent can hand you the complete record — every number on it — without paying and without
      signing in. There is no trial, and no upgrade prompt pointed at parents.</p>
-  <p><b>$39 once, for you, and only for the paperwork.</b> The professional edition adds a header
-     identifying you, your setting, the child by your own chart reference and the period covered;
+  <p><b>A one-time licence, for you, and only for the paperwork.</b> The price is on the
+     <a class="tap" href="/clinician/">clinician page</a>, next to the licence. The professional edition adds a
+     header identifying you, your setting, the child by your own chart reference and the period covered;
      the full method appendix in a form a colleague or a funder can check; and an attestation and
      signature block. It is the difference between a page you can read and a document you can file.
      Not a subscription, not per child, not per report.</p>
 
   <div class="cta-row">
     <p style="margin-bottom:0">The fastest way to judge this is to look at one. The worked example
-       spans 28 days and includes a genuine lapse, an improving target, a flat target and one with
+       includes a genuine lapse, an improving target, a flat target and one with
        too little data to report — so you can see what it does when the evidence is thin.</p>
     <a class="cta" href="/clinician/?demo=1">Open a worked example</a>
   </div>
