@@ -1,0 +1,2 @@
+{ "name": "platform-gate-runtime", "private": true, "description": "Central runtime for nnlevy/scripts tools/platform-gate (used by ~/.openclaw/bin/platform-gate-check.sh)",
+  "dependencies": { "playwright": "1.62.1", "@axe-core/playwright": "4.14.0" } }
