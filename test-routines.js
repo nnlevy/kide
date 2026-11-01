@@ -16,6 +16,10 @@ const ROOT = path.join(__dirname, "dist");
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".mp3": "audio/mpeg", ".json": "application/json", ".png": "image/png", ".txt": "text/plain" };
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split("?")[0]);
+  if (p === "/api/account/session") {
+    res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+    return res.end(JSON.stringify({ parentId: null, unlocked: false }));
+  }
   let f = path.join(ROOT, p);
   if (fs.existsSync(f) && fs.statSync(f).isDirectory()) f = path.join(f, "index.html");
   if (!fs.existsSync(f)) { res.writeHead(404); return res.end("nope"); }

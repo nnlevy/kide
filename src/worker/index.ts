@@ -4,6 +4,8 @@ import { SITEMAP, ROBOTS, PUBLIC_ROUTES } from "./seo-generated";
 import { dispatchChallenge } from "../../public/engine/challenge.js";
 import { handleAccount } from "./account.js";
 import { routeParentAccount } from "../account/router.js";
+import { handlePlayEvents } from "../perf/http.js";
+import { handleCompete } from "../compete/http.js";
 
 // kide.us is a leaf on the Quizbiz portfolio billing hub (riskfreetrial) and
 // growth control plane (newgrowthbusiness) -- see wrangler.json "services".
@@ -170,6 +172,18 @@ export default {
 
     if (url.pathname === "/api/notify" && request.method === "POST") {
       return handleNotify(request, env);
+    }
+
+    // Practice timing. Anonymous play is not written. The id attached to a
+    // sample is currentParent(request, env).parentId. It is not a score.
+    if (url.pathname === "/api/play/events" && request.method === "POST") {
+      return handlePlayEvents(request, env);
+    }
+
+    // Challenge scores in the shared D1. The same parent id is attached when
+    // a session exists. Points are figured in src/compete from this clock.
+    if (url.pathname.startsWith("/api/compete")) {
+      return handleCompete(request, env);
     }
 
     // Harder play for a quick hand. Points are figured in challenge.js.
