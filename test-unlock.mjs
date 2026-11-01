@@ -405,6 +405,10 @@ await t('visitor sentences and the new pages avoid gate words', () => {
   assert.equal(isMeasured('/play'), false);
   const timer = readFileSync('public/unlock/timer.js', 'utf8');
   assert(!/\$\d/.test(timer), 'the countdown names a price');
+  const parent = readFileSync('public/unlock/parent.js', 'utf8');
+  assert(/Family play is opening soon\. We'll email you\./.test(parent));
+  assert(/\/api\/notify/.test(parent));
+  assert(!/data\.error|data\.message|fulfillment_not_ready/.test(parent));
   assert(/Pip needs a grown-up/.test(timer));
   assert(/\/unlock\//.test(timer));
   const play = readFileSync('public/play/index.html', 'utf8');
@@ -512,6 +516,32 @@ T(("127.0.0.1", ${port}), H).serve_forever()
     });
     assert.ok(after.overflow <= 1, `overflow after the hold ${after.overflow}px`);
     assert.equal(after.priceOk, true, after.price);
+
+    let notified = null;
+    await page.route('**/api/unlock/checkout', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: false, error: 'fulfillment_not_ready', message: 'Checkout failed' }),
+    }));
+    await page.route('**/api/notify', async (route) => {
+      notified = route.request().postDataJSON();
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true }),
+      });
+    });
+    await page.fill('#email', 'parent@example.com');
+    await page.click('#payGo');
+    await page.waitForFunction(() => /opening soon/i.test(document.getElementById('payMsg').textContent));
+    const msg = await page.locator('#payMsg').innerText();
+    assert.match(msg, /opening soon/i);
+    assert.match(msg, /email you/i);
+    assert.doesNotMatch(msg, /fulfillment|failed|502|503/i);
+    const visible = await page.locator('body').innerText();
+    assert.doesNotMatch(visible, /fulfillment_not_ready|Checkout failed/);
+    assert.equal(notified && notified.email, 'parent@example.com');
+    assert.equal(notified.matchedDomain, 'kide');
     console.log('  ok   unlock page at 320px');
     pass++;
   } catch (e) {

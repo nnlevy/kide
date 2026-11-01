@@ -8,8 +8,7 @@ const $ = (id) => document.getElementById(id);
 const COPY = {
   mismatch: "That does not match. Try another answer.",
   needEmail: "Enter the email you want on the receipt.",
-  retry: "Pip could not open checkout. Try again in a moment.",
-  opening: "Opening checkout.",
+  soon: "Family play is opening soon. We'll email you.",
   checking: "Checking the receipt.",
   keep: "This email can keep playing with Pip.",
   waiting: "The receipt is still on its way. Return to Pip. This page can check again.",
@@ -78,6 +77,25 @@ function safeCheckoutUrl(value) {
   }
 }
 
+async function rememberParent(address) {
+  try {
+    await fetch("/api/notify", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: address,
+        matchedDomain: "kide",
+        matchedTitle: "Kide — family play",
+        need: "Email me when family play opens",
+        pageUrl: location.origin + location.pathname,
+      }),
+    });
+  } catch {
+    // The sentence on the page is the whole reply.
+  }
+}
+
 async function startCheckout(event) {
   event.preventDefault();
   const email = $("email");
@@ -89,7 +107,8 @@ async function startCheckout(event) {
   }
   const button = $("payGo");
   if (button) button.disabled = true;
-  say("payMsg", COPY.opening);
+  say("payMsg", "");
+  let url = null;
   try {
     const res = await fetch("/api/unlock/checkout", {
       method: "POST",
@@ -97,16 +116,17 @@ async function startCheckout(event) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: address }),
     });
-    const data = await res.json();
-    const url = data && safeCheckoutUrl(data.url);
-    if (url) {
-      location.href = url;
-      return;
-    }
-    say("payMsg", COPY.retry);
+    const data = await res.json().catch(() => null);
+    if (res.ok && data && data.ok === true) url = safeCheckoutUrl(data.url);
   } catch {
-    say("payMsg", COPY.retry);
+    url = null;
   }
+  if (url) {
+    location.href = url;
+    return;
+  }
+  say("payMsg", COPY.soon);
+  await rememberParent(address);
   if (button) button.disabled = false;
 }
 
