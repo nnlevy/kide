@@ -292,7 +292,7 @@ const STEPS = [
     id: 'more',
     q: () => `${state.draft.name || 'They'} are ready`,
     hint: () => (state.cast.length + 1 >= 3
-      ? "That's three — the most a card can hold."
+      ? "That's three — a card holds three."
       : 'You can put up to three on a card.'),
     say: 'Shall we add somebody else?',
     /* commitDraft() caps the cast at three, so offering a fourth meant a parent
@@ -526,7 +526,7 @@ function describeInput() {
   note.className = 'hint';
   note.hidden = true;
   note.style.cssText = 'margin:10px auto 0;font-size:13px;opacity:.85';
-  note.textContent = 'This browser can only transcribe speech by sending it to a company\u2019s '
+  note.textContent = 'This browser transcribes speech by sending it to a company\u2019s '
     + 'servers, so Kide does not offer a microphone here. Your phone keyboard\u2019s own '
     + 'dictation key still works.';
   frag.appendChild(note);
