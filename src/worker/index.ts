@@ -3,6 +3,7 @@
 import { SITEMAP, ROBOTS, PUBLIC_ROUTES } from "./seo-generated";
 import { dispatchChallenge } from "../../public/engine/challenge.js";
 import { handleAccount } from "./account.js";
+import { routeParentAccount } from "../account/router.js";
 
 // kide.us is a leaf on the Quizbiz portfolio billing hub (riskfreetrial) and
 // growth control plane (newgrowthbusiness) -- see wrangler.json "services".
@@ -56,6 +57,9 @@ export interface Env {
   PORTFOLIO_GROWTH_SERVICE?: unknown;
   // PortfolioMessagingService on riskfreetrial. Email codes and passkeys.
   // SMS stays on that worker's own flag. See src/worker/account.js.
+  // KIDE_LOGIN_CHANNEL is "email" or "sms". It is not a secret. Provider
+  // keys stay on riskfreetrial. Unset means email.
+  KIDE_LOGIN_CHANNEL?: string;
   PORTFOLIO_MESSAGING_SERVICE?: {
     sendLoginCode: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
     verifyCode: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
@@ -65,6 +69,9 @@ export interface Env {
     signInPasskey: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
     currentSession?: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
     endSession?: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    sendOtp?: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    verifyOtp?: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    recordConsent?: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
   };
 }
 
@@ -173,7 +180,11 @@ export default {
     }
 
     // Parent signup. Codes and passkeys live on PortfolioMessagingService.
+    // /api/account/session is the parent id and unlock flag. SMS, when the
+    // channel binding says so, is answered in src/account before this proxy.
     if (url.pathname.startsWith("/api/account")) {
+      const routed = await routeParentAccount(request, env);
+      if (routed) return routed;
       return handleAccount(request, env);
     }
 
