@@ -1,0 +1,14 @@
+name: AI review
+# Free bot review on every PR (portfolio-ci reusable workflow, GitHub Models).
+# Gives the portfolio merge gate review coverage; never approves.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions:
+  contents: read
+  pull-requests: write
+  models: read
+  copilot-requests: write
+jobs:
+  ai-review:
+    uses: nnlevy/portfolio-ci/.github/workflows/reusable-ai-review.yml@main
