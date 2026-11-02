@@ -78,6 +78,8 @@ button:disabled{opacity:.6;}
 .price{font-size:18px;text-align:center;margin:8px 0 0;}
 .price a{font-weight:800;}
 #family-price{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0 10px;}
+h2{font-size:22px;margin:0;text-align:center;letter-spacing:-.01em;}
+.share{margin-top:22px;padding-top:18px;border-top:2px dashed #E7E1D4;}
 footer{margin-top:28px;padding:12px 0 28px;text-align:center;color:var(--ink-soft);font-size:14px;}
 footer a{color:var(--ink);font-weight:700;}
 @media (prefers-reduced-motion: reduce){
@@ -138,6 +140,16 @@ footer a{color:var(--ink);font-weight:700;}
       <p class="lead" id="waitMsg" role="status">Checking the receipt.</p>
       <div class="actions">
         <a class="quiet" href="/play/">Back to Pip</a>
+      </div>
+      <div class="share" id="share" hidden>
+        <h2>Know another parent?</h2>
+        <p class="note" id="shareReward"></p>
+        <label for="shareLink">Your family's link</label>
+        <input id="shareLink" readonly>
+        <div class="actions">
+          <button type="button" id="shareGo">Share the link</button>
+        </div>
+        <p class="msg" id="shareMsg" role="status"></p>
       </div>
     </section>
   </div>

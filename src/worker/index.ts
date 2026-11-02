@@ -7,6 +7,7 @@ import { routeParentAccount } from "../account/router.js";
 import { handlePlayEvents } from "../perf/http.js";
 import { handleCompete } from "../compete/http.js";
 import { handleUnlock } from "../unlock/handler.js";
+import { withRefCookie } from "../referral/ref.js";
 
 // kide.us is a leaf on the Quizbiz portfolio billing hub (riskfreetrial) and
 // growth control plane (newgrowthbusiness) -- see wrangler.json "services".
@@ -84,6 +85,12 @@ const NOT_FOUND_HTML = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    return withRefCookie(request, await route(request, env));
+  },
+};
+
+async function route(request: Request, env: Env): Promise<Response> {
+  {
     const url = new URL(request.url);
 
     // Pulse 2026-07-29: CTA dual-cover — live /go·/launch·/start·/app HARD404 (branded
@@ -280,8 +287,8 @@ export default {
     }
 
     return new Response(NOT_FOUND_HTML, { status: 404, headers: { "Content-Type": "text/html; charset=utf-8" } });
-  },
-};
+  }
+}
 
 // Streams a model file out of the MODELS R2 bucket, with Range support (R2
 // serves the range directly, so a stalled fetch on a slow iPad connection can
