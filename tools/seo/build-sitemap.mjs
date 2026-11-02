@@ -23,8 +23,10 @@ const ROOT = 'public';
  *  - /bench, /engine      developer instrumentation. Ranking for it would
  *                         waste crawl budget and confuse a parent who lands on it.
  *  - /scene               an internal rig, not a page.
+ *  - /account, /unlock    sign-in and the paid step. Thin, per-visitor pages a
+ *                         stranger should reach through Pip, not from search.
  */
-const PRIVATE = [/^\/parent/, /^\/clinician/, /^\/bench/, /^\/engine/, /^\/scene/];
+const PRIVATE = [/^\/parent/, /^\/clinician/, /^\/bench/, /^\/engine/, /^\/scene/, /^\/account/, /^\/unlock/];
 
 /* Priority reflects what we would most like a stranger to land on.
  * /sounds outranks the product pages deliberately: it is the surface that
