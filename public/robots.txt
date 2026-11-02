@@ -1,9 +1,11 @@
 User-agent: *
 Allow: /
+Disallow: /account/
 Disallow: /bench/
 Disallow: /clinician/
 Disallow: /engine/
 Disallow: /parent/
 Disallow: /scene/
+Disallow: /unlock/
 
 Sitemap: https://kide.us/sitemap.xml
