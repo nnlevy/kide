@@ -198,11 +198,24 @@ async function showShare(address) {
   });
 }
 
+// The refund promise lives on riskfreetrial.org, keyed by the Stripe session.
+// Only a well-formed session id is put in the link.
+function showRefund(sid) {
+  const note = $("refundNote");
+  if (!note) return;
+  const link = $("refundLink");
+  if (link && /^cs_(live|test)_[A-Za-z0-9]{10,200}$/.test(sid || "")) {
+    link.href = "https://riskfreetrial.org/thanks?sid=" + encodeURIComponent(sid);
+  }
+  note.hidden = false;
+}
+
 function boot() {
   const params = new URLSearchParams(location.search);
   const back = params.get("checkout");
   if (back === "success") {
     const address = params.get("email") || "";
+    showRefund(params.get("sid"));
     confirmLoop(address);
     return;
   }

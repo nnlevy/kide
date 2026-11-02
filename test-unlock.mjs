@@ -611,6 +611,16 @@ await t('only a family with play on this device (or the signed-in parent) gets a
   assert.deepEqual(issued, [{ domain: 'kide.us', email: 'parent@example.com' }]);
 });
 
+await t('the pay step shows the risk-free promise and success links the riskfreetrial.org refund', () => {
+  const html = readFileSync('public/unlock/index.html', 'utf8');
+  const js = readFileSync('public/unlock/parent.js', 'utf8');
+  const pay = html.slice(html.indexOf('<section id="pay"'), html.indexOf('<section id="wait"'));
+  assert.match(pay, /Risk-free: full refund within 30 days\. Secure checkout by <a href="https:\/\/riskfreetrial\.org\/"/);
+  assert.match(html, /id="refundNote" hidden/);
+  assert.match(js, /\/\^cs_\(live\|test\)_\[A-Za-z0-9\]\{10,200\}\$\//);
+  assert.match(js, /"https:\/\/riskfreetrial\.org\/thanks\?sid=" \+ encodeURIComponent\(sid\)/);
+});
+
 await browserCheck();
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
