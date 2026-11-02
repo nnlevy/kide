@@ -8,6 +8,7 @@ export const COPY = {
   method: "Open family play from Pip.",
   stillOnTheWay: "The receipt is still on its way.",
   keepPlaying: "This email can keep playing with Pip.",
+  referralLocked: "Your share link opens once family play is on this device.",
 };
 
 const BANNED = [

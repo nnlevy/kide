@@ -12,6 +12,8 @@ const COPY = {
   checking: "Checking the receipt.",
   keep: "This email can keep playing with Pip.",
   waiting: "The receipt is still on its way. Return to Pip. This page can check again.",
+  copied: "Copied. Paste it in a text to another parent.",
+  shareText: "Pip gets sleepy and asks to be tucked in, so screen time ends without a meltdown. Try it free:",
 };
 
 function show(id) {
@@ -153,8 +155,59 @@ async function confirmLoop(address) {
       return;
     }
     say("waitMsg", next.unlocked ? COPY.keep : COPY.waiting);
+    if (next.unlocked) showShare(address);
   }
   step();
+}
+
+// After a paid unlock the grown-up is still here: offer the family's own link.
+// The hub pays the sharer only when someone they sent buys family play.
+async function showShare(address) {
+  let data = null;
+  try {
+    const res = await fetch("/api/unlock/referral", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: address }),
+    });
+    data = await res.json();
+  } catch {
+    data = null;
+  }
+  const link = data && data.ok === true ? safeCheckoutUrl(data.link) : null;
+  if (!link) return;
+  try { localStorage.setItem("kide.refLink", link); } catch { /* the page still shows it */ }
+  const input = $("shareLink");
+  if (input) input.value = link;
+  say("shareReward", typeof data.reward === "string" ? data.reward + "." : "");
+  const box = $("share");
+  if (box) box.hidden = false;
+  const go = $("shareGo");
+  if (go) go.addEventListener("click", async () => {
+    if (navigator.share) {
+      try { await navigator.share({ title: "Kide", text: COPY.shareText, url: link }); return; }
+      catch { /* dismissed: fall through to copy */ }
+    }
+    try {
+      await navigator.clipboard.writeText(COPY.shareText + " " + link);
+      say("shareMsg", COPY.copied);
+    } catch {
+      if (input) { input.focus(); input.select(); }
+    }
+  });
+}
+
+// The refund promise lives on riskfreetrial.org, keyed by the Stripe session.
+// Only a well-formed session id is put in the link.
+function showRefund(sid) {
+  const note = $("refundNote");
+  if (!note) return;
+  const link = $("refundLink");
+  if (link && /^cs_(live|test)_[A-Za-z0-9]{10,200}$/.test(sid || "")) {
+    link.href = "https://riskfreetrial.org/thanks?sid=" + encodeURIComponent(sid);
+  }
+  note.hidden = false;
 }
 
 function boot() {
@@ -162,6 +215,7 @@ function boot() {
   const back = params.get("checkout");
   if (back === "success") {
     const address = params.get("email") || "";
+    showRefund(params.get("sid"));
     confirmLoop(address);
     return;
   }

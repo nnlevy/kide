@@ -78,6 +78,11 @@ button:disabled{opacity:.6;}
 .price{font-size:18px;text-align:center;margin:8px 0 0;}
 .price a{font-weight:800;}
 #family-price{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0 10px;}
+h2{font-size:22px;margin:0;text-align:center;letter-spacing:-.01em;}
+.rft{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin:10px auto 0;padding:8px 14px;border:2px solid #CDEBD8;border-radius:999px;background:#F2FBF5;font-size:15px;font-weight:700;color:var(--ink);text-align:center;max-width:100%;}
+.rft svg{flex:none;}
+.rft a{color:var(--ink);}
+.share{margin-top:22px;padding-top:18px;border-top:2px dashed #E7E1D4;}
 footer{margin-top:28px;padding:12px 0 28px;text-align:center;color:var(--ink-soft);font-size:14px;}
 footer a{color:var(--ink);font-weight:700;}
 @media (prefers-reduced-motion: reduce){
@@ -120,6 +125,7 @@ footer a{color:var(--ink);font-weight:700;}
     <section id="pay" hidden>
       <h1>Family play</h1>
       <p class="price">One payment of <a id="family-price" href="/unlock/#family-price">$15</a> for your family. It does not renew.</p>
+      <p class="rft" id="rftBadge"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="#1F9D55" d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Zm-1.2 14.2-3.5-3.5 1.4-1.4 2.1 2.1 4.8-4.8 1.4 1.4-6.2 6.2Z"/></svg><span>Risk-free: full refund within 30 days. Secure checkout by <a href="https://riskfreetrial.org/" rel="noopener">riskfreetrial.org</a></span></p>
       <p class="lead"><a href="/account/">Sign in</a> if you want this on your parent account.</p>
       <form id="payForm">
         <label for="email">Email for the receipt</label>
@@ -136,8 +142,19 @@ footer a{color:var(--ink);font-weight:700;}
     <section id="wait" hidden>
       <h1>Back to Pip</h1>
       <p class="lead" id="waitMsg" role="status">Checking the receipt.</p>
+      <p class="note" id="refundNote" hidden>Paid through riskfreetrial.org, our secure checkout. Not right for your family? <a id="refundLink" href="https://riskfreetrial.org/" rel="noopener">Get a full refund within 30 days</a>.</p>
       <div class="actions">
         <a class="quiet" href="/play/">Back to Pip</a>
+      </div>
+      <div class="share" id="share" hidden>
+        <h2>Know another parent?</h2>
+        <p class="note" id="shareReward"></p>
+        <label for="shareLink">Your family's link</label>
+        <input id="shareLink" readonly>
+        <div class="actions">
+          <button type="button" id="shareGo">Share the link</button>
+        </div>
+        <p class="msg" id="shareMsg" role="status"></p>
       </div>
     </section>
   </div>

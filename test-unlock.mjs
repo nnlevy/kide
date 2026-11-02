@@ -21,6 +21,7 @@ import { purchaseGrantsUnlock } from './src/unlock/entitlement.js';
 import { advance, overLimit } from './src/unlock/minutes.js';
 import { answerMatches, makeHold, nextPoll, ENTITLEMENT_WAIT_MS as WAIT } from './public/unlock/gate.js';
 import { isMeasured } from './public/engine/measure.js';
+import { normalizeRef, refFromRequest, withRefCookie } from './src/referral/ref.js';
 
 let pass = 0, fail = 0;
 const t = async (name, fn) => {
@@ -552,6 +553,73 @@ T(("127.0.0.1", ${port}), H).serve_forever()
     srv.kill();
   }
 }
+
+console.log('\nreferral links');
+
+await t('a share link sets a 30-day kide_ref cookie and only a well-formed code counts', async () => {
+  assert.equal(normalizeRef('ab3defgh'), 'AB3DEFGH');
+  assert.equal(normalizeRef('AB0DEFGH'), null, 'zero is not in the alphabet');
+  assert.equal(normalizeRef('<script>'), null);
+  const page = withRefCookie(new Request('https://kide.us/?ref=ab3defgh'), new Response('<html>', { status: 200, headers: { 'content-type': 'text/html' } }));
+  const set = page.headers.get('set-cookie') || '';
+  assert.match(set, /^kide_ref=AB3DEFGH; HttpOnly; Secure; SameSite=Lax; Path=\/; Max-Age=2592000$/);
+  assert.equal(await page.text(), '<html>');
+  const bad = withRefCookie(new Request('https://kide.us/?ref=nope'), new Response('x'));
+  assert.equal(bad.headers.get('set-cookie'), null);
+  const post = withRefCookie(new Request('https://kide.us/api/notify?ref=AB3DEFGH', { method: 'POST' }), new Response('x'));
+  assert.equal(post.headers.get('set-cookie'), null);
+  const redirect = withRefCookie(new Request('https://kide.us/go?ref=AB3DEFGH'), Response.redirect('https://kide.us/', 301));
+  assert.equal(redirect.status, 301);
+  assert.match(redirect.headers.get('set-cookie') || '', /kide_ref=AB3DEFGH/);
+  assert.equal(refFromRequest(req('/', { cookie: 'kide_device=x; kide_ref=AB3DEFGH' })), 'AB3DEFGH');
+  assert.equal(refFromRequest(req('/', { cookie: 'kide_ref=AB3DEFGHX' })), null);
+});
+
+await t('checkout carries the ref code to the hub, and no code means no metadata', async () => {
+  const hub = billing(unpaid);
+  const env = { KIDE_LEADS: memoryKv(), PORTFOLIO_BILLING_SERVICE: hub };
+  await handleUnlock(req('/api/unlock/checkout', { method: 'POST', cookie: 'kide_ref=AB3DEFGH', body: { email: 'friend@example.com' } }), env, { now: 1 });
+  assert.deepEqual(hub.calls[0].customMetadata, { ref: 'AB3DEFGH' });
+  await handleUnlock(req('/api/unlock/checkout', { method: 'POST', body: { email: 'friend@example.com' } }), env, { now: 1 });
+  assert.equal('customMetadata' in hub.calls[1], false);
+  assert.equal('customMetadata' in checkoutInput({ origin: 'https://kide.us', email: 'a@b.co', ref: 'bad' }), false);
+});
+
+await t('only a family with play on this device (or the signed-in parent) gets a share link', async () => {
+  const issued = [];
+  const hub = {
+    ...billing(paid),
+    async issueCashReferralCode(input) { issued.push(input); return { ok: true, code: 'AB3DEFGH', link: 'https://kide.us/?ref=AB3DEFGH', rewardLabel: '$5 for you' }; },
+    async getCashReferralStatus() { return { ok: true, families: 2, earnedCents: 1000 }; },
+  };
+  const env = { KIDE_LEADS: memoryKv(), PORTFOLIO_BILLING_SERVICE: hub };
+  const stranger = await handleUnlock(req('/api/unlock/referral', { method: 'POST', body: { email: 'someone@example.com' } }), env, { now: 1 });
+  assert.equal(stranger.status, 403);
+  assert.equal(issued.length, 0);
+  const strangerData = await stranger.json();
+  assert.ok(readable(strangerData.message));
+
+  const confirmed = await handleUnlock(req('/api/unlock/confirm', { method: 'POST', body: { email: 'parent@example.com' } }), env, { now: 1 });
+  const cookie = cookiePair(confirmed);
+  const other = await handleUnlock(req('/api/unlock/referral', { method: 'POST', cookie, body: { email: 'someone@example.com' } }), env, { now: 2 });
+  assert.equal(other.status, 403, 'a paid device cannot mint a code for another address');
+  const mine = await handleUnlock(req('/api/unlock/referral', { method: 'POST', cookie, body: { email: 'Parent@Example.com' } }), env, { now: 2 });
+  const data = await mine.json();
+  assert.equal(mine.status, 200);
+  assert.equal(data.link, 'https://kide.us/?ref=AB3DEFGH');
+  assert.equal(data.families, 2);
+  assert.deepEqual(issued, [{ domain: 'kide.us', email: 'parent@example.com' }]);
+});
+
+await t('the pay step shows the risk-free promise and success links the riskfreetrial.org refund', () => {
+  const html = readFileSync('public/unlock/index.html', 'utf8');
+  const js = readFileSync('public/unlock/parent.js', 'utf8');
+  const pay = html.slice(html.indexOf('<section id="pay"'), html.indexOf('<section id="wait"'));
+  assert.match(pay, /Risk-free: full refund within 30 days\. Secure checkout by <a href="https:\/\/riskfreetrial\.org\/"/);
+  assert.match(html, /id="refundNote" hidden/);
+  assert.match(js, /\/\^cs_\(live\|test\)_\[A-Za-z0-9\]\{10,200\}\$\//);
+  assert.match(js, /"https:\/\/riskfreetrial\.org\/thanks\?sid=" \+ encodeURIComponent\(sid\)/);
+});
 
 await browserCheck();
 

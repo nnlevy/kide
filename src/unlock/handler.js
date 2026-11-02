@@ -22,6 +22,7 @@ import { normalizeEmail } from "./email.js";
 import { advance, capSeconds, dayStamp, mergePeak, overLimit, playKey } from "./minutes.js";
 import { parentIdFor } from "../account/parent-id.js";
 import { setUnlock } from "../account/session.js";
+import { refFromRequest } from "../referral/ref.js";
 
 const DEVICE_RE = /^[A-Za-z0-9_-]{22,80}$/;
 const MAX_BODY = 2000;
@@ -31,6 +32,7 @@ const ROUTES = {
   "/api/unlock/tick": "POST",
   "/api/unlock/checkout": "POST",
   "/api/unlock/confirm": "POST",
+  "/api/unlock/referral": "POST",
 };
 
 function json(data, status, cookie) {
@@ -231,7 +233,8 @@ export async function handleUnlock(request, env, opts = {}) {
     if (!billing || typeof billing.createCheckout !== "function") {
       return json({ ok: false, message: COPY.retry }, 503, cookie);
     }
-    const input = checkoutInput({ origin: url.origin, email: payEmail });
+    const ref = refFromRequest(request);
+    const input = checkoutInput({ origin: url.origin, email: payEmail, ref });
     try {
       const out = await billing.createCheckout(input);
       const payUrl = httpsUrl(out && out.url);
@@ -277,6 +280,40 @@ export async function handleUnlock(request, env, opts = {}) {
   }
 
   const unlock = await readUnlock(env, kv, deviceId, email, billing, now);
+
+  // A family's own share link. Only for an email that has family play on this
+  // device (a paid receipt) or is the signed-in parent, so a stranger cannot
+  // mint a payout code for someone else's address from this page.
+  if (path === "/api/unlock/referral") {
+    const body = await readJson(request);
+    if (body.error) return json({ ok: false, message: COPY.needEmail }, 400, cookie);
+    const want = normalizeEmail(body.email) || unlock.email || email;
+    const allowed = want && ((unlock.unlocked && unlock.email === want) || email === want);
+    if (!allowed) return json({ ok: false, message: COPY.referralLocked }, 403, cookie);
+    if (!billing || typeof billing.issueCashReferralCode !== "function") {
+      return json({ ok: false, message: COPY.retry }, 503, cookie);
+    }
+    try {
+      const issued = await billing.issueCashReferralCode({ domain: DOMAIN, email: want });
+      if (!issued || issued.ok !== true || typeof issued.link !== "string") {
+        return json({ ok: false, message: COPY.retry }, 502, cookie);
+      }
+      let stats = null;
+      if (typeof billing.getCashReferralStatus === "function") {
+        try { stats = await billing.getCashReferralStatus({ domain: DOMAIN, email: want }); } catch { stats = null; }
+      }
+      return json({
+        ok: true,
+        link: httpsUrl(issued.link),
+        reward: typeof issued.rewardLabel === "string" ? issued.rewardLabel : "",
+        families: stats && stats.ok ? Number(stats.families || 0) : 0,
+        earnedCents: stats && stats.ok ? Number(stats.earnedCents || 0) : 0,
+      }, 200, cookie);
+    } catch {
+      return json({ ok: false, message: COPY.retry }, 503, cookie);
+    }
+  }
+
   const day = dayStamp(now);
 
   if (path === "/api/unlock/status") {

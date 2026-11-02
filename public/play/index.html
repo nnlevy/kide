@@ -1903,7 +1903,11 @@ function shareWeek(){
   const text = s.good === s.total
     ? "All "+s.total+" of our screen-time sessions this week ended with my kid saying goodnight — instead of me taking the tablet away. Pip gets sleepy and asks to be tucked in."
     : s.good+" of our last "+s.total+" screen-time sessions ended with my kid saying goodnight — instead of me taking the tablet away. Pip gets sleepy and asks to be tucked in.";
-  const url = "https://kide.us";
+  let url = "https://kide.us";
+  try {
+    const own = localStorage.getItem("kide.refLink");
+    if (own && /^https:\/\/kide\.us\/\?ref=[2-9A-HJKMNP-TV-Z]{8}$/.test(own)) url = own;
+  } catch (e) { /* plain link */ }
   const done = function(){
     const ok = document.getElementById("shareOk");
     if(ok){ ok.style.display = "block"; setTimeout(function(){ ok.style.display = "none"; }, 4000); }

@@ -18,8 +18,8 @@ export function httpsUrl(value) {
  * Fields the billing hub already reads for the clinician licence, plus the
  * live family price id. The offering is fixed here. The browser cannot swap it.
  */
-export function checkoutInput({ origin, email }) {
-  return {
+export function checkoutInput({ origin, email, ref }) {
+  const input = {
     domain: DOMAIN,
     offeringId: OFFERING_ID,
     priceId: STRIPE_PRICE_ID,
@@ -28,4 +28,8 @@ export function checkoutInput({ origin, email }) {
     cancelUrl: `${origin}/play/`,
     sourceDomain: DOMAIN,
   };
+  // The hub copies customMetadata to Stripe as metadata[custom_ref] and credits
+  // the sharer only after a PAID webhook. A missing or bad code changes nothing.
+  if (typeof ref === "string" && /^[2-9A-HJKMNP-TV-Z]{8}$/.test(ref)) input.customMetadata = { ref };
+  return input;
 }
