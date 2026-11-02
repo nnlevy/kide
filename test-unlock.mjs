@@ -22,6 +22,7 @@ import { advance, overLimit } from './src/unlock/minutes.js';
 import { answerMatches, makeHold, nextPoll, ENTITLEMENT_WAIT_MS as WAIT } from './public/unlock/gate.js';
 import { isMeasured } from './public/engine/measure.js';
 import { normalizeRef, refFromRequest, withRefCookie } from './src/referral/ref.js';
+import { claimFromUrl, handleRefClaim, inviteCopy, lookupReferrer } from './src/referral/invite.js';
 
 let pass = 0, fail = 0;
 const t = async (name, fn) => {
@@ -583,7 +584,38 @@ await t('share links reach the Worker, so the referral cookie is actually set', 
   const first = cfg.assets && cfg.assets.run_worker_first;
   assert(Array.isArray(first) ? first.includes('/') : first === true, 'the share-link landing "/" must run the Worker first');
   const home = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
-  assert.match(home, /id="invite" hidden/, 'invited parents get a welcome that stays hidden for everyone else');
+  assert.match(home, /id="inviteDeal" hidden/, 'invited parents get the deal line, hidden for everyone else');
+  assert.match(home, /id="claimBar" hidden/, 'the referrer claim bar stays hidden unless the worker unhides it');
+  assert.match(home, /id="heroTitle"/, 'the worker can name who sent the link in the headline');
+});
+
+// A share link names who sent it (first name only); the claim link is the
+// referrer's own and is the only place the payout shows.
+await t('share links name the sender and a claim link can add a payout email', async () => {
+  assert.equal(claimFromUrl('https://kide.us/?ref=AB3DEFGH&claim=4e0f345409350d2ccad17e5b'), '4e0f345409350d2ccad17e5b');
+  assert.equal(claimFromUrl('https://kide.us/?ref=AB3DEFGH&claim=<x>'), null);
+  assert.equal(inviteCopy('Austin').headline, 'Austin thought your kiddo should meet Pip.');
+  assert.equal(inviteCopy(null).headline, 'A friend thought your kiddo should meet Pip.');
+  const calls = [];
+  const hub = {
+    getCashReferrerPublic: async (input) => { calls.push(input); return { ok: true, found: true, firstName: input.code === 'AB3DEFGH' ? 'Austin' : '<b>x</b>', claimable: input.claim === 'a'.repeat(24), rewardLabel: '$7.50 for each family' }; },
+    claimCashReferrer: async (input) => { calls.push(input); return input.claim === 'a'.repeat(24) ? { ok: true, rewardLabel: '$7.50 for each family' } : { ok: false, reason: 'not_claimable' }; },
+  };
+  const env = { PORTFOLIO_BILLING_SERVICE: hub };
+  assert.deepEqual(await lookupReferrer(env, 'AB3DEFGH', null), { firstName: 'Austin', claimable: false, rewardLabel: '$7.50 for each family' });
+  assert.equal((await lookupReferrer(env, 'ZZZZZZZZ', null)).firstName, null, 'a name that is not a plain first name is dropped');
+  assert.equal(await lookupReferrer({}, 'AB3DEFGH', null), null, 'no hub means the page still renders, unnamed');
+  assert.equal(await lookupReferrer({ PORTFOLIO_BILLING_SERVICE: { getCashReferrerPublic: async () => { throw new Error('down'); } } }, 'AB3DEFGH', null), null);
+  let res = await handleRefClaim(req('/api/ref/claim', { method: 'POST', body: { code: 'AB3DEFGH', claim: 'a'.repeat(24), email: 'austin@example.com' } }), env);
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { ok: true, link: 'https://kide.us/?ref=AB3DEFGH', rewardLabel: '$7.50 for each family' });
+  assert.deepEqual(calls.at(-1), { domain: 'kide.us', code: 'AB3DEFGH', claim: 'a'.repeat(24), email: 'austin@example.com' });
+  res = await handleRefClaim(req('/api/ref/claim', { method: 'POST', body: { code: 'AB3DEFGH', claim: 'b'.repeat(24), email: 'austin@example.com' } }), env);
+  assert.equal(res.status, 400);
+  res = await handleRefClaim(req('/api/ref/claim', { method: 'POST', body: { code: 'AB3DEFGH', claim: 'a'.repeat(24), email: 'nope' } }), env);
+  assert.equal(res.status, 400);
+  res = await handleRefClaim(req('/api/ref/claim'), env);
+  assert.equal(res.status, 405);
 });
 
 await t('checkout carries the ref code to the hub, and no code means no metadata', async () => {
