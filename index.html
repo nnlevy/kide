@@ -85,6 +85,18 @@ nav .row{display:flex;align-items:center;justify-content:space-between;}
 .hero-pip{width:150px;height:150px;margin:0 auto 8px;filter:drop-shadow(0 10px 12px rgba(0,0,0,.16));}
 .hero h1{font-size:clamp(32px,7vw,52px);margin:6px 0 0;color:var(--ink);}
 .hero p{color:var(--ink);font-size:17px;margin:14px auto 0;max-width:480px;}
+/* Invited parents (a share link, ?ref=CODE) see who sent them and the whole deal up front:
+   free now, one payment later, refundable. Hidden for everyone else. */
+.invite{display:inline-block;background:#fff;color:var(--ink);font-weight:800;font-size:15px;border-radius:999px;padding:8px 16px;margin:0 0 6px;box-shadow:0 3px 0 rgba(0,0,0,.08);}
+.invite-deal{color:var(--ink);font-size:15px;margin:14px auto 0;max-width:420px;}
+.invite[hidden],.invite-deal[hidden]{display:none;}
+@media (max-width:520px){
+  .hero{padding:26px 20px 26px;}
+  .hero-pip{width:104px;height:104px;margin-bottom:4px;}
+  .hero h1{font-size:28px;}
+  .hero p{font-size:15px;margin-top:10px;}
+  .hero .cta{margin-top:18px;}
+}
 .cta{display:inline-block;margin-top:24px;border:none;border-radius:999px;padding:17px 34px;font-size:18px;font-weight:800;color:var(--ink);text-decoration:none;background:linear-gradient(180deg,var(--coral),var(--coral-deep));box-shadow:0 5px 0 rgba(0,0,0,.14);}
 /* BRAND.md: coral is "the one CTA color — if everything is a CTA, nothing is",
    and there is one main action per screen. The page now has exactly one coral
@@ -196,6 +208,7 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
   </div></nav>
 
   <div class="hero">
+    <p class="invite" id="invite" hidden>&#127793; Sent by a parent friend</p>
     <div class="hero-pip">
       <div class="pip-wrap"><div class="pip"><div class="pip-shadow"></div><div class="pip-bob">
         <div class="pip-sprout"><div class="pip-stem"></div><div class="pip-leaf n1"></div><div class="pip-leaf n2"></div></div>
@@ -213,6 +226,8 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
          primary one. -->
     <p>Pip gets sleepy, asks to be tucked in, and hands the moment back to you — so ending playtime is Pip's idea, not yours. Every question is read out loud, so a child too little to read can play on their own.</p>
     <a class="cta" href="/play">Let's Play &mdash; it's free</a>
+    <p class="invite-deal" id="inviteDeal" hidden>Play free right now, no sign-up. If Pip ends screen time without a fight in your house, family play is one payment, never a subscription, and fully refundable for 30 days.</p>
+    <script>try{if(/^[2-9A-HJKMNP-TV-Z]{8}$/.test((new URLSearchParams(location.search).get("ref")||"").trim().toUpperCase())){document.getElementById("invite").hidden=false;document.getElementById("inviteDeal").hidden=false;}}catch(e){}</script>
   </div>
 
   <div class="trust">

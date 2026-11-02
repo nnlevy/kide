@@ -575,6 +575,17 @@ await t('a share link sets a 30-day kide_ref cookie and only a well-formed code 
   assert.equal(refFromRequest(req('/', { cookie: 'kide_ref=AB3DEFGHX' })), null);
 });
 
+// Share links are https://kide.us/?ref=CODE, and "/" is a static asset. Static
+// assets are served before the Worker runs, so without this the cookie code
+// above never executed in production and no referral was ever credited.
+await t('share links reach the Worker, so the referral cookie is actually set', async () => {
+  const cfg = JSON.parse(readFileSync(new URL('./wrangler.json', import.meta.url), 'utf8'));
+  const first = cfg.assets && cfg.assets.run_worker_first;
+  assert(Array.isArray(first) ? first.includes('/') : first === true, 'the share-link landing "/" must run the Worker first');
+  const home = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  assert.match(home, /id="invite" hidden/, 'invited parents get a welcome that stays hidden for everyone else');
+});
+
 await t('checkout carries the ref code to the hub, and no code means no metadata', async () => {
   const hub = billing(unpaid);
   const env = { KIDE_LEADS: memoryKv(), PORTFOLIO_BILLING_SERVICE: hub };
