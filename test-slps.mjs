@@ -170,23 +170,28 @@ if (!HUB) {
     // are asked to pay a different number than the one that persuaded them.
     const block = (HUB.match(/"kide\.us":\s*\{[\s\S]*?\n  \},/) || [''])[0];
     assert(block, 'the kide.us catalog block could not be parsed');
-    const cents = [...block.matchAll(/,\s*(\d{3,6}),\s*\n/g)].map((m) => +m[1]);
-    assert(cents.length, 'no price found in the kide.us catalog block');
-    const dollars = [...new Set(cents.map((c) => `$${c / 100}`))];
+    // Each offering's price is checked on the page that sells it: the clinician
+    // licence on /clinician, the family unlock on /unlock. A price on the wrong
+    // page would be an uncited claim there.
+    const SELLS_ON = { clinician_report: 'public/clinician/index.html', family_unlock: 'public/unlock/index.html' };
+    const offers = [...block.matchAll(/pack\(\s*"(\w+)"[\s\S]*?,\s*(\d{3,6}),\s*\n/g)].map((m) => ({ id: m[1], cents: +m[2] }));
+    assert(offers.length, 'no priced offering found in the kide.us catalog block');
     // The indexed page does not repeat the dollar amount. The licence button
     // on /clinician is where the price sits next to checkout. A dollar figure
     // here, away from that button, is an uncited price claim.
     assert(!/\$\d+/.test(text), '/for-slps states a dollar price');
     assert(/href="\/clinician\/"/.test(page), '/for-slps no longer links the licence page');
-    const clinicianText = clinician.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-    for (const d of dollars) {
-      assert(clinicianText.includes(d),
-        `the hub charges ${d} for a kide.us offering and /clinician never mentions that price`);
-    }
-    const advertised = [...new Set([...clinicianText.matchAll(/\$(\d+)\b/g)].map((m) => +m[1]))];
-    for (const a of advertised) {
-      assert(cents.includes(a * 100),
-        `/clinician advertises $${a}, which is not a price in riskfreetrial's kide.us catalog`);
+    const plain = (f) => readFileSync(f, 'utf8').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+    for (const o of offers) {
+      const file = SELLS_ON[o.id];
+      assert(file, `kide.us offering ${o.id} has no page assigned to sell it in this test`);
+      const pageText = plain(file);
+      const d = `$${o.cents / 100}`;
+      assert(pageText.includes(d), `the hub charges ${d} for ${o.id} and ${file} never mentions that price`);
+      const own = new Set(offers.filter((x) => SELLS_ON[x.id] === file).map((x) => x.cents));
+      for (const m of pageText.matchAll(/\$(\d+)\b/g)) {
+        assert(own.has(+m[1] * 100), `${file} advertises $${m[1]}, which is not the price of what it sells`);
+      }
     }
   });
 }
