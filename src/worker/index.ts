@@ -8,6 +8,7 @@ import { handlePlayEvents } from "../perf/http.js";
 import { handleCompete } from "../compete/http.js";
 import { handleUnlock } from "../unlock/handler.js";
 import { withRefCookie } from "../referral/ref.js";
+import { handleRefClaim, inviteResponse } from "../referral/invite.js";
 
 // kide.us is a leaf on the Quizbiz portfolio billing hub (riskfreetrial) and
 // growth control plane (newgrowthbusiness) -- see wrangler.json "services".
@@ -42,6 +43,8 @@ type PortfolioBillingServiceBinding = {
     url?: string;
     error?: string;
   }>;
+  getCashReferrerPublic?: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  claimCashReferrer?: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
   getCredits: (email: string) => Promise<{
     ok: true;
     exists: boolean;
@@ -154,6 +157,11 @@ async function route(request: Request, env: Env): Promise<Response> {
     // template in iMessage.
     if (url.pathname === "/gift" || url.pathname === "/gift/") {
       return renderGift(url);
+    }
+
+    // A named referrer adds their payout email from their claim link. See src/referral/invite.js.
+    if (url.pathname === "/api/ref/claim") {
+      return handleRefClaim(request, env);
     }
 
     if (url.pathname === "/api/health") {
@@ -281,7 +289,8 @@ async function route(request: Request, env: Env): Promise<Response> {
       //      missing voice clip arrived as 200 text/html. Misses now reach
       //      the 404 below, honestly.
       const asset = await env.ASSETS.fetch(request);
-      if (asset.status !== 404) return asset;
+      // A share link (?ref=CODE) names who sent it, in the page and its link preview.
+      if (asset.status !== 404) return url.pathname === "/" ? await inviteResponse(request, env, asset) : asset;
     } catch {
       // static asset lookup failed — fall through to the 404 below
     }

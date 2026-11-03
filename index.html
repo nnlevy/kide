@@ -85,12 +85,27 @@ nav .row{display:flex;align-items:center;justify-content:space-between;}
 .hero-pip{width:150px;height:150px;margin:0 auto 8px;filter:drop-shadow(0 10px 12px rgba(0,0,0,.16));}
 .hero h1{font-size:clamp(32px,7vw,52px);margin:6px 0 0;color:var(--ink);}
 .hero p{color:var(--ink);font-size:17px;margin:14px auto 0;max-width:480px;}
-/* Invited parents (a share link, ?ref=CODE) see who sent them and the whole deal up front:
-   free now, one payment later, refundable. Hidden for everyone else. */
-.invite{display:inline-block;background:#fff;color:var(--ink);font-weight:800;font-size:15px;border-radius:999px;padding:8px 16px;margin:0 0 6px;box-shadow:0 3px 0 rgba(0,0,0,.08);}
-.invite-deal{color:var(--ink);font-size:15px;margin:14px auto 0;max-width:420px;}
-.invite[hidden],.invite-deal[hidden]{display:none;}
+/* Invited parents (a share link, ?ref=CODE): the worker names who sent it in the
+   headline and shows the whole deal under the button. Hidden for everyone else. */
+.invite-deal{color:var(--ink);font-size:14px !important;margin:14px auto 0;max-width:380px;opacity:.85;}
+.invite-deal[hidden]{display:none;}
+/* The referrer's own bar (claim link only): welcome, what they earn, one button. */
+.claim-bar{background:#fff;border:2px solid var(--grass);border-radius:var(--radius-md);padding:14px 16px;margin:0 0 12px;box-shadow:0 3px 0 rgba(0,0,0,.06);position:relative;}
+.claim-bar[hidden],.claim-bar [hidden]{display:none !important;}
+.claim-bar{text-align:left;}
+.claim-bar h2{font-size:18px;margin:0 36px 2px 0;color:var(--ink);text-align:left;}
+.claim-bar p{margin:4px 0 0;font-size:15px;color:var(--ink-soft);}
+.claim-x{position:absolute;top:6px;right:6px;width:40px;height:40px;border:none;background:none;font-size:26px;line-height:1;color:var(--ink-soft);cursor:pointer;border-radius:50%;}
+.claim-btn{display:inline-block;margin-top:12px;border:none;border-radius:999px;padding:12px 22px;font-size:16px;font-weight:800;color:#fff;background:linear-gradient(180deg,var(--grass),var(--grass-deep));box-shadow:0 4px 0 rgba(0,0,0,.12);cursor:pointer;font-family:inherit;}
+.claim-form{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.claim-form label{width:100%;font-size:14px;font-weight:700;color:var(--ink);}
+.claim-form input{flex:1 1 200px;min-width:0;font-size:16px;padding:12px 14px;border:2px solid var(--ink-faint);border-radius:var(--radius-sm);font-family:inherit;}
+.claim-form .claim-btn{margin-top:0;}
+.claim-msg{width:100%;font-size:14px !important;color:var(--coral-deep) !important;min-height:0;}
 @media (max-width:520px){
+  nav{padding:14px 0;}
+  .wordmark{font-size:22px;}
+  .nav-play{font-size:13px;padding:6px 11px;margin-right:4px !important;}
   .hero{padding:26px 20px 26px;}
   .hero-pip{width:104px;height:104px;margin-bottom:4px;}
   .hero h1{font-size:28px;}
@@ -207,8 +222,45 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
     </div>
   </div></nav>
 
+  <!-- Only on a referrer's claim link (?ref=CODE&claim=TOKEN). The worker fills
+       it in and unhides it; see src/referral/invite.js. Closing it is remembered
+       on this device. -->
+  <section class="claim-bar" id="claimBar" hidden aria-label="Your kide link">
+    <h2 id="claimName">Welcome</h2>
+    <button class="claim-x" id="claimX" type="button" aria-label="Close">&times;</button>
+    <div id="claimStart">
+      <p><span id="claimReward"></span> Parents see the page below.</p>
+      <button class="claim-btn" id="claimOpen" type="button">Claim your link</button>
+      <form class="claim-form" id="claimForm" hidden novalidate>
+        <label for="claimEmail">Your email, so your payouts reach you</label>
+        <input id="claimEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" required>
+        <button class="claim-btn" type="submit">Save</button>
+        <p class="claim-msg" id="claimMsg" role="status"></p>
+      </form>
+    </div>
+    <div id="claimDone" hidden>
+      <p id="claimDoneText">You're all set.</p>
+      <button class="claim-btn" id="claimShare" type="button">Share your link</button>
+    </div>
+  </section>
+  <script>(function(){try{var b=document.getElementById("claimBar");if(b.hidden)return;var c=b.getAttribute("data-code");var k="kide_claim_closed_"+c;try{if(localStorage.getItem(k)){b.remove();return;}}catch(e){}
+var link="https://kide.us/?ref="+c;
+document.getElementById("claimX").onclick=function(){try{localStorage.setItem(k,"1");}catch(e){}b.remove();};
+document.getElementById("claimOpen").onclick=function(){this.hidden=true;document.getElementById("claimForm").hidden=false;document.getElementById("claimEmail").focus();};
+document.getElementById("claimForm").onsubmit=function(ev){ev.preventDefault();var f=this,m=document.getElementById("claimMsg"),btn=f.querySelector("button");var em=document.getElementById("claimEmail").value.trim();
+if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)){m.textContent="That email doesn't look right. Try again?";return;}
+btn.disabled=true;m.textContent="";
+fetch("/api/ref/claim",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:c,claim:b.getAttribute("data-claim"),email:em})}).then(function(r){return r.json();}).then(function(d){btn.disabled=false;
+if(!d||!d.ok){m.textContent=(d&&d.error)||"That didn't save. Try again?";return;}
+if(d.link)link=d.link;document.getElementById("claimStart").hidden=true;document.getElementById("claimDone").hidden=false;
+document.getElementById("claimDoneText").textContent="You're all set. Payouts go to "+em+". Share your link with parents you know:";
+try{history.replaceState(null,"","/?ref="+c);}catch(e){}}).catch(function(){btn.disabled=false;m.textContent="That didn't save. Try again?";});};
+document.getElementById("claimShare").onclick=function(){var t=this;var data={title:"Kide",text:"I think your kiddo would love Pip.",url:link};
+if(navigator.share){navigator.share(data).catch(function(){});return;}
+try{navigator.clipboard.writeText(link).then(function(){t.textContent="Link copied";});}catch(e){t.textContent=link;}};
+}catch(e){}})();</script>
+
   <div class="hero">
-    <p class="invite" id="invite" hidden>&#127793; Sent by a parent friend</p>
     <div class="hero-pip">
       <div class="pip-wrap"><div class="pip"><div class="pip-shadow"></div><div class="pip-bob">
         <div class="pip-sprout"><div class="pip-stem"></div><div class="pip-leaf n1"></div><div class="pip-leaf n2"></div></div>
@@ -217,17 +269,16 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
           <div class="pip-mouth"><svg viewBox="0 0 40 20" width="100%" height="100%"><path d="M4,4 Q20,20 36,4" stroke="#2E3A3F" stroke-width="4" fill="none" stroke-linecap="round"/></svg></div>
         </div></div></div></div>
     </div>
-    <h1>The screen time that ends without a meltdown.</h1>
+    <h1 id="heroTitle">The screen time that ends without a meltdown.</h1>
     <!-- Two sentences, one idea each. The old hero packed six ideas into one
          block and then offered two competing buttons; a parent deciding in
          eight seconds needs the promise, the reason to believe it, and one
          door. The four trust promises moved to the chips below, and the
          second CTA moved into the page where it is not competing with the
          primary one. -->
-    <p>Pip gets sleepy, asks to be tucked in, and hands the moment back to you — so ending playtime is Pip's idea, not yours. Every question is read out loud, so a child too little to read can play on their own.</p>
-    <a class="cta" href="/play">Let's Play &mdash; it's free</a>
-    <p class="invite-deal" id="inviteDeal" hidden>Play free right now, no sign-up. If Pip ends screen time without a fight in your house, family play is one payment, never a subscription, and fully refundable for 30 days.</p>
-    <script>try{if(/^[2-9A-HJKMNP-TV-Z]{8}$/.test((new URLSearchParams(location.search).get("ref")||"").trim().toUpperCase())){document.getElementById("invite").hidden=false;document.getElementById("inviteDeal").hidden=false;}}catch(e){}</script>
+    <p id="heroLine">Pip gets sleepy, asks to be tucked in, and hands the moment back to you — so ending playtime is Pip's idea, not yours. Every question is read out loud, so a child too little to read can play on their own.</p>
+    <a class="cta" id="heroCta" href="/play">Let's Play &mdash; it's free</a>
+    <p class="invite-deal" id="inviteDeal" hidden>No sign-up to play. Family play is one payment, never a subscription, and refundable for 30 days.</p>
   </div>
 
   <div class="trust">
