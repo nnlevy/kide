@@ -2436,7 +2436,7 @@ function onAction(e){
   else if(act==="parents-back"){ state.screen="settings"; render(); }
   else if(act==="listen-setup"){ state.screen="consent"; render(); }
   else if(act==="start"){ state.screen="garden"; render(); }
-  else if(act==="home"){ stopSession(); state.screen="home"; render(); }
+  else if(act==="home"){ stopSession(); state.screen="home"; render(); kideSession(false, "home"); }
   else if(act==="garden"){ state.screen="garden"; state.question=null; render(); }
   else if(act==="parents"){ state.gateFrom="settings"; state.screen="gate"; render(); }
   else if(act==="playlevel"){
@@ -2612,7 +2612,15 @@ function updateHudLeafBar(){
 
 /* ------------------------------ session timer ------------------------------ */
 
+/* Tells the free-play timer (unlock/timer.js) when a playtime is running, so
+   the grown-up ask never cuts into one. Pip's goodnight always comes first. */
+function kideSession(on, why){
+  if(window.__kideSession === on) return;
+  window.__kideSession = on;
+  try{ document.dispatchEvent(new CustomEvent("kide:session",{detail:{on:on, why:why||""}})); }catch(e){}
+}
 function startSessionIfNeeded(){
+  kideSession(true);
   if(!state.sessionStart){
     state.sessionStart = Date.now();
     pausedSessionStart = null;
@@ -2692,6 +2700,7 @@ function goToGoodbye(){
   if(window.KideVoice) KideVoice.mic.stop();
   state.screen = "goodbye";
   render();
+  kideSession(false, "goodbye");
 }
 
 /* -------------------------------- submit lead ------------------------------ */

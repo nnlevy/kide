@@ -46,10 +46,11 @@
       "#kide-grownup .kg-stem{position:absolute;bottom:0;left:50%;width:8%;height:70%;background:#3D9C63;transform:translateX(-50%);border-radius:3px;}",
       "#kide-grownup .kg-leafmark{position:absolute;width:46%;height:34%;background:linear-gradient(160deg,#8CE3A9,#4FB874);border-radius:0 100% 0 100%;bottom:30%;}",
       "#kide-grownup .kg-leafmark.n1{left:0;transform:rotate(-18deg);}#kide-grownup .kg-leafmark.n2{right:0;transform:rotate(18deg) scaleX(-1);bottom:46%;}",
-      "#kide-grownup h2{font-size:28px;line-height:1.15;margin:8px 0 6px;font-weight:800;}",
+      "#kide-grownup h2{font-size:28px;line-height:1.15;margin:8px 0 6px;font-weight:800;color:#2E3A3F;}",
       "#kide-grownup p{font-size:18px;line-height:1.35;margin:0 auto 14px;max-width:320px;color:#2E3A3F;}",
       "#kide-grownup .kg-ringwrap{width:112px;height:112px;margin:0 auto 16px;position:relative;}",
-      "#kide-grownup svg{width:112px;height:112px;display:block;}",
+      "#kide-grownup .kg-ringwrap svg{width:112px;height:112px;display:block;}",
+      "#kide-grownup .kg-mouth svg{display:block;width:100%;height:100%;}",
       "#kide-grownup .kg-track{fill:none;stroke:#E7F6EE;stroke-width:10;}",
       "#kide-grownup .kg-prog{fill:none;stroke:#FFD166;stroke-width:10;stroke-linecap:round;",
       "transform:rotate(-90deg);transform-origin:60px 60px;stroke-dasharray:327;stroke-dashoffset:0;}",
@@ -59,6 +60,7 @@
       "padding:14px 18px;font:inherit;font-size:18px;font-weight:800;color:#2E3A3F;cursor:pointer;",
       "background:linear-gradient(180deg,#FF8A73,#F16E55);box-shadow:0 5px 0 rgba(0,0,0,.12);}",
       "#kide-grownup button:focus-visible{outline:3px solid #2E3A3F;outline-offset:3px;}",
+      "#kide-grownup button.kg-quiet{background:none;box-shadow:none;min-height:44px;margin-top:6px;font-size:16px;font-weight:700;color:#4A5A60;}",
       "@media (prefers-reduced-motion: reduce){",
       "#kide-grownup .kg-leaf,#kide-grownup .kg-bob,#kide-grownup .kg-card{animation:none;}",
       "#kide-grownup .kg-prog{stroke-dashoffset:160;}}",
@@ -85,6 +87,18 @@
   var shown = false;
   var timer = 0;
   var poll = 0;
+  // A playtime in progress is never cut short. If free time runs out mid-play,
+  // the ask waits for Pip's goodnight (or the child leaving for the home screen).
+  // A child who never tucks Pip in still meets the ask, after LONG_PLAY_MS.
+  var pending = false;
+  var gatedKnown = false;
+  var fallback = 0;
+  var LONG_PLAY_MS = 10 * 60 * 1000;
+  var AFTER_GOODNIGHT_MS = 6000;
+
+  function inPlaytime() {
+    return window.__kideSession === true;
+  }
 
   function hush() {
     try {
@@ -98,10 +112,42 @@
     if (app) app.setAttribute("inert", "");
   }
 
+  // After Pip's goodnight the child is done, so the card speaks to the grown-up,
+  // with no countdown and a way to say not now.
+  function showAfterGoodnight() {
+    if (shown) return;
+    shown = true;
+    pending = false;
+    if (poll) clearInterval(poll);
+    if (fallback) clearTimeout(fallback);
+    ensureStyle();
+    var root = document.createElement("div");
+    root.id = ROOT_ID;
+    root.setAttribute("role", "dialog");
+    root.setAttribute("aria-modal", "true");
+    root.setAttribute("aria-labelledby", "kide-grownup-title");
+    root.innerHTML =
+      '<div class="kg-sky" aria-hidden="true"><i class="kg-leaf a"></i><i class="kg-leaf b"></i><i class="kg-leaf c"></i></div>' +
+      '<div class="kg-card">' + pip() +
+      '<h2 id="kide-grownup-title">That was today\'s free play</h2>' +
+      "<p>Family play brings Pip back for every playtime, with the same goodnight at the end.</p>" +
+      '<button type="button" id="kide-grownup-go">For grown-ups</button>' +
+      '<button type="button" class="kg-quiet" id="kide-grownup-later">Not now</button></div>';
+    document.body.appendChild(root);
+    document.getElementById("kide-grownup-go").addEventListener("click", go);
+    document.getElementById("kide-grownup-later").addEventListener("click", function () {
+      root.remove();
+      shown = false;
+    });
+    document.getElementById("kide-grownup-go").focus();
+  }
+
   function show(seconds) {
     if (shown) return;
     shown = true;
+    pending = false;
     if (poll) clearInterval(poll);
+    if (fallback) clearTimeout(fallback);
     ensureStyle();
     hush();
     var total = seconds >= 1 && seconds <= 30 ? seconds : COUNT_FALLBACK;
@@ -145,8 +191,28 @@
 
   function apply(data) {
     if (!data || data.ok !== true || data.unlocked === true) return;
-    if (data.gated === true) show(Number(data.countdownSeconds));
+    if (data.gated !== true) return;
+    gatedKnown = true;
+    if (inPlaytime()) {
+      pending = true;
+      if (!fallback) fallback = setTimeout(function () { show(Number(data.countdownSeconds)); }, LONG_PLAY_MS);
+      return;
+    }
+    show(Number(data.countdownSeconds));
   }
+
+  document.addEventListener("kide:session", function (e) {
+    var d = (e && e.detail) || {};
+    if (d.on === true) {
+      // A new playtime: if free time is already used, ask before it starts.
+      if (gatedKnown) show(COUNT_FALLBACK);
+      else beat();
+      return;
+    }
+    if (!pending) return;
+    if (d.why === "goodbye") setTimeout(showAfterGoodnight, AFTER_GOODNIGHT_MS);
+    else showAfterGoodnight();
+  });
 
   function post(path, body) {
     return fetch(path, {
