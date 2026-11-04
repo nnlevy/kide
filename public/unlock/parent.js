@@ -16,6 +16,23 @@ const COPY = {
   shareText: "Pip gets sleepy and asks to be tucked in, so screen time ends without a meltdown. Try it free:",
 };
 
+// Funnel steps for this grown-up page. No identifier of any kind: the server
+// adds the share code from its own cookie. See src/funnel/funnel.js.
+function isQa() {
+  try {
+    if (new URLSearchParams(location.search).get("kide_qa") === "1") sessionStorage.setItem("kide.qa", "1");
+    return sessionStorage.getItem("kide.qa") === "1";
+  } catch { return false; }
+}
+
+function funnel(step, detail) {
+  try {
+    const body = JSON.stringify({ step, detail: detail || "", qa: isQa() });
+    if (navigator.sendBeacon && navigator.sendBeacon("/api/funnel", new Blob([body], { type: "application/json" }))) return;
+    fetch("/api/funnel", { method: "POST", body, keepalive: true, credentials: "same-origin", headers: { "Content-Type": "application/json" } });
+  } catch { /* measuring never affects the page */ }
+}
+
 function show(id) {
   for (const panel of ["hold", "pay", "wait"]) {
     const el = $(panel);
@@ -110,13 +127,14 @@ async function startCheckout(event) {
   const button = $("payGo");
   if (button) button.disabled = true;
   say("payMsg", "");
+  funnel("checkout_click");
   let url = null;
   try {
     const res = await fetch("/api/unlock/checkout", {
       method: "POST",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: address }),
+      body: JSON.stringify({ email: address, qa: isQa() }),
     });
     const data = await res.json().catch(() => null);
     if (res.ok && data && data.ok === true) url = safeCheckoutUrl(data.url);
@@ -143,7 +161,7 @@ async function confirmLoop(address) {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: address }),
+        body: JSON.stringify({ email: address, qa: isQa() }),
       });
       result = await res.json();
     } catch {
@@ -219,9 +237,16 @@ function boot() {
     confirmLoop(address);
     return;
   }
+  if (back === "back") funnel("checkout_back");
+  else {
+    const from = params.get("from");
+    funnel("unlock_view", from === "gate" || from === "goodnight" ? from : "direct");
+  }
   if (passed()) {
     show("pay");
     prefill();
+    // Back from Stripe without paying. Nothing was charged, and the offer stays.
+    if (back === "back") say("payMsg", "No charge was made. Family play is here whenever you're ready.");
   } else {
     armHold();
   }
@@ -230,8 +255,11 @@ function boot() {
   if (check) {
     check.addEventListener("click", () => {
       const answer = $("answer");
-      if (answerMatches(hold, answer && answer.value)) revealPay();
-      else {
+      if (answerMatches(hold, answer && answer.value)) {
+        funnel("check_pass");
+        revealPay();
+      } else {
+        funnel("check_fail");
         say("holdMsg", COPY.mismatch);
         if (answer) answer.focus();
       }
