@@ -22,6 +22,7 @@ import { normalizeEmail } from "./email.js";
 import { advance, capSeconds, dayStamp, mergePeak, overLimit, playKey } from "./minutes.js";
 import { parentIdFor } from "../account/parent-id.js";
 import { setUnlock } from "../account/session.js";
+import { issueShareCode, noteFamilyUnlock, shareStatus } from "../referral/apply.js";
 import { refFromRequest } from "../referral/ref.js";
 
 const DEVICE_RE = /^[A-Za-z0-9_-]{22,80}$/;
@@ -127,7 +128,7 @@ async function recordFamilyUnlock(env, email, active) {
   }
 }
 
-async function readUnlock(env, kv, deviceId, email, billing, now) {
+async function readUnlock(env, kv, deviceId, email, billing, now, request) {
   let deviceEmail = null;
   if (deviceId) {
     const onDevice = await kvGet(kv, deviceUnlockKey(deviceId));
@@ -153,9 +154,11 @@ async function readUnlock(env, kv, deviceId, email, billing, now) {
     }
     if (verdict.unlocked) {
       await rememberUnlock(env, kv, deviceId, who, now);
+      await noteFamilyUnlock(env, request, who, credits, now);
       return { unlocked: true, email: who };
     }
     await forgetUnlock(env, kv, deviceId, who);
+    await noteFamilyUnlock(env, request, who, credits, now);
     return { unlocked: false, email: who };
   } catch {
     return { unlocked: !!(cached && cached.unlocked) || !!deviceEmail, email: who };
@@ -268,9 +271,11 @@ export async function handleUnlock(request, env, opts = {}) {
       }
       if (verdict.unlocked) {
         await rememberUnlock(env, kv, deviceId, payEmail, now);
+        await noteFamilyUnlock(env, request, payEmail, credits, now);
         return json({ ok: true, unlocked: true, pending: false }, 200, cookie);
       }
       await forgetUnlock(env, kv, deviceId, payEmail);
+      await noteFamilyUnlock(env, request, payEmail, credits, now);
       return json({ ok: true, unlocked: false, pending: true }, 200, cookie);
     } catch {
       const cached = await kvGet(kv, unlockKey(payEmail));
@@ -279,7 +284,7 @@ export async function handleUnlock(request, env, opts = {}) {
     }
   }
 
-  const unlock = await readUnlock(env, kv, deviceId, email, billing, now);
+  const unlock = await readUnlock(env, kv, deviceId, email, billing, now, request);
 
   // A family's own share link. Only for an email that has family play on this
   // device (a paid receipt) or is the signed-in parent, so a stranger cannot
@@ -290,6 +295,23 @@ export async function handleUnlock(request, env, opts = {}) {
     const want = normalizeEmail(body.email) || unlock.email || email;
     const allowed = want && ((unlock.unlocked && unlock.email === want) || email === want);
     if (!allowed) return json({ ok: false, message: COPY.referralLocked }, 403, cookie);
+    if (env && env.DB) {
+      try {
+        const parentId = await parentIdFor("email", want);
+        const issued = await issueShareCode(env, { parentId, email: want, request });
+        if (!issued) return json({ ok: false, message: COPY.retry }, 503, cookie);
+        const summary = await shareStatus(env, parentId, now);
+        return json({
+          ok: true,
+          link: issued.link,
+          reward: issued.reward,
+          families: summary ? summary.families : 0,
+          earnedCents: summary ? summary.earnedCents : 0,
+        }, 200, cookie);
+      } catch {
+        return json({ ok: false, message: COPY.retry }, 503, cookie);
+      }
+    }
     if (!billing || typeof billing.issueCashReferralCode !== "function") {
       return json({ ok: false, message: COPY.retry }, 503, cookie);
     }

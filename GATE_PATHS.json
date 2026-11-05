@@ -1,0 +1,10 @@
+{
+  "domain": "kide.us",
+  "module": "p3-referrals",
+  "paths": [
+    "/r/:code",
+    "/parent/earnings",
+    "/parent/earnings/",
+    "/api/parent/earnings"
+  ]
+}

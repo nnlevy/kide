@@ -84,6 +84,12 @@ h2{font-size:22px;margin:0;text-align:center;letter-spacing:-.01em;}
 .rft svg{flex:none;}
 .rft a{color:var(--ink);}
 .share{margin-top:22px;padding-top:18px;border-top:2px dashed #E7E1D4;}
+.preview{display:flex;gap:12px;align-items:stretch;margin-top:14px;border:2px solid #E7E1D4;border-radius:16px;overflow:hidden;background:#fff}
+.preview-img{width:72px;flex:none;display:flex;align-items:center;justify-content:center;font-size:32px;background:linear-gradient(180deg,#56C6E6,#BDEBFF)}
+.preview-txt{padding:10px 12px;min-width:0}
+.preview-txt b{display:block;font-size:16px;line-height:1.3}
+.preview-txt span{display:block;font-size:14px;color:var(--ink-soft);line-height:1.35}
+.preview-txt i{display:block;font-size:12px;color:#9AA6A3;font-style:normal;letter-spacing:.04em}
 footer{margin-top:28px;padding:12px 0 28px;text-align:center;color:var(--ink-soft);font-size:14px;}
 footer a{color:var(--ink);font-weight:700;}
 @media (prefers-reduced-motion: reduce){
@@ -155,6 +161,14 @@ footer a{color:var(--ink);font-weight:700;}
       <div class="share" id="share" hidden>
         <h2>Know another parent?</h2>
         <p class="note" id="shareReward"></p>
+        <div class="preview" id="sharePreview">
+          <div class="preview-img" aria-hidden="true">🌱</div>
+          <div class="preview-txt">
+            <b>Meet Pip</b>
+            <span>Colors, counting and first words, read aloud. Then Pip gets sleepy and ends screen time.</span>
+            <i>kide.us</i>
+          </div>
+        </div>
         <label for="shareLink">Your family's link</label>
         <input id="shareLink" readonly>
         <div class="actions">

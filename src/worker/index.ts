@@ -9,6 +9,7 @@ import { handleCompete } from "../compete/http.js";
 import { handleUnlock } from "../unlock/handler.js";
 import { withRefCookie } from "../referral/ref.js";
 import { handleRefClaim, inviteResponse } from "../referral/invite.js";
+import { handleReferralHttp } from "../referral/http.js";
 
 // kide.us is a leaf on the Quizbiz portfolio billing hub (riskfreetrial) and
 // growth control plane (newgrowthbusiness) -- see wrangler.json "services".
@@ -222,6 +223,13 @@ async function route(request: Request, env: Env): Promise<Response> {
     // clinician licence. A child's practice record never reaches this route.
     if (url.pathname.startsWith("/api/unlock")) {
       return handleUnlock(request, env);
+    }
+
+    // Cash referral ledger: /r/<code> and the parent's own earnings.
+    // Separate from credits. No Connect account is created here.
+    {
+      const referral = await handleReferralHttp(request, env);
+      if (referral) return referral;
     }
 
     // Clinician licence: the chart-ready practice record at /clinician
