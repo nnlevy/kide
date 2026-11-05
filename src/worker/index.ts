@@ -614,11 +614,10 @@ function renderGift(url: URL): Response {
     : castNames.length > 1
       ? `${castNames.slice(0, -1).join(", ")} and ${castNames[castNames.length - 1]} are waiting inside.`
       : "";
+  const familyPromise = "Parent accounts only. Kids never sign in. We store only answer timing.";
   const description = note
-    || (castLine && `${castLine} It's free, a parent account is optional, there are no ads, and nothing a `
-        + "child says ever leaves the device.")
-    || `${to || "Someone little"} can play this on any phone or tablet. It's free, a parent account is optional, there are no `
-     + "ads, and nothing a child says ever leaves the device.";
+    || (castLine && `${castLine} It's free. ${familyPromise}`)
+    || `${to || "Someone little"} can play this on any phone or tablet. It's free. ${familyPromise}`;
 
   // Same portfolio OG renderer every other page on this domain uses, so the
   // message preview looks like Kide rather than like a bare link.
@@ -777,8 +776,8 @@ function renderGift(url: URL): Response {
       play on their own — and Pip gets sleepy at the end and asks to be tucked in, so screen time
       finishes without a fight.</p>
     <ul>
-      <li>Free to play. A parent account is optional, and there are no ads</li>
-      <li>Nothing your child says ever leaves the device</li>
+      <li>Free to play. Parent accounts only. Kids never sign in. We store only answer timing.</li>
+      <li>No ads, and no voice recordings</li>
       <li>Nothing is scored, and there is no way to lose</li>
     </ul>
   </div>

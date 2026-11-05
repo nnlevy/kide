@@ -40,7 +40,7 @@
   button,a.btn{font:inherit;font-size:16px;font-weight:700;padding:13px 20px;min-height:48px;min-width:48px;
     border-radius:999px;border:2px solid #EFE9DA;background:#fff;color:var(--ink);cursor:pointer;
     display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
-  button.primary{background:var(--sunstone);color:var(--ink);border-color:var(--sunstone)}
+  button.primary,a.btn.primary{background:var(--sunstone);color:var(--ink);border-color:var(--sunstone)}
   button.danger{border-color:#E4D5CE;color:var(--sunstone-ink)}
   .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
   .stat{background:#FAF7F0;border-radius:16px;padding:14px 10px;text-align:center}
@@ -78,6 +78,12 @@
     letter-spacing:.04em}
   .link{word-break:break-all;font-size:12px;color:var(--ink-faint);margin-top:10px}
   .muted a{display:inline-flex;align-items:center;min-height:44px;padding:6px 2px}
+  .promise{font-size:16px;font-weight:700;margin:0 0 14px;line-height:1.4;}
+  .journey{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px;animation:rise .4s ease both;}
+  @keyframes rise{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+  .journey a.btn{flex:1 1 140px;}
+  @media (prefers-reduced-motion: reduce){.journey{animation:none;}}
+  @media (max-width:700px){.journey a.btn{flex:1 1 auto;min-width:44%;}}
 </style>
 <link rel="stylesheet" href="../mobile.css">
 </head>
@@ -86,6 +92,12 @@
   <h1>Your child's week</h1>
   <p class="sub">Movement over many tries — never a score, and never a verdict.
      Your child never sees any of this.</p>
+  <p class="promise">Parent accounts only. Kids never sign in. We store only answer timing.</p>
+  <div class="journey">
+    <a class="btn" href="/play/">Try Pip free</a>
+    <a class="btn" href="/account/">Parent account</a>
+    <a class="btn primary" href="/unlock/">Family play</a>
+  </div>
 
   <div class="card">
     <h2>This week</h2>
@@ -128,8 +140,7 @@
       <input id="visitAge" type="number" inputmode="numeric" min="1" max="9" step="1"
              placeholder="4" autocomplete="off">
     </label>
-    <p class="muted" style="margin-top:4px;font-size:12.5px">Years. Stays on this device,
-      like everything else here — it is used to compare against the research.</p>
+    <p class="muted" style="margin-top:4px;font-size:13px">Years. Used on this page to compare against the research.</p>
     <div id="visitOut" style="margin-top:14px"></div>
   </div>
 
@@ -177,9 +188,9 @@
     <h2>Your child's data</h2>
     <p class="muted" id="storageNote">—</p>
     <div class="note">
-      <b>Nothing here is audio.</b> No recording, no voiceprint, nothing that could
-      identify your child by their voice — which word was practiced and whether
-      it was heard. It is kept on this device and nowhere else.
+      <b>Nothing here is audio.</b> No recording and no voiceprint. The words
+      practiced stay in this browser until you share a link. Parent accounts only.
+      Kids never sign in. We store only answer timing.
     </div>
     <div class="row" style="margin-top:12px">
       <button class="danger" id="btnClear">Delete everything</button>
@@ -313,8 +324,7 @@ function giftRefresh() {
   const headline = to ? `A little gift for ${to}` : 'A little gift';
   $('giftPrevTitle').textContent = from ? `${headline}, from ${from}` : headline;
   $('giftPrevDesc').textContent = note
-    || `${to || 'Someone little'} can play this on any phone or tablet. It's free, there are no `
-     + 'accounts and no ads, and nothing a child says ever leaves the device.';
+    || `${to || 'Someone little'} can play this on any phone or tablet. It's free. Parent accounts only. Kids never sign in. We store only answer timing.`;
   $('giftPreview').hidden = false;
   $('btnGiftOpen').href = giftUrl();
 }
