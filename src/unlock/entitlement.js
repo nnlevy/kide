@@ -47,6 +47,49 @@ export function purchaseGrantsUnlock(credits, { offeringId, priceId, domain }) {
   return { known: true, unlocked: false };
 }
 
+function purchaseRefOf(row) {
+  for (const key of ["id", "purchaseId", "sessionId", "paymentIntent", "chargeId", "sourceRef"]) {
+    const value = row[key];
+    if (typeof value === "string" && /^[A-Za-z0-9_.:-]{4,180}$/.test(value)) return value;
+  }
+  return null;
+}
+
+function cardFpOf(row) {
+  const meta = row.metadata && typeof row.metadata === "object" ? row.metadata : {};
+  const raw = row.cardFingerprint || row.card_fingerprint || meta.card_fingerprint || meta.cardFingerprint || "";
+  return typeof raw === "string" ? raw : null;
+}
+
+/**
+ * The family purchase behind an unlock, for the cash ledger.
+ * state "unknown" means the hub did not answer.
+ * A paid row wins over a refunded row, matching purchaseGrantsUnlock.
+ */
+export function familyPurchaseFact(credits, { offeringId, priceId, domain }) {
+  const empty = { state: "none", purchaseRef: null, cardFp: null, phone: null };
+  if (!credits || credits.ok !== true) return { ...empty, state: "unknown" };
+  let paid = null;
+  let refunded = null;
+  for (const row of rowsOf(credits)) {
+    if (!row || typeof row !== "object") continue;
+    if (row.domain && row.domain !== domain) continue;
+    const names = namesOf(row);
+    if (!names.includes(offeringId) && !(priceId && names.includes(priceId))) continue;
+    const status = String(row.status || row.state || "").toLowerCase();
+    const fact = {
+      purchaseRef: purchaseRefOf(row),
+      cardFp: cardFpOf(row),
+      phone: typeof row.phone === "string" ? row.phone : null,
+    };
+    if (REFUND.has(status)) refunded = refunded || fact;
+    else paid = paid || fact;
+  }
+  if (paid) return { state: "paid", ...paid };
+  if (refunded) return { state: "refunded", ...refunded };
+  return empty;
+}
+
 export function unlockKey(email) {
   return `kide:family-unlock:v1:${email}`;
 }
