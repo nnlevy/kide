@@ -7,6 +7,7 @@ import { routeParentAccount } from "../account/router.js";
 import { handlePlayEvents } from "../perf/http.js";
 import { handleCompete } from "../compete/http.js";
 import { handleUnlock } from "../unlock/handler.js";
+import { handleStudio } from "../studio/handler.js";
 import { withRefCookie } from "../referral/ref.js";
 import { handleRefClaim, inviteResponse } from "../referral/invite.js";
 
@@ -222,6 +223,13 @@ async function route(request: Request, env: Env): Promise<Response> {
     // clinician licence. A child's practice record never reaches this route.
     if (url.pathname.startsWith("/api/unlock")) {
       return handleUnlock(request, env);
+    }
+
+    // Lesson Studio. Offering lesson_studio_monthly is checked on purchase
+    // history only. Checkout stays closed until a live price exists. No child
+    // name is accepted on this route, and a pending lesson is not playable.
+    if (url.pathname.startsWith("/api/studio")) {
+      return handleStudio(request, env);
     }
 
     // Clinician licence: the chart-ready practice record at /clinician

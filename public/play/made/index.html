@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Made for you · Kide</title>
+<link rel="canonical" href="https://kide.us/play/made">
+<meta name="description" content="Lessons a grown-up approved, ready to say with Pip.">
+<meta property="og:title" content="Made for you · Kide">
+<meta property="og:description" content="Lessons a grown-up approved, ready to say with Pip.">
+<meta property="og:image" content="https://kide.us/og-card.png">
+<link rel="stylesheet" href="/mobile.css">
+<style>
+  :root{
+    --cream:#FFFBF2; --ink:#2E3A3F; --ink-soft:#5B6A67; --sunstone:#E17C5B; --grass:#6FD08C;
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(180deg,#BDEBFF,#FFFBF2 40%);color:var(--ink);line-height:1.4;
+    padding:20px 16px calc(40px + env(safe-area-inset-bottom,0px))}
+  .wrap{max-width:640px;margin:0 auto}
+  h1{font-size:32px;margin:0 0 8px}
+  p{font-size:18px;margin:0 0 14px}
+  button,a.btn{font:inherit;font-size:20px;font-weight:800;min-height:56px;min-width:56px;width:100%;
+    margin:0 0 12px;padding:14px 16px;border:none;border-radius:20px;background:#fff;color:var(--ink);
+    box-shadow:0 5px 0 rgba(0,0,0,.08);cursor:pointer;display:flex;align-items:center;justify-content:center;
+    text-decoration:none}
+  button.primary{background:var(--sunstone)}
+  button.soft{background:var(--grass)}
+  .invite{font-size:28px;font-weight:800;min-height:72px}
+  .grown{font-size:15px;color:var(--ink-soft)}
+  [hidden]{display:none !important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Made for you</h1>
+  <div id="list">
+    <p id="note">Lesson Studio needs a monthly subscription. Checkout is not open yet — coming soon.</p>
+    <div id="lessons"></div>
+  </div>
+  <div id="play" hidden>
+    <p class="invite" id="invite"></p>
+    <button class="primary" type="button" id="said">We said it</button>
+    <button class="soft" type="button" id="again">Say it together</button>
+    <button type="button" id="back">Back to the playlist</button>
+  </div>
+  <p class="grown"><a href="/parent/studio/">Grown-up Lesson Studio</a></p>
+</div>
+<script type="module">
+import { startPlay, currentBeat, hear, STATE } from "/studio/play.js";
+
+const list = document.getElementById("list");
+const note = document.getElementById("note");
+const lessonsEl = document.getElementById("lessons");
+const play = document.getElementById("play");
+const invite = document.getElementById("invite");
+const said = document.getElementById("said");
+const again = document.getElementById("again");
+let run = null;
+
+function showList() {
+  play.hidden = true;
+  list.hidden = false;
+  run = null;
+}
+
+function renderBeat() {
+  if (!run || run.done) {
+    invite.textContent = "Goodnight. See you next time.";
+    said.hidden = true;
+    again.hidden = true;
+    return;
+  }
+  const beat = currentBeat(run);
+  invite.textContent = beat.invitation;
+  said.hidden = false;
+  again.hidden = false;
+}
+
+function paint(result) {
+  if (result.state === STATE.MODEL) invite.textContent = "Let's say it together. " + currentBeat(run).invitation;
+  else renderBeat();
+}
+
+said.addEventListener("click", () => { if (run) paint(hear(run, true)); });
+again.addEventListener("click", () => { if (run) paint(hear(run, false)); });
+document.getElementById("back").addEventListener("click", showList);
+
+async function openLesson(id) {
+  const res = await fetch(`/api/studio/play?id=${encodeURIComponent(id)}`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.lesson) {
+    note.textContent = "That lesson is not on the playlist.";
+    return;
+  }
+  run = startPlay(data.lesson, { companionName: "Pip" });
+  list.hidden = true;
+  play.hidden = false;
+  said.hidden = false;
+  again.hidden = false;
+  renderBeat();
+}
+
+const res = await fetch("/api/studio/playlist");
+const data = await res.json().catch(() => ({}));
+if (!data.enabled) {
+  if (data.message) note.textContent = data.message;
+} else if (!data.lessons || !data.lessons.length) {
+  note.textContent = "Nothing here yet. A grown-up approves a lesson first.";
+} else {
+  note.textContent = "Pick one.";
+  for (const lesson of data.lessons) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = lesson.title;
+    btn.addEventListener("click", () => openLesson(lesson.id));
+    lessonsEl.appendChild(btn);
+  }
+}
+</script>
+</body>
+</html>
