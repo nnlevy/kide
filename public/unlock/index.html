@@ -71,7 +71,17 @@ input:focus{outline:3px solid var(--sun);outline-offset:2px;}
 .actions{display:flex;flex-direction:column;gap:10px;margin-top:16px;}
 button{border:none;border-radius:999px;padding:14px 22px;font-size:18px;min-height:48px;font-weight:800;color:var(--ink);cursor:pointer;font-family:inherit;width:100%;background:linear-gradient(180deg,var(--coral),var(--coral-deep));box-shadow:0 5px 0 rgba(0,0,0,.12);}
 button:focus-visible{outline:3px solid var(--ink);outline-offset:3px;}
+button:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.12);}
 button:disabled{opacity:.6;}
+.promise{font-size:16px;font-weight:700;text-align:center;margin:12px 0 0;line-height:1.35;}
+@media (max-height:700px){
+  nav{padding:8px 0;}
+  .hero-pip{width:72px;height:72px;}
+  .card{padding:16px 16px 14px;}
+  h1{font-size:28px;}
+  .lead,.promise{margin-top:8px;}
+  form{margin-top:10px;}
+}
 .quiet{display:flex;align-items:center;justify-content:center;min-height:48px;padding:12px 16px;border-radius:999px;text-decoration:none;font-weight:800;font-size:16px;background:#fff;border:2px solid #E7E1D4;color:var(--ink);}
 .msg{margin-top:12px;font-size:16px;font-weight:700;min-height:1.2em;overflow-wrap:anywhere;}
 .note{font-size:16px;color:var(--ink-soft);margin:14px 0 0;}
@@ -88,6 +98,7 @@ footer{margin-top:28px;padding:12px 0 28px;text-align:center;color:var(--ink-sof
 footer a{color:var(--ink);font-weight:700;}
 @media (prefers-reduced-motion: reduce){
   .card,.pip-bob,.pip-pupil{animation:none;}
+  button:active{transform:none;}
 }
 </style>
 <link rel="stylesheet" href="/mobile.css">
@@ -115,6 +126,7 @@ footer a{color:var(--ink);font-weight:700;}
     <section id="hold">
       <h1>A grown-up check</h1>
       <p class="lead" id="prompt">Answer this so we know a grown-up is here.</p>
+      <p class="promise">Parent accounts only. Kids never sign in. We store only answer timing.</p>
       <label for="answer">Your answer</label>
       <input id="answer" name="answer" inputmode="numeric" autocomplete="off" enterkeyhint="done">
       <div class="actions">
@@ -142,7 +154,7 @@ footer a{color:var(--ink);font-weight:700;}
         </div>
       </form>
       <p class="msg" id="payMsg" role="status"></p>
-      <p class="note">We store today's play time for this device and the email on the receipt. What a child says stays on the device.</p>
+      <p class="note">Parent accounts only. Kids never sign in. We store only answer timing. The receipt uses the email above.</p>
     </section>
 
     <section id="wait" hidden>

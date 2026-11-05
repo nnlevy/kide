@@ -43,6 +43,7 @@
 		"voice:words:render": "node tools/voice/render-words.mjs",
 		"test:mobile": "npm run build && node test-mobile.mjs",
 		"test:play-mobile": "node test-play-mobile.mjs",
+		"gate:preflight": "node scripts/gate-preflight.mjs",
 		"lexicon:build": "python3 tools/lexicon/build_lexicon.py && python3 tools/lexicon/build_play_targets.py",
 		"calibrate": "python3 tools/calibrate/calibrate.py",
 		"share:render": "node tools/share/card.js",
