@@ -133,6 +133,13 @@ await t('purchase history must name the family offering', () => {
   }, cfg).unlocked, false);
   assert.equal(purchaseGrantsUnlock({
     ok: true,
+    purchases: [
+      { domain: 'kide.us', offeringId: 'family_unlock', status: 'paid', id: 'cs_test_same' },
+      { domain: 'kide.us', offeringId: 'family_unlock', status: 'refunded', id: 'cs_test_same' },
+    ],
+  }, cfg).unlocked, false, 'a refunded row beats a paid row for the same purchase');
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
     purchases: [{ domain: 'other.example', offeringId: 'family_unlock', status: 'paid' }],
   }, cfg).unlocked, false);
 });

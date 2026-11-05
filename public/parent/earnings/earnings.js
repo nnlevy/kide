@@ -35,7 +35,7 @@
     if (send) {
       if (Number(data.openSendCents) >= 5000) {
         send.hidden = false;
-        send.textContent = money(data.openSendCents) + " is ready for us to send.";
+        send.textContent = money(data.openSendCents) + " is ready. We asked to send it. It has not gone out.";
       } else {
         send.hidden = true;
       }

@@ -49,6 +49,8 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS kide_referral_ledger_referrer ON kide_referral_ledger(referrer_id)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS kide_referral_payout_open
      ON kide_referral_payouts(parent_id) WHERE status = 'requested'`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS kide_referral_ledger_open_buyer
+     ON kide_referral_ledger(referred_id) WHERE status != 'reversed'`,
 ];
 
 function iso(ms) {
@@ -143,27 +145,15 @@ export async function codeByValue(db, code) {
   return first(db, `SELECT * FROM kide_referral_codes WHERE code = ?`, [normalized]);
 }
 
-export async function issueCode(db, { parentId, email, phone, cardFp, ip }) {
+export async function issueCode(db, { parentId, email }) {
   await ensureReferralSchema(db);
   if (typeof parentId !== "string" || !parentId) return null;
-  const signals = {
-    email: typeof email === "string" && email.includes("@") ? email.slice(0, 254) : null,
-    phone: cleanPhone(phone),
-    cardFp: cleanCard(cardFp),
-    ipCluster: ipCluster(ip),
-  };
+  const storedEmail = typeof email === "string" && email.includes("@") ? email.slice(0, 254) : null;
   const existing = await codeForParent(db, parentId);
   if (existing) {
-    await run(
-      db,
-      `UPDATE kide_referral_codes
-         SET email = COALESCE(email, ?),
-             phone = COALESCE(phone, ?),
-             card_fp = COALESCE(card_fp, ?),
-             ip_cluster = COALESCE(ip_cluster, ?)
-       WHERE parent_id = ?`,
-      [signals.email, signals.phone, signals.cardFp, signals.ipCluster, parentId],
-    );
+    if (storedEmail && !existing.email) {
+      await run(db, `UPDATE kide_referral_codes SET email = ? WHERE parent_id = ?`, [storedEmail, parentId]);
+    }
     const row = await codeForParent(db, parentId);
     return { code: row.code, link: shareLink(row.code), fresh: false };
   }
@@ -175,8 +165,8 @@ export async function issueCode(db, { parentId, email, phone, cardFp, ip }) {
         db,
         `INSERT INTO kide_referral_codes
            (parent_id, code, email, phone, card_fp, ip_cluster, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [parentId, code, signals.email, signals.phone, signals.cardFp, signals.ipCluster, createdAt],
+         VALUES (?, ?, ?, NULL, NULL, NULL, ?)`,
+        [parentId, code, storedEmail, createdAt],
       );
       return { code, link: shareLink(code), fresh: true };
     } catch {
@@ -187,13 +177,8 @@ export async function issueCode(db, { parentId, email, phone, cardFp, ip }) {
   return null;
 }
 
-function samePerson(owner, buyer) {
-  if (!owner || !buyer) return false;
-  if (owner.parent_id && buyer.parentId && owner.parent_id === buyer.parentId) return true;
-  if (owner.phone && buyer.phone && owner.phone === buyer.phone) return true;
-  if (owner.card_fp && buyer.cardFp && owner.card_fp === buyer.cardFp) return true;
-  if (owner.ip_cluster && buyer.ipCluster && owner.ip_cluster === buyer.ipCluster) return true;
-  return false;
+function samePerson(owner, buyerId) {
+  return Boolean(owner && owner.parent_id && buyerId && owner.parent_id === buyerId);
 }
 
 async function sumStatus(db, parentId, status) {
@@ -273,6 +258,15 @@ async function entryByRef(db, purchaseRef) {
   return first(db, `SELECT * FROM kide_referral_ledger WHERE purchase_ref = ?`, [purchaseRef]);
 }
 
+async function openForBuyer(db, buyerId) {
+  if (!buyerId) return null;
+  return first(
+    db,
+    `SELECT * FROM kide_referral_ledger WHERE referred_id = ? AND status != 'reversed'`,
+    [buyerId],
+  );
+}
+
 export async function recordClearedPurchase(db, input, now) {
   await ensureReferralSchema(db);
   const code = normalizeRef(input && input.code);
@@ -280,21 +274,17 @@ export async function recordClearedPurchase(db, input, now) {
   if (!input || input.offeringId !== FAMILY_OFFERING) return { ok: false, reason: "not_family" };
   const buyerId = typeof input.buyerId === "string" ? input.buyerId : "";
   if (!buyerId) return { ok: false, reason: "buyer" };
-  const purchaseRef = typeof input.purchaseRef === "string" && input.purchaseRef.length >= 4 && input.purchaseRef.length <= 180
+  const purchaseRef = typeof input.purchaseRef === "string" && /^(cs_|ch_|pi_|in_|py_)[A-Za-z0-9_]+$/.test(input.purchaseRef)
+    && input.purchaseRef.length >= 8 && input.purchaseRef.length <= 180
     ? input.purchaseRef
     : "";
   if (!purchaseRef) return { ok: false, reason: "purchase" };
+  const paidAt = typeof input.paidAt === "number" && Number.isFinite(input.paidAt) ? input.paidAt : null;
+  if (paidAt == null) return { ok: false, reason: "paid_at" };
   const owner = await codeByValue(db, code);
   if (!owner) return { ok: false, reason: "unknown_code" };
-  const buyer = {
-    parentId: buyerId,
-    phone: cleanPhone(input.buyerPhone),
-    cardFp: cleanCard(input.buyerCardFp),
-    ipCluster: ipCluster(input.buyerIp),
-  };
-  if (samePerson(owner, buyer)) return { ok: false, reason: "self" };
+  if (samePerson(owner, buyerId)) return { ok: false, reason: "self" };
 
-  const paidAt = typeof input.paidAt === "number" ? input.paidAt : now;
   const nowIso = iso(now);
   const holdUntil = iso(paidAt + HOLD_MS);
   const existing = await entryByRef(db, purchaseRef);
@@ -302,40 +292,45 @@ export async function recordClearedPurchase(db, input, now) {
     const events = await matureLedger(db, now);
     return { ok: true, fresh: false, amountCents: REWARD_CENTS, referrerId: existing.referrer_id, events };
   }
-  if (existing && existing.status === "reversed") {
-    await run(
-      db,
-      `UPDATE kide_referral_ledger
-          SET status = 'pending', amount_cents = ?, hold_until = ?, updated_at = ?, payout_id = NULL,
-              referrer_id = ?, referred_id = ?, code = ?
-        WHERE id = ?`,
-      [REWARD_CENTS, holdUntil, nowIso, owner.parent_id, buyerId, code, existing.id],
-    );
-  } else {
-    await run(
-      db,
-      `INSERT INTO kide_referral_ledger
-         (id, referrer_id, referred_id, code, purchase_ref, amount_cents, status, hold_until, created_at, updated_at, payout_id)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, NULL)`,
-      [randomId("kide_rf_"), owner.parent_id, buyerId, code, purchaseRef, REWARD_CENTS, holdUntil, nowIso, nowIso],
-    );
+  const open = await openForBuyer(db, buyerId);
+  if (open && open.purchase_ref !== purchaseRef) {
+    const events = await matureLedger(db, now);
+    return { ok: true, fresh: false, amountCents: REWARD_CENTS, referrerId: open.referrer_id, events };
+  }
+  try {
+    if (existing && existing.status === "reversed") {
+      await run(
+        db,
+        `UPDATE kide_referral_ledger
+            SET status = 'pending', amount_cents = ?, hold_until = ?, updated_at = ?, payout_id = NULL,
+                referrer_id = ?, referred_id = ?, code = ?
+          WHERE id = ?`,
+        [REWARD_CENTS, holdUntil, nowIso, owner.parent_id, buyerId, code, existing.id],
+      );
+    } else {
+      await run(
+        db,
+        `INSERT INTO kide_referral_ledger
+           (id, referrer_id, referred_id, code, purchase_ref, amount_cents, status, hold_until, created_at, updated_at, payout_id)
+         VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, NULL)`,
+        [randomId("kide_rf_"), owner.parent_id, buyerId, code, purchaseRef, REWARD_CENTS, holdUntil, nowIso, nowIso],
+      );
+    }
+  } catch {
+    const raced = await entryByRef(db, purchaseRef) || await openForBuyer(db, buyerId);
+    if (raced) {
+      const events = await matureLedger(db, now);
+      return { ok: true, fresh: false, amountCents: REWARD_CENTS, referrerId: raced.referrer_id, events };
+    }
+    return { ok: false, reason: "purchase" };
   }
   const events = await matureLedger(db, now);
   return { ok: true, fresh: true, amountCents: REWARD_CENTS, referrerId: owner.parent_id, code, events };
 }
 
-export async function reverseClearedPurchase(db, { buyerId, purchaseRef }, now) {
+export async function reverseClearedPurchase(db, { purchaseRef }, now) {
   await ensureReferralSchema(db);
-  let row = purchaseRef ? await entryByRef(db, purchaseRef) : null;
-  if (!row && buyerId) {
-    row = await first(
-      db,
-      `SELECT * FROM kide_referral_ledger
-        WHERE referred_id = ? AND status != 'reversed'
-        ORDER BY created_at DESC`,
-      [buyerId],
-    );
-  }
+  const row = purchaseRef ? await entryByRef(db, purchaseRef) : null;
   if (!row || row.status === "reversed") {
     return { ok: true, reversed: false, events: [] };
   }

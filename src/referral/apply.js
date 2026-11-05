@@ -1,10 +1,24 @@
 // Money path: a cleared $15 family_unlock credits the sharer $6 in the cash
-// ledger. The hub is told with notifyReferralActivity. No Connect account is
-// opened and no price is created.
+// ledger. Attribution comes only from the hub purchase row (custom_ref +
+// stable Stripe/hub id + paid time). The browser kide_ref cookie is not proof.
+//
+// Hub contract (getCredits). riskfreetrial source was not readable here.
+// Until Automator returns these fields on a family purchase, kide will unlock
+// play from offering/status but will not credit $6:
+//   purchases[].domain = "kide.us"
+//   purchases[].offeringId = "family_unlock" OR priceId = live family price
+//   purchases[].status = paid | refunded | reversed | canceled | ...
+//   purchases[].id | sessionId | paymentIntent | chargeId = cs_|ch_|pi_|in_|py_...
+//   purchases[].paidAt | createdAt = ISO or epoch ms (hold starts here)
+//   purchases[].metadata.custom_ref = the 8-char code from createCheckout
+//     customMetadata.ref (hub copies that to Stripe metadata[custom_ref])
+//   optional purchases[].amountCents = 1500 and currency = usd; a present
+//     wrong amount blocks the credit
+// No new hub method. No Connect. No webhook on this worker.
 
 import { parentIdFor } from "../account/parent-id.js";
 import { DOMAIN, OFFERING_ID, STRIPE_PRICE_ID } from "../unlock/config.js";
-import { familyPurchaseFact } from "../unlock/entitlement.js";
+import { familyPurchaseFacts } from "../unlock/entitlement.js";
 import {
   FAMILY_OFFERING,
   PAYOUT_METHOD,
@@ -14,10 +28,9 @@ import {
   recordClearedPurchase,
   reverseClearedPurchase,
 } from "./ledger.js";
-import { refFromRequest } from "./ref.js";
 
 export const SHARE_REWARD =
-  "You get $6 when a parent you invite buys family play. It waits 14 days, then we can send it. At $50, we send it.";
+  "You get $6 when a parent you invite buys family play. It waits 14 days. When those $6 add up to $50, we can ask to send the cash. We do not send it yet.";
 
 const HUB_TIMEOUT_MS = 1500;
 
@@ -44,19 +57,8 @@ export async function notifyReferral(env, event) {
   }
 }
 
-function clientIp(request) {
-  if (!request || !request.headers) return null;
-  return request.headers.get("cf-connecting-ip");
-}
-
-export async function issueShareCode(env, { parentId, email, phone, cardFp, request }) {
-  const issued = await issueCode(env.DB, {
-    parentId,
-    email,
-    phone,
-    cardFp,
-    ip: clientIp(request),
-  });
+export async function issueShareCode(env, { parentId, email }) {
+  const issued = await issueCode(env.DB, { parentId, email });
   if (!issued) return null;
   if (issued.fresh) {
     await notifyReferral(env, { event: "code_issued", code: issued.code, parentId });
@@ -81,11 +83,8 @@ export async function applyClearedPurchase(env, input) {
   const result = await recordClearedPurchase(env.DB, {
     code: input.code,
     buyerId: input.buyerId,
-    buyerPhone: input.buyerPhone,
-    buyerCardFp: input.buyerCardFp,
-    buyerIp: input.buyerIp,
     purchaseRef: input.purchaseRef,
-    paidAt: typeof input.paidAt === "number" ? input.paidAt : now,
+    paidAt: typeof input.paidAt === "number" ? input.paidAt : null,
     offeringId: input.offeringId || FAMILY_OFFERING,
   }, now);
   if (result.ok && result.fresh) {
@@ -107,7 +106,6 @@ export async function applyRefund(env, input) {
   if (!env || !env.DB) return { ok: false, reason: "no_ledger" };
   const now = typeof input.now === "number" ? input.now : Date.now();
   const result = await reverseClearedPurchase(env.DB, {
-    buyerId: input.buyerId,
     purchaseRef: input.purchaseRef,
   }, now);
   if (result.reversed) {
@@ -124,34 +122,31 @@ export async function applyRefund(env, input) {
 
 // Called when purchase history says family play cleared, or a refund landed.
 // A missing database does nothing. A thrown error does not un-pay the family.
-export async function noteFamilyUnlock(env, request, email, credits, now) {
+// The request cookie is ignored. Only hub purchase fields can credit $6.
+export async function noteFamilyUnlock(env, _request, email, credits, now) {
   try {
     if (!env || !env.DB || !email) return;
-    const fact = familyPurchaseFact(credits, {
+    const facts = familyPurchaseFacts(credits, {
       offeringId: OFFERING_ID,
       priceId: STRIPE_PRICE_ID,
       domain: DOMAIN,
     });
     const buyerId = await parentIdFor("email", email);
-    const purchaseRef = fact.purchaseRef || `family_unlock:${email}`;
-    if (fact.state === "paid") {
-      const code = request ? refFromRequest(request) : null;
-      if (!code) return;
+    for (const fact of facts) {
+      if (fact.state === "refunded") {
+        await applyRefund(env, { purchaseRef: fact.purchaseRef, now });
+      }
+    }
+    for (const fact of facts) {
+      if (fact.state !== "paid") continue;
       await applyClearedPurchase(env, {
-        code,
+        code: fact.customRef,
         buyerId,
-        buyerPhone: fact.phone,
-        buyerCardFp: fact.cardFp,
-        buyerIp: clientIp(request),
-        purchaseRef,
-        paidAt: now,
+        purchaseRef: fact.purchaseRef,
+        paidAt: fact.paidAt,
         now,
         offeringId: OFFERING_ID,
       });
-      return;
-    }
-    if (fact.state === "refunded") {
-      await applyRefund(env, { buyerId, purchaseRef, now });
     }
   } catch {
     // Family play stays as the hub reported it.

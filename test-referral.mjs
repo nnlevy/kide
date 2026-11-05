@@ -174,38 +174,34 @@ await t('a refund reverses the $6', async () => {
   assert.equal(view.families, 0);
 });
 
-await t('self-referral is rejected for the same parent, phone, card, or IP cluster', async () => {
+await t('self-referral is the same parent id only; phone, card, and IP are not trusted inputs', async () => {
   const db = memoryDb();
   const env = { DB: db };
   const a = await parent('a@example.com');
   const b = await parent('b@example.com');
-  const issued = await issueCode(db, {
-    parentId: a,
-    email: 'a@example.com',
-    phone: '+14155550100',
-    cardFp: 'card_aaaa',
-    ip: '203.0.113.4',
-  });
+  const issued = await issueCode(db, { parentId: a, email: 'a@example.com' });
   const base = { code: issued.code, paidAt: DAY, now: DAY, offeringId: 'family_unlock' };
-  const sameParent = await applyClearedPurchase(env, { ...base, buyerId: a, purchaseRef: 'self-parent', buyerIp: '198.51.100.9' });
-  const samePhone = await applyClearedPurchase(env, { ...base, buyerId: b, buyerPhone: '415-555-0100', purchaseRef: 'self-phone', buyerIp: '198.51.100.9' });
-  const sameCard = await applyClearedPurchase(env, { ...base, buyerId: b, buyerCardFp: 'card_aaaa', purchaseRef: 'self-card', buyerIp: '198.51.100.9' });
-  const sameNet = await applyClearedPurchase(env, { ...base, buyerId: b, buyerIp: '203.0.113.250', purchaseRef: 'self-ip' });
-  const other = await applyClearedPurchase(env, {
-    ...base, buyerId: b, buyerPhone: '+12125550199', buyerCardFp: 'card_bbbb', buyerIp: '198.51.100.20', purchaseRef: 'ok-b',
+  const sameParent = await applyClearedPurchase(env, { ...base, buyerId: a, purchaseRef: 'cs_test_self_parent' });
+  const neighbor = await applyClearedPurchase(env, {
+    ...base, buyerId: b, buyerPhone: '415-555-0100', buyerCardFp: 'card_aaaa', buyerIp: '203.0.113.250', purchaseRef: 'cs_test_ok_b',
   });
   assert.equal(sameParent.reason, 'self');
-  assert.equal(samePhone.reason, 'self');
-  assert.equal(sameCard.reason, 'self');
-  assert.equal(sameNet.reason, 'self');
+  assert.equal(neighbor.ok, true);
   assert.equal(ipCluster('203.0.113.4'), ipCluster('203.0.113.250'));
-  assert.equal(other.ok, true);
   assert.equal((await earningsFor(db, a, DAY)).pendingCents, 600);
   const clinician = await applyClearedPurchase(env, {
-    ...base, buyerId: await parent('c@example.com'), purchaseRef: 'licence', offeringId: 'clinician_report', buyerIp: '192.0.2.8',
+    ...base, buyerId: await parent('c@example.com'), purchaseRef: 'cs_test_licence', offeringId: 'clinician_report',
   });
   assert.equal(clinician.reason, 'not_family');
   assert.equal((await earningsFor(db, a, DAY)).pendingCents, 600);
+  const unstable = await applyClearedPurchase(env, {
+    ...base, buyerId: await parent('d@example.com'), purchaseRef: `family_unlock:d@example.com`,
+  });
+  assert.equal(unstable.reason, 'purchase');
+  const noPaidAt = await applyClearedPurchase(env, {
+    code: issued.code, buyerId: await parent('e@example.com'), purchaseRef: 'cs_test_no_paid', now: DAY, offeringId: 'family_unlock',
+  });
+  assert.equal(noPaidAt.reason, 'paid_at');
 });
 
 await t('after 14 days the $6 is available, and $50 opens one send request', async () => {
@@ -251,41 +247,91 @@ await t('after 14 days the $6 is available, and $50 opens one send request', asy
   assert.equal((await listPayoutQueue(db)).length, 0);
 });
 
-await t('confirming B through the share cookie credits A, and a refund takes it back', async () => {
+await t('confirm credits A only from hub custom_ref, not the browser cookie', async () => {
   const db = memoryDb();
   const events = [];
   const a = await parent('a@example.com');
-  const issued = await issueCode(db, { parentId: a, email: 'a@example.com', ip: '192.0.2.4' });
-  const paid = {
+  const issued = await issueCode(db, { parentId: a, email: 'a@example.com' });
+  // MOCKED getCredits. Not a live hub or Stripe call.
+  const paidNoRef = {
     ok: true,
-    purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', priceId: STRIPE_PRICE_ID, status: 'paid', id: 'cs_test_b' }],
+    purchases: [{
+      domain: 'kide.us', offeringId: 'family_unlock', priceId: STRIPE_PRICE_ID,
+      status: 'paid', id: 'cs_test_b', paidAt: DAY,
+    }],
   };
-  const env = { DB: db, KIDE_LEADS: memoryKv(), PORTFOLIO_BILLING_SERVICE: { ...hub(events), async getCredits() { return paid; } } };
-  const confirm = await handleUnlock(req('/api/unlock/confirm', {
+  const env = { DB: db, KIDE_LEADS: memoryKv(), PORTFOLIO_BILLING_SERVICE: { ...hub(events), async getCredits() { return paidNoRef; } } };
+  const cookieOnly = await handleUnlock(req('/api/unlock/confirm', {
     method: 'POST',
     cookie: `kide_ref=${issued.code}`,
     ip: '203.0.113.20',
     body: { email: 'b@example.com' },
-  }), env, { now: DAY });
-  assert.equal(confirm.status, 200);
+  }), env, { now: DAY + 60_000 });
+  assert.equal(cookieOnly.status, 200);
+  assert.equal((await cookieOnly.json()).unlocked, true);
+  assert.equal((await earningsFor(db, a, DAY)).pendingCents, 0, 'cookie is not proof of a paid referral');
+
+  const paid = {
+    ok: true,
+    purchases: [{
+      domain: 'kide.us', offeringId: 'family_unlock', priceId: STRIPE_PRICE_ID,
+      status: 'paid', id: 'cs_test_b', paidAt: DAY,
+      metadata: { custom_ref: issued.code },
+    }],
+  };
+  env.PORTFOLIO_BILLING_SERVICE.getCredits = async () => paid;
+  const confirm = await handleUnlock(req('/api/unlock/confirm', {
+    method: 'POST',
+    cookie: 'kide_ref=ZZZZZZZZ',
+    ip: '198.51.100.1',
+    body: { email: 'b@example.com' },
+  }), env, { now: DAY + 60_000 });
   assert.equal((await confirm.json()).unlocked, true);
   const view = await earningsFor(db, a, DAY);
   assert.equal(view.pendingCents, 600);
   assert.equal(events.some((e) => e.event === 'pending' && e.amountCents === 600 && e.live === false), true);
+  const hold = await db.prepare('SELECT hold_until FROM kide_referral_ledger').first();
+  assert.equal(hold.hold_until, new Date(DAY + HOLD_MS).toISOString());
 
   const refunded = {
     ok: true,
-    purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', status: 'refunded', id: 'cs_test_b' }],
+    purchases: [
+      { domain: 'kide.us', offeringId: 'family_unlock', status: 'paid', id: 'cs_test_b', paidAt: DAY, metadata: { custom_ref: issued.code } },
+      { domain: 'kide.us', offeringId: 'family_unlock', status: 'refunded', id: 'cs_test_b' },
+    ],
   };
   env.PORTFOLIO_BILLING_SERVICE.getCredits = async () => refunded;
   const back = await handleUnlock(req('/api/unlock/confirm', {
     method: 'POST',
-    ip: '203.0.113.21',
+    cookie: `kide_ref=${issued.code}`,
     body: { email: 'b@example.com' },
   }), env, { now: DAY + 5000 });
   assert.equal((await back.json()).unlocked, false);
   assert.equal((await earningsFor(db, a, DAY + 5000)).pendingCents, 0);
   assert.equal(events.some((e) => e.event === 'reversed'), true);
+});
+
+await t('a second purchase id for the same buyer does not pay a second $6', async () => {
+  const db = memoryDb();
+  const a = await parent('a@example.com');
+  const b = await parent('b@example.com');
+  const issued = await issueCode(db, { parentId: a, email: 'a@example.com' });
+  const env = { DB: db };
+  const first = await applyClearedPurchase(env, {
+    code: issued.code, buyerId: b, purchaseRef: 'cs_test_b1', paidAt: DAY, now: DAY, offeringId: 'family_unlock',
+  });
+  const second = await applyClearedPurchase(env, {
+    code: issued.code, buyerId: b, purchaseRef: 'cs_test_b2', paidAt: DAY, now: DAY, offeringId: 'family_unlock',
+  });
+  assert.equal(first.fresh, true);
+  assert.equal(second.fresh, false);
+  assert.equal((await earningsFor(db, a, DAY)).pendingCents, 600);
+  const missed = await applyRefund(env, { buyerId: b, purchaseRef: 'cs_test_missing', now: DAY + 1 });
+  assert.equal(missed.reversed, false);
+  assert.equal((await earningsFor(db, a, DAY + 1)).pendingCents, 600);
+  const reversed = await applyRefund(env, { purchaseRef: 'cs_test_b1', now: DAY + 2 });
+  assert.equal(reversed.reversed, true);
+  assert.equal((await earningsFor(db, a, DAY + 2)).pendingCents, 0);
 });
 
 await t('the sharer cannot be the buyer on the confirm path', async () => {
@@ -371,8 +417,10 @@ await t('/parent/earnings reports pending, available, and paid for the signed-in
   assert.match(html, />Pending</);
   assert.match(html, />Available</);
   assert.match(html, />Paid</);
+  assert.match(html, /We do not send it yet/);
   assert.match(html, /class="preview"/);
   assert.match(html, /noindex/);
+  assert.doesNotMatch(html, /we send it|Already sent|ready to send/i);
   assert.doesNotMatch(html, /stripe|ledger|webhook|operator|queue|connect/i);
   const js = readFileSync('public/parent/earnings/earnings.js', 'utf8');
   assert.doesNotMatch(js, /stripe|ledger|webhook|operator/i);
@@ -382,6 +430,10 @@ await t('/parent/earnings reports pending, available, and paid for the signed-in
   assert.doesNotMatch(src, /api\.stripe\.com|consumeCredits|kide_entitlements|sk_live|sk_test/);
   assert.match(src, /live INTEGER NOT NULL DEFAULT 0/);
   assert.doesNotMatch(readFileSync('src/worker/index.ts', 'utf8'), /notifyReferralActivity|issueCashReferralCode/);
+  assert.match(readFileSync('tools/platform-gate/VERSION', 'utf8'), /ab09c0c14accfb5af23939de6c0c229c9c5bea68/);
+  assert.match(readFileSync('package.json', 'utf8'), /tools\/platform-gate\/preflight\.mjs/);
+  assert.match(readFileSync('scripts/gate-preflight.mjs', 'utf8'), /tool":"missing"/);
+  assert.match(readFileSync('scripts/gate-preflight.mjs', 'utf8'), /process\.exit\(2\)/);
 });
 
 await t('a paid parent on this device gets /r/<code> from the ledger', async () => {

@@ -85,8 +85,6 @@ export async function handleEarnings(request, env) {
       await issueShareCode(env, {
         parentId: who.parentId,
         email: contact.email,
-        phone: contact.phone,
-        request,
       });
     }
     const summary = await shareStatus(env, who.parentId, now);

@@ -5,6 +5,7 @@ Disallow: /bench/
 Disallow: /clinician/
 Disallow: /engine/
 Disallow: /parent/
+Disallow: /parent/earnings/
 Disallow: /scene/
 Disallow: /unlock/
 
