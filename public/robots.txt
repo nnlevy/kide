@@ -5,6 +5,8 @@ Disallow: /bench/
 Disallow: /clinician/
 Disallow: /engine/
 Disallow: /parent/
+Disallow: /parent/studio/
+Disallow: /play/made/
 Disallow: /scene/
 Disallow: /unlock/
 

@@ -25,8 +25,9 @@ const ROOT = 'public';
  *  - /scene               an internal rig, not a page.
  *  - /account, /unlock    sign-in and the paid step. Thin, per-visitor pages a
  *                         stranger should reach through Pip, not from search.
+ *  - /play/made           a household playlist. Titles are for that family.
  */
-const PRIVATE = [/^\/parent/, /^\/clinician/, /^\/bench/, /^\/engine/, /^\/scene/, /^\/account/, /^\/unlock/];
+const PRIVATE = [/^\/parent/, /^\/clinician/, /^\/bench/, /^\/engine/, /^\/scene/, /^\/account/, /^\/unlock/, /^\/play\/made/];
 
 /* Priority reflects what we would most like a stranger to land on.
  * /sounds outranks the product pages deliberately: it is the surface that

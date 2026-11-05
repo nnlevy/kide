@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Lesson Studio · Kide</title>
+<meta name="description" content="A parent makes a speech lesson and approves it before a child can see it. The monthly subscription checkout is not open yet.">
+<link rel="stylesheet" href="/mobile.css">
+<style>
+  :root{
+    --cream:#FFFBF2; --card:#fff; --ink:#2E3A3F; --ink-soft:#5B6A67; --ink-faint:#9AA6A3;
+    --sunstone:#E17C5B; --grass-dark:#3D9C63;
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--cream);color:var(--ink);line-height:1.5;
+    padding:18px 16px calc(48px + env(safe-area-inset-bottom,0px))}
+  .wrap{max-width:680px;margin:0 auto}
+  h1{font-size:26px;margin:0 0 8px}
+  h2{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 8px}
+  p{margin:0 0 12px}
+  a{color:var(--grass-dark);font-weight:800}
+  .card{background:var(--card);border-radius:20px;padding:18px;margin:0 0 14px;box-shadow:0 5px 0 rgba(0,0,0,.05)}
+  .muted{color:var(--ink-soft);font-size:16px}
+  button,a.btn{font:inherit;font-size:16px;font-weight:800;min-height:48px;min-width:48px;max-width:100%;
+    padding:12px 18px;border-radius:999px;border:2px solid #EFE9DA;background:#fff;color:var(--ink);
+    cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-align:center;
+    white-space:normal;text-decoration:none}
+  #mine button{width:100%}
+  button.primary{background:var(--sunstone);border-color:var(--sunstone)}
+  label.pick,label.gap{display:flex;align-items:center;gap:10px;min-height:48px;font-size:16px;font-weight:700}
+  .gaps{display:flex;flex-wrap:wrap;gap:8px 14px}
+  select,textarea{font:inherit;font-size:16px;width:100%;min-height:48px;border:2px solid #EFE9DA;
+    border-radius:14px;padding:12px 14px;background:#fff;color:var(--ink)}
+  textarea{min-height:96px;resize:vertical}
+  .row{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+  .beat{padding:10px 0;border-top:1px solid #EFE9DA;font-size:17px}
+  .tag{display:inline-block;margin-left:8px;font-size:13px;font-weight:800;color:var(--ink-soft)}
+  .err{color:#8A3F22;font-weight:700}
+  [hidden]{display:none !important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Lesson Studio</h1>
+  <section id="gate" class="card">
+    <h2>Subscription</h2>
+    <p id="gateTitle"><b>Coming soon</b></p>
+    <p id="gateBody">Lesson Studio needs a monthly subscription. Checkout is not open yet — coming soon.</p>
+    <p class="muted">When a subscription is on this account, a lesson stays here until you approve it. A child does not see it before that.</p>
+    <p><a class="btn" href="/account/">Sign in</a></p>
+  </section>
+
+  <section id="studio" hidden>
+    <form id="form" class="card">
+      <h2>New lesson</h2>
+      <p class="muted">The proposal uses the age band and the sounds you tick. Leave the note blank, or keep it to those sounds. A name, a school, or a birthday is refused.</p>
+      <label class="pick" for="age">Age band</label>
+      <select id="age" name="ageBand"></select>
+      <p class="muted" style="margin-top:12px">Sounds to practice</p>
+      <div id="gaps" class="gaps"></div>
+      <label class="pick" for="note">Note</label>
+      <textarea id="note" name="message" maxlength="400" autocomplete="off" placeholder="Optional. Sounds only, or leave this blank."></textarea>
+      <div class="row"><button class="primary" type="submit">Propose a lesson</button></div>
+      <p id="formErr" class="err" role="status"></p>
+    </form>
+
+    <section id="proposal" class="card" hidden>
+      <h2>Proposed lesson</h2>
+      <p id="proposalTitle"></p>
+      <div id="proposalBeats"></div>
+      <div class="row"><button class="primary" type="button" id="approve">Approve for the playlist</button></div>
+      <p class="muted">Approving is what lets a child see it on the Made-for-you playlist.</p>
+    </section>
+
+    <section class="card">
+      <h2>Your lessons</h2>
+      <div id="mine"></div>
+      <p class="row"><a class="btn" href="/play/made/">Made-for-you playlist</a></p>
+    </section>
+  </section>
+</div>
+<script type="module">
+const gate = document.getElementById("gate");
+const studio = document.getElementById("studio");
+const gateBody = document.getElementById("gateBody");
+const form = document.getElementById("form");
+const formErr = document.getElementById("formErr");
+const proposal = document.getElementById("proposal");
+const proposalTitle = document.getElementById("proposalTitle");
+const proposalBeats = document.getElementById("proposalBeats");
+const mine = document.getElementById("mine");
+let pendingId = null;
+
+async function api(path, options) {
+  const res = await fetch(path, { credentials: "same-origin", ...options });
+  const data = await res.json().catch(() => ({}));
+  return { status: res.status, data };
+}
+
+function beatLines(beats) {
+  return (beats || []).map((b) => {
+    const row = document.createElement("div");
+    row.className = "beat";
+    row.append(document.createTextNode(b.word));
+    const tag = document.createElement("span");
+    tag.className = "tag";
+    tag.textContent = "· " + (b.station || b.affordance);
+    row.append(tag);
+    return row;
+  });
+}
+
+function showProposal(lesson) {
+  pendingId = lesson.id;
+  proposal.hidden = false;
+  proposalTitle.textContent = lesson.title + (lesson.status === "approved" ? " · approved" : " · waiting for you");
+  proposalBeats.replaceChildren(...beatLines(lesson.beats));
+  document.getElementById("approve").hidden = lesson.status === "approved";
+}
+
+async function refreshMine() {
+  const { data } = await api("/api/studio/lessons");
+  mine.replaceChildren();
+  const lessons = data.lessons || [];
+  if (!lessons.length) {
+    const p = document.createElement("p");
+    p.className = "muted";
+    p.textContent = "No lesson yet.";
+    mine.appendChild(p);
+    return;
+  }
+  for (const lesson of lessons) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = `${lesson.title} · ${lesson.status === "approved" ? "approved" : "waiting for you"}`;
+    btn.addEventListener("click", () => showProposal(lesson));
+    const wrap = document.createElement("div");
+    wrap.className = "row";
+    wrap.appendChild(btn);
+    mine.appendChild(wrap);
+  }
+}
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  formErr.textContent = "";
+  const skillGaps = [...document.querySelectorAll("input[name=gap]:checked")].map((el) => el.value);
+  const message = document.getElementById("note").value;
+  const body = { ageBand: document.getElementById("age").value, skillGaps };
+  if (message.trim()) body.message = message.trim();
+  const { data } = await api("/api/studio/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!data.ok) {
+    formErr.textContent = data.message || "That lesson could not be made.";
+    return;
+  }
+  document.getElementById("note").value = "";
+  showProposal(data.lesson);
+  await refreshMine();
+});
+
+document.getElementById("approve").addEventListener("click", async () => {
+  if (!pendingId) return;
+  formErr.textContent = "";
+  const { data } = await api("/api/studio/approve", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: pendingId }),
+  });
+  if (!data.ok) {
+    formErr.textContent = "That lesson is not here to approve.";
+    return;
+  }
+  showProposal(data.lesson);
+  await refreshMine();
+});
+
+const status = await api("/api/studio/status");
+if (!status.data.enabled) {
+  if (status.data.message) gateBody.textContent = status.data.message;
+  if (status.data.signedIn) document.querySelector("#gate .btn").hidden = true;
+} else {
+  gate.hidden = true;
+  studio.hidden = false;
+  const age = document.getElementById("age");
+  for (const band of status.data.ageBands || []) {
+    const opt = document.createElement("option");
+    opt.value = band;
+    opt.textContent = band;
+    age.appendChild(opt);
+  }
+  const gaps = document.getElementById("gaps");
+  for (const gap of status.data.skillGaps || []) {
+    const label = document.createElement("label");
+    label.className = "gap";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.name = "gap";
+    input.value = gap.key;
+    label.append(input, document.createTextNode(gap.label));
+    gaps.appendChild(label);
+  }
+  await refreshMine();
+}
+</script>
+</body>
+</html>
