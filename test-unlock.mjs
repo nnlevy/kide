@@ -18,6 +18,9 @@ import {
 import { checkoutInput, httpsUrl } from './src/unlock/checkout.js';
 import { COPY, readable } from './src/unlock/copy.js';
 import { purchaseGrantsUnlock, unlockKey } from './src/unlock/entitlement.js';
+import { playKey } from './src/unlock/minutes.js';
+import { routeParentAccount } from './src/account/router.js';
+import { handlePlayEvents } from './src/perf/http.js';
 import { advance, overLimit } from './src/unlock/minutes.js';
 import { answerMatches, makeHold, nextPoll, ENTITLEMENT_WAIT_MS as WAIT } from './public/unlock/gate.js';
 import { isMeasured } from './public/engine/measure.js';
@@ -493,6 +496,107 @@ await t('visitor sentences and the new pages avoid gate words', () => {
 
 console.log('\nfamily play page at 320px');
 
+async function serveJourney(port) {
+  const { createServer } = await import('node:http');
+  const { readFile } = await import('node:fs/promises');
+  const { resolve, sep } = await import('node:path');
+  const root = resolve('public');
+  const state = { mode: 'storage_error', credits: 0, now: Date.parse('2026-11-06T12:00:00Z') };
+  const kv = memoryKv();
+  await kv.put(playKey('2026-11-06', 'device:deviceid0123456789abcd'), JSON.stringify({ seconds: 300, lastTickMs: state.now - 1000 }));
+  await kv.put(unlockKey('parent@example.com'), JSON.stringify({ unlocked: true, sourceRef: 'cs_test_bbbbbbbbbb' }));
+  const messaging = () => {
+    if (state.mode === 'missing') return {};
+    if (state.mode === 'throw') return { async currentSession() { throw new Error('down'); } };
+    if (state.mode === 'email') return { async currentSession() { return { ok: true, email: 'parent@example.com' }; } };
+    return { async currentSession() { return { ok: false, error: 'storage_error', message: 'd1' }; } };
+  };
+  const env = () => ({
+    KIDE_LEADS: kv,
+    PORTFOLIO_MESSAGING_SERVICE: messaging(),
+    PORTFOLIO_BILLING_SERVICE: {
+      async getCredits() {
+        state.credits += 1;
+        return {
+          ok: true,
+          purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', sourceRef: 'cs_test_bbbbbbbbbb', status: 'paid' }],
+        };
+      },
+    },
+  });
+  const server = createServer(async (incoming, res) => {
+    try {
+      const url = new URL(incoming.url, `http://127.0.0.1:${port}`);
+      if (url.pathname.startsWith('/api/')) {
+        const chunks = [];
+        for await (const chunk of incoming) chunks.push(chunk);
+        const raw = Buffer.concat(chunks);
+        const headers = new Headers();
+        for (const [key, value] of Object.entries(incoming.headers)) {
+          if (value == null) continue;
+          headers.set(key, Array.isArray(value) ? value.join(', ') : value);
+        }
+        if (!(headers.get('cookie') || '').includes('__Host-rft_session=')) {
+          headers.set('cookie', `${headers.get('cookie') || ''}; ${SESSION}`.replace(/^;\s*/, ''));
+        }
+        const request = new Request(`https://kide.us${url.pathname}`, {
+          method: incoming.method,
+          headers,
+          body: incoming.method === 'GET' || incoming.method === 'HEAD' ? undefined : raw,
+        });
+        const bound = env();
+        let response;
+        if (url.pathname === '/api/account/session') response = await routeParentAccount(request, bound);
+        else if (url.pathname === '/api/play/events') response = await handlePlayEvents(request, bound, state.now);
+        else if (url.pathname.startsWith('/api/unlock/')) response = await handleUnlock(request, bound, { now: state.now });
+        else {
+          res.writeHead(404, { 'content-type': 'application/json' });
+          res.end('{"ok":false}');
+          return;
+        }
+        const buf = Buffer.from(await response.arrayBuffer());
+        res.writeHead(response.status, {
+          'content-type': response.headers.get('content-type') || 'application/json',
+          'cache-control': 'no-store',
+        });
+        res.end(buf);
+        return;
+      }
+      const rel = decodeURIComponent(url.pathname);
+      const file = resolve(root, `.${rel.endsWith('/') ? `${rel}index.html` : rel}`);
+      if (!file.startsWith(root + sep)) {
+        res.writeHead(404);
+        res.end();
+        return;
+      }
+      try {
+        const data = await readFile(file);
+        const type = file.endsWith('.js') ? 'text/javascript'
+          : file.endsWith('.css') ? 'text/css'
+          : file.endsWith('.json') ? 'application/json'
+          : file.endsWith('.svg') ? 'image/svg+xml'
+          : file.endsWith('.png') ? 'image/png'
+          : 'text/html';
+        res.writeHead(200, { 'content-type': type });
+        res.end(data);
+      } catch {
+        res.writeHead(404);
+        res.end();
+      }
+    } catch {
+      res.writeHead(500, { 'content-type': 'text/plain' });
+      res.end('journey failed');
+    }
+  });
+  await new Promise((done) => server.listen(port, '127.0.0.1', done));
+  return {
+    get mode() { return state.mode; },
+    set mode(value) { state.mode = value; },
+    get credits() { return state.credits; },
+    close() { return new Promise((done) => server.close(() => done())); },
+  };
+}
+
 async function browserCheck() {
   let chromium;
   const skipBrowser = (why) => {
@@ -654,8 +758,77 @@ T(("127.0.0.1", ${port}), H).serve_forever()
     assert.equal(notified.matchedDomain, 'kide');
     console.log('  ok   unlock page at 320px');
     pass++;
+
+    const shots = '/opt/cursor/artifacts/unlock-funnel-review';
+    const journey = await serveJourney(9142);
+    try {
+      for (const name of ['missing', 'throw', 'storage_error']) {
+        journey.mode = name;
+        const headers = { cookie: `kide_device=deviceid0123456789abcd; ${SESSION}` };
+        const status = await fetch('http://127.0.0.1:9142/api/unlock/status', { headers });
+        assert.equal(status.status, 503, name);
+        const body = await status.json();
+        assert.equal(body.ok, false, name);
+        assert.equal(body.countdownSeconds, undefined, name);
+        const tick = await fetch('http://127.0.0.1:9142/api/unlock/tick', { method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: '{}' });
+        assert.equal(tick.status, 503, name);
+        const session = await fetch('http://127.0.0.1:9142/api/account/session', { headers });
+        assert.equal(session.status, 503, name);
+        const events = await fetch('http://127.0.0.1:9142/api/play/events', {
+          method: 'POST',
+          headers: { ...headers, 'content-type': 'application/json' },
+          body: JSON.stringify({ playerId: 'abcdef0123456789', events: [] }),
+        });
+        assert.equal(events.status, 503, name);
+        assert.notEqual((await events.json()).stored, 'device', name);
+      }
+      assert.equal(journey.credits, 0);
+      journey.mode = 'storage_error';
+      async function restThenRecover(width, height) {
+        const view = await browser.newPage({
+          viewport: { width, height },
+          isMobile: width < 700,
+          hasTouch: width < 700,
+          deviceScaleFactor: 1,
+        });
+        await view.goto('http://127.0.0.1:9142/play/', { waitUntil: 'domcontentloaded', timeout: 20000 });
+        await view.waitForSelector('#kide-grownup-rest-title', { timeout: 10000 });
+        const during = await view.evaluate(() => {
+          const rest = document.getElementById('kide-grownup-rest');
+          const buy = document.getElementById('kide-grownup');
+          return {
+            text: rest ? rest.innerText : '',
+            links: rest ? rest.querySelectorAll('a,button').length : -1,
+            buy: !!buy,
+            href: location.href,
+          };
+        });
+        assert.match(during.text, /short rest/);
+        assert.doesNotMatch(during.text, /\$|grown-up|sign in|checkout/i);
+        assert.equal(during.links, 0);
+        assert.equal(during.buy, false);
+        assert.match(during.href, /\/play\/?$/);
+        await view.screenshot({ path: `${shots}/outage-${width}.png` });
+        journey.mode = 'email';
+        await view.evaluate(() => {
+          Object.defineProperty(document, 'hidden', { configurable: true, get() { return false; } });
+          document.dispatchEvent(new Event('visibilitychange'));
+        });
+        await view.waitForFunction(() => !document.getElementById('kide-grownup-rest') && !document.getElementById('kide-grownup'), { timeout: 10000 });
+        assert.match(view.url(), /\/play\/?$/);
+        await view.screenshot({ path: `${shots}/recovery-${width}.png` });
+        await view.close();
+        journey.mode = 'storage_error';
+      }
+      await restThenRecover(320, 640);
+      await restThenRecover(1280, 800);
+      console.log('  ok   served worker outage then play rest at 320 and 1280');
+      pass++;
+    } finally {
+      await journey.close();
+    }
   } catch (e) {
-    console.log(`  FAIL unlock page at 320px\n       ${e.message}`);
+    console.log(`  FAIL unlock page or play rest\n       ${e.message}`);
     fail++;
   } finally {
     await browser.close().catch(() => {});
@@ -840,6 +1013,66 @@ await t('currentSession wire shapes: outage is not logged out, and a stub is not
     method: 'POST', cookie: SESSION, body: {},
   }), bare, { now: 1 });
   assert.equal(noReader.status, 503);
+});
+
+await t('a presented session the hub cannot read is not the free countdown', async () => {
+  const kv = memoryKv();
+  const now = Date.parse('2026-11-06T12:00:00Z');
+  const device = 'deviceid0123456789abcd';
+  const planted = JSON.stringify({ seconds: 300, lastTickMs: now - 1000 });
+  const grant = JSON.stringify({ unlocked: true, sourceRef: 'cs_test_bbbbbbbbbb' });
+  await kv.put(playKey('2026-11-06', `device:${device}`), planted);
+  await kv.put(unlockKey('parent@example.com'), grant);
+  let credits = 0;
+  const modes = {
+    missing: {},
+    throw: { async currentSession() { throw new Error('down'); } },
+    storage_error: { async currentSession() { return { ok: false, error: 'storage_error', message: 'd1' }; } },
+  };
+  const cookie = `kide_device=${device}; ${SESSION}`;
+  for (const [name, messaging] of Object.entries(modes)) {
+    const env = {
+      KIDE_LEADS: kv,
+      PORTFOLIO_MESSAGING_SERVICE: messaging,
+      PORTFOLIO_BILLING_SERVICE: { async getCredits() { credits += 1; return { ok: true, purchases: [] }; } },
+    };
+    const status = await handleUnlock(req('/api/unlock/status', { cookie }), env, { now });
+    assert.equal(status.status, 503, name);
+    const body = await status.json();
+    assert.equal(body.ok, false, name);
+    assert.notEqual(body.gated, true, name);
+    assert.equal(body.countdownSeconds, undefined, name);
+    assert.equal(/sign in|\\$15|for grown-ups/i.test(JSON.stringify(body)), false, name);
+    const tick = await handleUnlock(req('/api/unlock/tick', { method: 'POST', cookie, body: {} }), env, { now: now + 5000 });
+    assert.equal(tick.status, 503, name);
+    const session = await routeParentAccount(req('/api/account/session', { cookie }), env);
+    assert.equal(session.status, 503, name);
+    const sessionBody = await session.json();
+    assert.equal(sessionBody.parentId, null, name);
+    assert.equal(/sign in/i.test(JSON.stringify(sessionBody)), false, name);
+    const events = await handlePlayEvents(req('/api/play/events', {
+      method: 'POST',
+      cookie,
+      body: { playerId: 'abcdef0123456789', events: [{ item_id: 'colors-1', skill: 'colors', shown_at: now, answered_at: now + 900, correct: true }] },
+    }), env, now);
+    assert.equal(events.status, 503, name);
+    assert.notEqual((await events.json()).stored, 'device', name);
+  }
+  assert.equal(credits, 0);
+  assert.equal(await kv.get(playKey('2026-11-06', `device:${device}`)), planted);
+  assert.equal(await kv.get(unlockKey('parent@example.com')), grant);
+
+  const anon = await handleUnlock(req('/api/unlock/status', { cookie: `kide_device=${device}` }), { KIDE_LEADS: kv }, { now });
+  assert.equal(anon.status, 200);
+  const anonBody = await anon.json();
+  assert.equal(anonBody.gated, true);
+  assert.equal(anonBody.countdownSeconds, 10);
+  const closed = await handleUnlock(req('/api/unlock/status', { cookie }), {
+    KIDE_LEADS: kv,
+    PORTFOLIO_MESSAGING_SERVICE: { async currentSession() { return { ok: false }; } },
+  }, { now });
+  assert.equal(closed.status, 200);
+  assert.equal((await closed.json()).gated, true);
 });
 
 await browserCheck();

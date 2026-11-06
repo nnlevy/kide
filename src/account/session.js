@@ -52,7 +52,9 @@ export async function readEmailSession(request, env) {
 
 export async function currentParent(request, env) {
   const who = await readEmailSession(request, env);
-  // Outage and logged-out both hide the parent id. Neither deletes an unlock row.
+  // Outage hides the parent id and does not delete an unlock row.
+  // The flag is not a grant. The session route turns it into 503.
+  if (who.state === "outage") return { parentId: null, unlocked: false, outage: true };
   if (who.state !== "email") return { ...SIGNED_OUT };
   const email = who.email;
   const computed = await parentIdFor("email", email);
@@ -86,6 +88,7 @@ function json(data, status = 200) {
 }
 
 // GET /api/account/session. Two fields. No email, no cookie, no hub codes.
+// A presented session the hub cannot read is 503. It is not a signed-out 200.
 export async function handleParentSession(request, env) {
   if (request.method !== "GET" && request.method !== "HEAD") {
     return json({
@@ -94,5 +97,7 @@ export async function handleParentSession(request, env) {
       message: "Open the account page to sign in.",
     }, 405);
   }
-  return json(await currentParent(request, env));
+  const view = await currentParent(request, env);
+  if (view.outage === true) return json({ parentId: null, unlocked: false }, 503);
+  return json({ parentId: view.parentId, unlocked: view.unlocked });
 }

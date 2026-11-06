@@ -287,6 +287,11 @@ export async function handleUnlock(request, env, opts = {}) {
     }
   }
 
+  if (who.state === "outage" && (path === "/api/unlock/status" || path === "/api/unlock/tick")) {
+    await dropDeviceUnlock(kv, deviceId);
+    return json({ ok: false, message: COPY.rest }, 503, cookie);
+  }
+
   const unlock = await readUnlock(env, kv, deviceId, email, billing, request, now);
 
   if (path === "/api/unlock/referral") {

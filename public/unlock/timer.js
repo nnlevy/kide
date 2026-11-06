@@ -221,6 +221,39 @@
     document.body.appendChild(note);
   }
 
+  var resting = false;
+
+  function hideRest() {
+    var node = document.getElementById("kide-grownup-rest");
+    if (node) node.remove();
+    resting = false;
+  }
+
+  function showRest() {
+    if (shown || resting) return;
+    resting = true;
+    if (!document.getElementById("kide-grownup-rest-style")) {
+      var style = document.createElement("style");
+      style.id = "kide-grownup-rest-style";
+      style.textContent = "#kide-grownup-rest{position:fixed;inset:0;z-index:80;background:rgba(255,248,240,.96);display:flex;align-items:flex-end;justify-content:center;padding:16px 16px calc(16px + env(safe-area-inset-bottom));font-family:-apple-system,BlinkMacSystemFont,'SF Pro Rounded','Segoe UI',Roboto,sans-serif;}#kide-grownup-rest .kg-card{width:min(420px,100%);background:#fff;color:#2E3A3F;border-radius:24px;padding:22px 18px;box-shadow:0 10px 0 rgba(0,0,0,.08);}#kide-grownup-rest h2{margin:0 0 8px;font-size:22px;line-height:1.2;}#kide-grownup-rest p{margin:0;font-size:16px;line-height:1.4;}";
+      document.head.appendChild(style);
+    }
+    var root = document.createElement("div");
+    root.id = "kide-grownup-rest";
+    root.setAttribute("role", "status");
+    var card = document.createElement("div");
+    card.className = "kg-card";
+    var title = document.createElement("h2");
+    title.id = "kide-grownup-rest-title";
+    title.textContent = "Pip is taking a short rest";
+    var line = document.createElement("p");
+    line.textContent = "Try again in a moment.";
+    card.appendChild(title);
+    card.appendChild(line);
+    root.appendChild(card);
+    document.body.appendChild(root);
+  }
+
   function apply(data) {
     if (!data || data.ok !== true || data.unlocked === true) return;
     if (data.gated !== true) return;
@@ -231,6 +264,20 @@
       return;
     }
     show(Number(data.countdownSeconds));
+  }
+
+  function applyPack(pack) {
+    if (!pack) return;
+    if (pack.status === 503) {
+      showRest();
+      return;
+    }
+    if (pack.data && pack.data.ok === true && pack.data.unlocked === true) {
+      hideRest();
+      return;
+    }
+    hideRest();
+    apply(pack.data);
   }
 
   document.addEventListener("kide:session", function (e) {
@@ -253,18 +300,24 @@
       cache: "no-store",
       headers: body ? { "Content-Type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
-    }).then(function (res) { return res.json(); }).catch(function () { return null; });
+    }).then(function (res) {
+      return res.json().then(function (data) {
+        return { status: res.status, data: data };
+      }, function () {
+        return { status: res.status, data: null };
+      });
+    }).catch(function () { return null; });
   }
 
   function beat() {
     if (document.hidden || shown) return;
-    post("/api/unlock/tick", {}).then(apply);
+    post("/api/unlock/tick", {}).then(applyPack);
   }
 
   function start() {
     showCancelNote();
-    post("/api/unlock/status").then(function (data) {
-      apply(data);
+    post("/api/unlock/status").then(function (pack) {
+      applyPack(pack);
       if (!shown) poll = setInterval(beat, 15000);
     });
     document.addEventListener("visibilitychange", function () {

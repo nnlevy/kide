@@ -125,7 +125,7 @@ await t('a browser the hub does not know has no parent and is locked', async () 
   const thrown = await currentParent(req('/api/account/session', { cookie: COOKIE }), {
     PORTFOLIO_MESSAGING_SERVICE: hubSession(new Error('TWILIO_AUTH_TOKEN missing')),
   });
-  assert.deepEqual(thrown, { parentId: null, unlocked: false });
+  assert.deepEqual(thrown, { parentId: null, unlocked: false, outage: true });
 });
 
 await t('the same email is the same parent, and the address is not the id', async () => {
@@ -218,10 +218,11 @@ await t('an outage hides the parent id and leaves the unlock row', async () => {
   db.entitlements.push({ parent_id: parentId, kind: 'unlock', source_ref: 'cs_test_123', status: 'active' });
   const env = { DB: db, PORTFOLIO_MESSAGING_SERVICE: hubSession({ ok: false, error: 'storage_error', message: 'd1 down' }) };
   const view = await currentParent(req('/api/account/session', { cookie: COOKIE }), env);
-  assert.deepEqual(view, { parentId: null, unlocked: false });
+  assert.deepEqual(view, { parentId: null, unlocked: false, outage: true });
   assert.equal(db.entitlements[0].status, 'active');
   const res = await read(await handleParentSession(req('/api/account/session', { cookie: COOKIE }), env));
-  assert.deepEqual(Object.keys(res.data).sort(), ['parentId', 'unlocked']);
+  assert.equal(res.status, 503);
+  assert.deepEqual(res.data, { parentId: null, unlocked: false });
 });
 
 console.log('\nsession route');

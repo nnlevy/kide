@@ -9,7 +9,9 @@
 
 import { latencyOf, SKILLS } from "./track.js";
 import { validPlayerId } from "../compete/score.js";
-import { parentIdFrom } from "../compete/account.js";
+import { currentParent } from "../account/session.js";
+import { isParentId } from "../account/parent-id.js";
+import { COPY } from "../unlock/copy.js";
 
 const HOUR_CAP = 200;
 
@@ -89,13 +91,22 @@ function sessionEnv(dbOrEnv, db) {
 
 export async function handlePlayEvents(request, dbOrEnv, now = Date.now()) {
   const db = databaseOf(dbOrEnv);
+  let session = null;
+  try {
+    session = await currentParent(request, sessionEnv(dbOrEnv, db));
+  } catch {
+    session = { outage: true };
+  }
+  if (session && session.outage === true) {
+    return json({ ok: false, message: COPY.rest }, 503);
+  }
   if (!db) return json({ ok: true, stored: "device" }, 200);
   let text = "";
   try { text = await request.text(); } catch { return json({ ok: false, message: "Pip couldn't save that." }, 400); }
   if (text.length > 12000) return json({ ok: false, message: "Pip couldn't save that." }, 400);
   let body = {};
   try { body = text ? JSON.parse(text) : {}; } catch { return json({ ok: false, message: "Pip couldn't save that." }, 400); }
-  const accountId = await parentIdFrom(request, sessionEnv(dbOrEnv, db));
+  const accountId = isParentId(session && session.parentId) ? session.parentId : "";
   if (!accountId) return json({ ok: true, stored: "device" }, 200);
   if (!validPlayerId(body.playerId)) return json({ ok: false, message: "Pip couldn't save that." }, 400);
   const list = Array.isArray(body.events) ? body.events.slice(0, 40) : [];
