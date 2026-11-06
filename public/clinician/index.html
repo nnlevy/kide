@@ -71,6 +71,12 @@
   .appendix td:first-child{font-weight:700;width:38%}
   .status{font-size:12.5px;color:var(--ink-soft);margin:10px 0 0;min-height:1em}
   .status.err{color:var(--sunstone-ink)}
+  /* Same layout as mobile.css. That file is a second request; on a slow
+     phone it used to arrive after first paint and shift this record. */
+  p a, li a { display:inline-flex; align-items:center; min-height:44px; padding-inline:2px; }
+  table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table td, table th { overflow-wrap:anywhere; }
+  html, body { max-width:100%; overflow-x:hidden; }
   @media (max-width: 700px) {
     .row > a#btnBuy { flex: 1 1 auto; min-width: 44%; }
   }
@@ -85,7 +91,7 @@
 <body>
 <div class="sheet" id="sheet">
   <h1>Practice record</h1>
-  <p class="meta" id="meta">—</p>
+  <p class="meta" id="meta">Generated — · method kide-clinical-1.0.0 · 0 scored of 0 attempts</p>
 
   <section id="proHeader" class="hidden">
     <dl class="hdr">
@@ -97,10 +103,10 @@
   </section>
 
   <h2>Summary</h2>
-  <div class="narrative" id="narrative"></div>
+  <div class="narrative" id="narrative"><p>No practice has been recorded yet.</p></div>
 
   <h2>Adherence</h2>
-  <div class="kv" id="adherence"></div>
+  <div class="kv" id="adherence"><span>No practice recorded</span><span>—</span></div>
   <div class="note">
     <b>Why this section exists.</b> Home-programme adherence is normally invisible — a
     printable goes home and nobody can say whether it was used. These figures come from
@@ -113,9 +119,9 @@
       <th>Sound</th><th class="num">Attempts</th><th>Rate (90% credible interval; <a href="https://doi.org/10.1214/ss/1009213286">Brown, Cai, and DasGupta, 2001</a>. 90% is our method's mass, not theirs.)</th>
       <th class="num">Rate</th><th>Change</th>
     </tr></thead>
-    <tbody></tbody>
+    <tbody><tr><td colspan="5" style="color:var(--ink-faint)">No sounds practiced yet.</td></tr></tbody>
   </table>
-  <div class="note" id="method"></div>
+  <div class="note" id="method"><b>Method.</b> Rates are the proportion of attempts scored as clearly produced, from the audio — taps and attempts resolved on the encouragement cap are excluded (0 and 0 respectively here). Intervals are Jeffreys 90% credible intervals. <a href="https://doi.org/10.1214/ss/1009213286">Brown, Cai, and DasGupta (2001)</a> recommend equal-tailed Jeffreys intervals at small samples because Wald coverage is erratic near 0% and 100%. The 90% mass is this method's choice, not a figure from that paper (https://doi.org/10.1214/ss/1009213286). A change is reported when the earlier and later intervals do not overlap. <br><br><b>Kide is practice, not therapy. This report describes what was practiced and what happened. It does not diagnose, assess, or treat, and automated scoring of young children's speech is known to miss real errors more often than it false-flags correct speech. Interpretation requires a qualified clinician.</b></div>
 
   <section id="proAppendix" class="hidden">
     <h2>Method appendix</h2>

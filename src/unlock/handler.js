@@ -22,6 +22,7 @@ import { normalizeEmail } from "./email.js";
 import { advance, capSeconds, dayStamp, mergePeak, overLimit, playKey } from "./minutes.js";
 import { parentIdFor } from "../account/parent-id.js";
 import { setUnlock } from "../account/session.js";
+import { readUnlocked } from "../account/store.js";
 import { refFromRequest } from "../referral/ref.js";
 
 const DEVICE_RE = /^[A-Za-z0-9_-]{22,80}$/;
@@ -115,6 +116,25 @@ function grantConfig() {
   return { offeringId: OFFERING_ID, priceId: STRIPE_PRICE_ID, domain: DOMAIN };
 }
 
+// The parent table is the account flag setUnlock writes. When the hub does
+// not answer, a parent who already paid keeps play. A real "no" from purchase
+// history still clears the flag.
+async function storedUnlock(env, email) {
+  if (!env || !env.DB || !email) return false;
+  try {
+    const parentId = await parentIdFor("email", email);
+    return await readUnlocked(env.DB, parentId);
+  } catch {
+    return false;
+  }
+}
+
+async function keptUnlock(env, cached, deviceEmail, email) {
+  if (cached && cached.unlocked === true) return true;
+  if (deviceEmail) return true;
+  return storedUnlock(env, email);
+}
+
 const FRESH_MS = 60000;
 
 async function recordFamilyUnlock(env, email, active) {
@@ -142,15 +162,16 @@ async function readUnlock(env, kv, deviceId, email, billing, now) {
   const fresh = cached && cached.unlocked === true && typeof cached.at === "number" && (now - cached.at) < FRESH_MS;
   if (fresh) return { unlocked: true, email: who };
 
-  if (!billing || typeof billing.getCredits !== "function") {
-    return { unlocked: !!(cached && cached.unlocked) || !!deviceEmail, email: who };
-  }
+  const keep = async () => ({
+    unlocked: await keptUnlock(env, cached, deviceEmail, who),
+    email: who,
+  });
+
+  if (!billing || typeof billing.getCredits !== "function") return keep();
   try {
     const credits = await billing.getCredits(who);
     const verdict = purchaseGrantsUnlock(credits, grantConfig());
-    if (!verdict.known) {
-      return { unlocked: !!(cached && cached.unlocked) || !!deviceEmail, email: who };
-    }
+    if (!verdict.known) return keep();
     if (verdict.unlocked) {
       await rememberUnlock(env, kv, deviceId, who, now);
       return { unlocked: true, email: who };
@@ -158,7 +179,7 @@ async function readUnlock(env, kv, deviceId, email, billing, now) {
     await forgetUnlock(env, kv, deviceId, who);
     return { unlocked: false, email: who };
   } catch {
-    return { unlocked: !!(cached && cached.unlocked) || !!deviceEmail, email: who };
+    return keep();
   }
 }
 
@@ -250,22 +271,16 @@ export async function handleUnlock(request, env, opts = {}) {
     if (body.error) return json({ ok: false, message: COPY.needEmail }, 400, cookie);
     const payEmail = normalizeEmail(body.email);
     if (!payEmail) return json({ ok: false, message: COPY.needEmail }, 400, cookie);
-    if (!billing || typeof billing.getCredits !== "function") {
+    const fallback = async () => {
       const cached = await kvGet(kv, unlockKey(payEmail));
-      return json({
-        ok: true,
-        unlocked: !!(cached && cached.unlocked),
-        pending: !(cached && cached.unlocked),
-      }, 200, cookie);
-    }
+      const unlocked = await keptUnlock(env, cached, false, payEmail);
+      return json({ ok: true, unlocked, pending: !unlocked }, 200, cookie);
+    };
+    if (!billing || typeof billing.getCredits !== "function") return fallback();
     try {
       const credits = await billing.getCredits(payEmail);
       const verdict = purchaseGrantsUnlock(credits, grantConfig());
-      if (!verdict.known) {
-        const cached = await kvGet(kv, unlockKey(payEmail));
-        const unlocked = !!(cached && cached.unlocked);
-        return json({ ok: true, unlocked, pending: !unlocked }, 200, cookie);
-      }
+      if (!verdict.known) return fallback();
       if (verdict.unlocked) {
         await rememberUnlock(env, kv, deviceId, payEmail, now);
         return json({ ok: true, unlocked: true, pending: false }, 200, cookie);
@@ -273,9 +288,7 @@ export async function handleUnlock(request, env, opts = {}) {
       await forgetUnlock(env, kv, deviceId, payEmail);
       return json({ ok: true, unlocked: false, pending: true }, 200, cookie);
     } catch {
-      const cached = await kvGet(kv, unlockKey(payEmail));
-      const unlocked = !!(cached && cached.unlocked);
-      return json({ ok: true, unlocked, pending: !unlocked }, 200, cookie);
+      return fallback();
     }
   }
 

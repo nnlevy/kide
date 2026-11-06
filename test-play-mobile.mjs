@@ -107,6 +107,152 @@ async function loadPlay(browser, label, contextOptions, opts = {}) {
   await context.close().catch(() => {});
 }
 
+const GATED = { ok: true, unlocked: false, gated: true, countdownSeconds: 10, playedSeconds: 300 };
+const OPEN = { ok: true, unlocked: true, gated: true, countdownSeconds: 10, playedSeconds: 300 };
+const NO_CHARGE = "No charge was made. Family play is here whenever you're ready.";
+
+function jsonRoute(body) {
+  return (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify(body),
+  });
+}
+
+async function tapsAndOverflow(page) {
+  return page.evaluate(() => {
+    const de = document.documentElement;
+    const small = [...document.querySelectorAll('#kide-grownup button, #kide-no-charge button')].filter((el) => {
+      const b = el.getBoundingClientRect();
+      if (b.width === 0 || b.height === 0) return false;
+      return b.width < 44 || b.height < 44;
+    }).map((el) => (el.id || el.textContent || '').trim().slice(0, 40)
+      + ' ' + Math.round(el.getBoundingClientRect().width) + 'x' + Math.round(el.getBoundingClientRect().height));
+    return { overflow: de.scrollWidth - de.clientWidth, small };
+  });
+}
+
+/**
+ * Unpaid: free time is already used during a playtime, Pip's goodnight comes
+ * first, then the grown-up ask. Paid: the account flag or a purchase status
+ * never shows that ask. Cancelled checkout leaves the no-charge note on /play.
+ */
+async function familyUnlockJourneys(browser) {
+  const profiles = [
+    ['320px', {
+      viewport: { width: 320, height: 568 },
+      isMobile: true,
+      hasTouch: true,
+      deviceScaleFactor: 2,
+    }],
+    ['Pixel 7', devices['Pixel 7']],
+  ];
+
+  for (const [label, options] of profiles) {
+    const context = await browser.newContext(options);
+    await context.addInitScript(() => { window.__kideSession = true; });
+    const page = await context.newPage();
+    let crashed = false;
+    page.on('crash', () => { crashed = true; });
+    await page.route('**/api/unlock/**', jsonRoute(GATED));
+    await page.route('**/api/account/session', jsonRoute({ parentId: null, unlocked: false }));
+    try {
+      const statusHit = page.waitForResponse((r) => r.url().includes('/api/unlock/status'), { timeout: 8000 });
+      await page.goto(`${BASE}/play/`, { waitUntil: 'domcontentloaded', timeout: 12000 });
+      await statusHit;
+      await page.waitForTimeout(300);
+      await page.evaluate(() => {
+        document.dispatchEvent(new CustomEvent('kide:session', { detail: { on: false, why: 'goodbye' } }));
+      });
+      await page.waitForSelector('#kide-grownup-title', { timeout: 9000 });
+      const title = await page.locator('#kide-grownup-title').innerText();
+      const go = await page.locator('#kide-grownup-go').innerText();
+      if (!/That was today's free play/.test(title)) fail(`${label} unpaid title was ${JSON.stringify(title)}`);
+      else if (go.trim() !== 'For grown-ups') fail(`${label} unpaid button was ${JSON.stringify(go)}`);
+      else {
+        const fit = await tapsAndOverflow(page);
+        if (fit.overflow > 1) fail(`${label} unpaid overflow ${fit.overflow}px`);
+        else if (fit.small.length) fail(`${label} unpaid taps ${fit.small.join(' | ')}`);
+        else ok(`${label} unpaid: goodnight then grown-up ask`);
+      }
+      if (!crashed && /That was today's free play/.test(title)) {
+        await page.click('#kide-grownup-go');
+        await page.waitForSelector('h1', { timeout: 8000 });
+        const h1 = await page.locator('h1').first().innerText();
+        if (/grown-up check/i.test(h1)) ok(`${label} unpaid: ask opens /unlock/`);
+        else fail(`${label} unpaid landed on ${JSON.stringify(h1)}`);
+      }
+    } catch (e) {
+      if (crashed) fail(`${label} unpaid: page crashed`);
+      else fail(`${label} unpaid: ${String(e && e.message || e).split('\n')[0]}`);
+    }
+    await context.close().catch(() => {});
+  }
+
+  const paid = await browser.newContext({
+    viewport: { width: 320, height: 568 },
+    isMobile: true,
+    hasTouch: true,
+    deviceScaleFactor: 2,
+  });
+  const paidPage = await paid.newPage();
+  await paidPage.route('**/api/unlock/**', jsonRoute(OPEN));
+  await paidPage.route('**/api/account/session', jsonRoute({ parentId: 'p_' + 'a'.repeat(32), unlocked: true }));
+  try {
+    await paidPage.goto(`${BASE}/play/?checkout=cancel`, { waitUntil: 'domcontentloaded', timeout: 12000 });
+    await paidPage.waitForSelector('#kide-no-charge', { timeout: 8000 });
+    const note = await paidPage.locator('#kide-no-charge p').innerText();
+    if (note !== NO_CHARGE) fail(`cancel note was ${JSON.stringify(note)}`);
+    else ok('cancel returns to play with the no-charge note');
+    await paidPage.waitForTimeout(1200);
+    await paidPage.evaluate(() => {
+      document.dispatchEvent(new CustomEvent('kide:session', { detail: { on: true } }));
+      document.dispatchEvent(new CustomEvent('kide:session', { detail: { on: false, why: 'goodbye' } }));
+    });
+    await paidPage.waitForTimeout(7000);
+    const gate = await paidPage.locator('#kide-grownup').count();
+    const fit = await tapsAndOverflow(paidPage);
+    const search = await paidPage.evaluate(() => location.search);
+    if (gate !== 0) fail('paid account showed the free-play gate');
+    else if (fit.overflow > 1) fail(`cancel note overflow ${fit.overflow}px`);
+    else if (fit.small.length) fail(`cancel note taps ${fit.small.join(' | ')}`);
+    else if (search.includes('checkout=')) fail(`cancel query stuck in the address: ${search}`);
+    else ok('paid account never sees the free-play gate');
+    await paidPage.click('#kide-no-charge-ok');
+    if (await paidPage.locator('#kide-no-charge').count() !== 0) fail('cancel note stayed after Keep playing');
+    else ok('cancel note dismisses');
+  } catch (e) {
+    fail(`paid/cancel: ${String(e && e.message || e).split('\n')[0]}`);
+  }
+  await paid.close().catch(() => {});
+
+  const account = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+    deviceScaleFactor: 2,
+  });
+  const accountPage = await account.newPage();
+  await accountPage.route('**/api/unlock/**', (route) => route.abort());
+  await accountPage.route('**/api/account/session', jsonRoute({ parentId: 'p_' + 'b'.repeat(32), unlocked: true }));
+  try {
+    await accountPage.goto(`${BASE}/play/`, { waitUntil: 'domcontentloaded', timeout: 12000 });
+    await accountPage.waitForResponse((r) => r.url().includes('/api/account/session'), { timeout: 8000 });
+    await accountPage.waitForTimeout(400);
+    await accountPage.evaluate(() => {
+      window.__kideSession = true;
+      document.dispatchEvent(new CustomEvent('kide:session', { detail: { on: false, why: 'goodbye' } }));
+    });
+    await accountPage.waitForTimeout(7000);
+    const gate = await accountPage.locator('#kide-grownup').count();
+    if (gate !== 0) fail('paid account saw the gate while purchase history was down');
+    else ok('paid account skips the gate when purchase history does not answer');
+  } catch (e) {
+    fail(`account fallback: ${String(e && e.message || e).split('\n')[0]}`);
+  }
+  await account.close().catch(() => {});
+}
+
 const browser = await chromiumMod.launch({
   headless: true,
   args: ['--no-sandbox', '--disable-dev-shm-usage'],
@@ -238,6 +384,9 @@ try {
   else fail(`account signed-in overflow ${signed}px`);
 
   await narrow.close();
+
+  console.log('\nfamily unlock: paid skips the gate, unpaid goodnight still asks');
+  await familyUnlockJourneys(browser);
 } finally {
   await browser.close().catch(() => {});
   srv.kill();
