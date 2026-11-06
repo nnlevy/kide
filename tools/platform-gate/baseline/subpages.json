@@ -1,0 +1,2632 @@
+{
+ "version": 1,
+ "rule": "shrink-only: no site/page/check may be added, no count raised, no remove_by moved later",
+ "sites": {
+  "estimatemarketshare.com": {
+   "remove_by": "2026-10-29",
+   "profiles": "android-320",
+   "total": 4070,
+   "pages": {
+    "/how-market-share-estimation-works": {
+     "claims:new-uncited": 67,
+     "mobile:taps<44": 38,
+     "mobile:text<12px": 26
+    },
+    "/portfolio": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 63,
+     "mobile:text<12px": 273
+    },
+    "/portfolio/affordablehome": {
+     "claims:new-uncited": 73,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 59
+    },
+    "/portfolio/cascadeave": {
+     "claims:new-uncited": 73,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 57
+    },
+    "/portfolio/chatulah": {
+     "claims:new-uncited": 73,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 58
+    },
+    "/portfolio/checkinforwork": {
+     "claims:new-uncited": 72,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 59
+    },
+    "/portfolio/communityinternet": {
+     "claims:new-uncited": 75,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 59
+    },
+    "/portfolio/crmforlaw": {
+     "claims:new-uncited": 72,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 59
+    },
+    "/portfolio/datadaylabor": {
+     "claims:new-uncited": 73,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 59
+    },
+    "/portfolio/doting": {
+     "claims:new-uncited": 74,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 59
+    },
+    "/portfolio/escapeheat": {
+     "claims:new-uncited": 75,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 59
+    },
+    "/portfolio/firmwebsite": {
+     "claims:new-uncited": 74,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 59
+    },
+    "/portfolio/fleetrepair": {
+     "claims:new-uncited": 75,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 59
+    },
+    "/portfolio/grow-tax": {
+     "claims:new-uncited": 74,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 59
+    },
+    "/portfolio/growth-business": {
+     "claims:new-uncited": 75,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 59
+    },
+    "/portfolio/healthwellnessjobs": {
+     "claims:new-uncited": 74,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 59
+    },
+    "/portfolio/industrialrefurbisher": {
+     "claims:new-uncited": 73,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 58
+    },
+    "/portfolio/roofleakatlanta": {
+     "claims:new-uncited": 73,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 59
+    },
+    "/portfolio/saasonsale": {
+     "claims:new-uncited": 74,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 59
+    },
+    "/portfolio/searchfirm": {
+     "claims:new-uncited": 73,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 59
+    },
+    "/portfolio/softwarefinancing": {
+     "claims:new-uncited": 74,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 59
+    },
+    "/portfolio/staffing.how": {
+     "mobile:taps<44": 7,
+     "mobile:text<12px": 1
+    },
+    "/portfolio/startbusiness": {
+     "claims:new-uncited": 73,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 59
+    },
+    "/portfolio/supportchatsoftware": {
+     "claims:new-uncited": 74,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 59
+    },
+    "/portfolio/trycrm": {
+     "claims:new-uncited": 73,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 59
+    },
+    "/portfolio/valuestockscreen": {
+     "claims:new-uncited": 70,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 59
+    },
+    "/portfolio/visualtos": {
+     "claims:new-uncited": 73,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 57
+    },
+    "/portfolio/watershortcut": {
+     "claims:new-uncited": 74,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 59
+    },
+    "/tools/competitive-gap-analyzer": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 6,
+     "mobile:text<12px": 6
+    }
+   }
+  },
+  "earn.wiki": {
+   "remove_by": "2026-10-30",
+   "profiles": "android-320",
+   "total": 2146,
+   "pages": {
+    "/about": {
+     "claims:new-uncited": 5
+    },
+    "/kb": {
+     "claims:new-uncited": 2
+    },
+    "/tools/scam-check": {
+     "mobile:taps<44": 4
+    },
+    "/wiki": {
+     "mobile:text<12px": 35
+    },
+    "/wiki/content": {
+     "mobile:taps<44": 4,
+     "mobile:text<12px": 150
+    },
+    "/wiki/free": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 4,
+     "mobile:text<12px": 150
+    },
+    "/wiki/gig": {
+     "mobile:taps<44": 4,
+     "mobile:text<12px": 150
+    },
+    "/wiki/local": {
+     "mobile:taps<44": 4,
+     "mobile:text<12px": 150
+    },
+    "/wiki/micro": {
+     "mobile:taps<44": 4,
+     "mobile:text<12px": 150
+    },
+    "/wiki/o/alto-employee-driver": {
+     "claims:new-uncited": 3,
+     "mobile:text<12px": 36
+    },
+    "/wiki/o/amazon-flex-delivery-partner": {
+     "claims:new-uncited": 5,
+     "mobile:text<12px": 36
+    },
+    "/wiki/o/blacklane-chauffeur-company-partner": {
+     "claims:new-uncited": 3,
+     "mobile:text<12px": 36
+    },
+    "/wiki/o/doordash-dasher": {
+     "claims:new-uncited": 4,
+     "mobile:text<12px": 36
+    },
+    "/wiki/o/fake-delivery-app-activation-offer": {
+     "claims:new-uncited": 3,
+     "mobile:text<12px": 36
+    },
+    "/wiki/o/fake-mystery-shopper-check-scam": {
+     "claims:new-uncited": 3,
+     "mobile:text<12px": 36
+    },
+    "/wiki/o/fake-rideshare-driver-activation-fee": {
+     "claims:new-uncited": 3,
+     "mobile:text<12px": 36
+    },
+    "/wiki/o/field-agent-retail-audits": {
+     "claims:new-uncited": 3,
+     "mobile:text<12px": 36
+    },
+    "/wiki/o/hopskipdrive-caredriver": {
+     "claims:new-uncited": 4,
+     "mobile:text<12px": 36
+    },
+    "/wiki/o/instacart-full-service-shopper": {
+     "claims:new-uncited": 3,
+     "mobile:text<12px": 36
+    },
+    "/wiki/o/local-restaurant-delivery-employee": {
+     "claims:new-uncited": 3,
+     "mobile:text<12px": 36
+    },
+    "/wiki/o/lyft-rideshare-driver": {
+     "claims:new-uncited": 3,
+     "mobile:text<12px": 36
+    },
+    "/wiki/o/package-reshipping-agent-scam": {
+     "claims:new-uncited": 3,
+     "mobile:text<12px": 36
+    },
+    "/wiki/o/rideshare-driver-account-rental": {
+     "claims:new-uncited": 3,
+     "mobile:text<12px": 36
+    },
+    "/wiki/o/rideshare-vehicle-rental-program": {
+     "claims:new-uncited": 3,
+     "mobile:text<12px": 36
+    },
+    "/wiki/o/roadie-driver": {
+     "claims:new-uncited": 3,
+     "mobile:text<12px": 36
+    },
+    "/wiki/o/shipt-shopper": {
+     "claims:new-uncited": 4,
+     "mobile:text<12px": 36
+    },
+    "/wiki/o/spark-driver": {
+     "claims:new-uncited": 4,
+     "mobile:text<12px": 36
+    },
+    "/wiki/o/traditional-taxi-driver": {
+     "claims:new-uncited": 3,
+     "mobile:text<12px": 36
+    },
+    "/wiki/o/uber-eats-delivery": {
+     "claims:new-uncited": 3,
+     "mobile:text<12px": 36
+    },
+    "/wiki/o/uber-rideshare-driver": {
+     "claims:new-uncited": 3,
+     "mobile:text<12px": 36
+    },
+    "/wiki/o/wingz-airport-nemt-driver": {
+     "claims:new-uncited": 3,
+     "mobile:text<12px": 36
+    },
+    "/wiki/passive": {
+     "mobile:taps<44": 4,
+     "mobile:text<12px": 150
+    },
+    "/wiki/remote": {
+     "claims:new-uncited": 3,
+     "mobile:taps<44": 4,
+     "mobile:text<12px": 150
+    },
+    "/wiki/sell": {
+     "mobile:taps<44": 4,
+     "mobile:text<12px": 150
+    }
+   }
+  },
+  "growth.business": {
+   "remove_by": "2026-10-31",
+   "profiles": "android-320",
+   "total": 1182,
+   "pages": {
+    "/about": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 28,
+     "mobile:text<12px": 1
+    },
+    "/contact": {
+     "mobile:taps<44": 5
+    },
+    "/earn": {
+     "mobile:overflow": 1,
+     "mobile:taps<44": 28,
+     "mobile:text<12px": 1
+    },
+    "/get-started": {
+     "mobile:taps<44": 2
+    },
+    "/grow": {
+     "mobile:taps<44": 3
+    },
+    "/guides": {
+     "mobile:overflow": 1,
+     "mobile:taps<44": 28,
+     "mobile:text<12px": 8
+    },
+    "/guides/ai-adoption-playbook-smb": {
+     "mobile:taps<44": 28,
+     "mobile:text<12px": 2
+    },
+    "/guides/business-growth-tools": {
+     "mobile:taps<44": 29,
+     "mobile:text<12px": 1
+    },
+    "/guides/cash-flow-forecasting-basics": {
+     "mobile:taps<44": 33,
+     "mobile:text<12px": 2
+    },
+    "/guides/group-purchasing-organizations-guide": {
+     "mobile:taps<44": 28,
+     "mobile:text<12px": 1
+    },
+    "/guides/hiring-your-first-employees": {
+     "mobile:taps<44": 33,
+     "mobile:text<12px": 2
+    },
+    "/guides/lead-response-time-benchmarks": {
+     "mobile:taps<44": 33,
+     "mobile:text<12px": 2
+    },
+    "/guides/raising-prices-without-losing-customers": {
+     "mobile:taps<44": 29,
+     "mobile:text<12px": 1
+    },
+    "/legal/privacy": {
+     "mobile:taps<44": 28,
+     "mobile:text<12px": 1
+    },
+    "/legal/terms": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 28,
+     "mobile:text<12px": 1
+    },
+    "/pricing": {
+     "mobile:overflow": 1,
+     "mobile:taps<44": 28,
+     "mobile:text<12px": 1
+    },
+    "/tools/business-growth-tools": {
+     "mobile:taps<44": 29,
+     "mobile:text<12px": 1
+    },
+    "/tools/growth-calculator": {
+     "claims:new-uncited": 11,
+     "mobile:taps<44": 29,
+     "mobile:text<12px": 1
+    },
+    "/units": {
+     "claims:new-uncited": 3,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 28,
+     "mobile:text<12px": 37
+    },
+    "/units/atlanta-one": {
+     "mobile:taps<44": 32,
+     "mobile:text<12px": 1
+    },
+    "/units/buy-patio-heater": {
+     "mobile:taps<44": 32,
+     "mobile:text<12px": 1
+    },
+    "/units/cascade-ave": {
+     "mobile:taps<44": 32,
+     "mobile:text<12px": 1
+    },
+    "/units/checkin-for-work": {
+     "mobile:taps<44": 30,
+     "mobile:text<12px": 1
+    },
+    "/units/crm-for-law": {
+     "mobile:taps<44": 30,
+     "mobile:text<12px": 1
+    },
+    "/units/data-day-labor": {
+     "mobile:taps<44": 32,
+     "mobile:text<12px": 1
+    },
+    "/units/dead-tree-atlanta": {
+     "mobile:taps<44": 32,
+     "mobile:text<12px": 1
+    },
+    "/units/doting": {
+     "mobile:taps<44": 30,
+     "mobile:text<12px": 1
+    },
+    "/units/escape-heat": {
+     "mobile:taps<44": 32,
+     "mobile:text<12px": 1
+    },
+    "/units/fix-ac": {
+     "mobile:taps<44": 32,
+     "mobile:text<12px": 1
+    },
+    "/units/grow-tax": {
+     "claims:new-uncited": 7,
+     "mobile:taps<44": 31,
+     "mobile:text<12px": 1
+    },
+    "/units/health-wellness-jobs": {
+     "mobile:taps<44": 31,
+     "mobile:text<12px": 1
+    },
+    "/units/roof-leak-atlanta": {
+     "mobile:taps<44": 32,
+     "mobile:text<12px": 1
+    },
+    "/units/staffing-how": {
+     "mobile:taps<44": 31,
+     "mobile:text<12px": 1
+    },
+    "/units/support-chat-software": {
+     "mobile:taps<44": 30,
+     "mobile:text<12px": 1
+    },
+    "/units/top-tier-talent": {
+     "mobile:taps<44": 31,
+     "mobile:text<12px": 1
+    },
+    "/units/top-tier-technical": {
+     "mobile:taps<44": 31,
+     "mobile:text<12px": 1
+    },
+    "/units/try-crm": {
+     "mobile:taps<44": 32,
+     "mobile:text<12px": 1
+    },
+    "/units/water-shortcut": {
+     "mobile:taps<44": 32,
+     "mobile:text<12px": 1
+    }
+   }
+  },
+  "fleetrepair.us": {
+   "remove_by": "2026-11-01",
+   "profiles": "android-320",
+   "total": 610,
+   "pages": {
+    "/about": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 13
+    },
+    "/app": {
+     "claims:new-uncited": 45,
+     "mobile:axe-critical": 1,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 9,
+     "mobile:text<12px": 13
+    },
+    "/contact": {
+     "mobile:taps<44": 12
+    },
+    "/diagnose-symptom": {
+     "mobile:taps<44": 13
+    },
+    "/guides": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 12
+    },
+    "/guides/air-brake-leak-test-limits": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 13
+    },
+    "/guides/air-pressure-builds-slowly": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 13
+    },
+    "/guides/brake-pushrod-stroke-limits": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 13
+    },
+    "/guides/brake-system-repair-costs": {
+     "claims:new-uncited": 48,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 13
+    },
+    "/guides/check-engine-light-flashing": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 13
+    },
+    "/guides/def-warning-derate-countdown": {
+     "claims:new-uncited": 9,
+     "mobile:taps<44": 13
+    },
+    "/guides/diesel-gelled-wont-start": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 13
+    },
+    "/guides/dot-annual-inspection-fail-items": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 13
+    },
+    "/guides/dot-tire-tread-depth-limits": {
+     "mobile:taps<44": 14
+    },
+    "/guides/dpf-regeneration-problems": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 13
+    },
+    "/guides/grinding-noise-when-braking": {
+     "claims:new-uncited": 40,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 13
+    },
+    "/guides/holidays-on-the-road-trucker-family": {
+     "mobile:taps<44": 13
+    },
+    "/guides/long-haul-trucker-relationship-tips": {
+     "mobile:taps<44": 13
+    },
+    "/guides/messages-for-trucker-husband-or-wife": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 13
+    },
+    "/guides/minimum-brake-lining-thickness": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 14
+    },
+    "/guides/reefer-unit-not-cooling": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 13
+    },
+    "/guides/steering-wheel-play-limits": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 13
+    },
+    "/guides/trailer-abs-light-stays-on": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 13
+    },
+    "/guides/truck-battery-keeps-dying": {
+     "claims:new-uncited": 7,
+     "mobile:taps<44": 13
+    },
+    "/guides/truck-maintenance-cost-per-mile": {
+     "claims:new-uncited": 14,
+     "mobile:taps<44": 13
+    },
+    "/guides/truckers-staying-close-to-kids": {
+     "mobile:taps<44": 13
+    },
+    "/guides/wheel-seal-leaking": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 13
+    },
+    "/learn": {
+     "claims:new-uncited": 8
+    },
+    "/love-from-the-road": {
+     "claims:new-uncited": 3,
+     "mobile:taps<44": 12
+    },
+    "/privacy": {
+     "mobile:taps<44": 13
+    },
+    "/terms": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 12
+    },
+    "/tools/downtime-calculator": {
+     "claims:new-uncited": 14,
+     "mobile:load-failed": 1
+    }
+   }
+  },
+  "atlanta.one": {
+   "remove_by": "2026-11-02",
+   "profiles": "android-320",
+   "total": 484,
+   "pages": {
+    "/ask": {
+     "mobile:journey": 1,
+     "mobile:taps<44": 3,
+     "mobile:text<12px": 5
+    },
+    "/c/buckhead": {
+     "mobile:journey": 1,
+     "mobile:taps<44": 19,
+     "mobile:text<12px": 5
+    },
+    "/c/decatur": {
+     "mobile:journey": 1,
+     "mobile:taps<44": 19,
+     "mobile:text<12px": 5
+    },
+    "/c/downtown": {
+     "mobile:journey": 1,
+     "mobile:taps<44": 19,
+     "mobile:text<12px": 5
+    },
+    "/c/east-atlanta": {
+     "mobile:cls": 1,
+     "mobile:journey": 1,
+     "mobile:taps<44": 19,
+     "mobile:text<12px": 5
+    },
+    "/c/inman-park": {
+     "mobile:journey": 1,
+     "mobile:taps<44": 19,
+     "mobile:text<12px": 5
+    },
+    "/c/midtown": {
+     "mobile:journey": 1,
+     "mobile:taps<44": 19,
+     "mobile:text<12px": 5
+    },
+    "/c/old-fourth-ward": {
+     "mobile:journey": 1,
+     "mobile:taps<44": 19,
+     "mobile:text<12px": 5
+    },
+    "/c/poncey-highland": {
+     "mobile:journey": 1,
+     "mobile:taps<44": 19,
+     "mobile:text<12px": 5
+    },
+    "/c/pulse": {
+     "claims:new-uncited": 1,
+     "mobile:journey": 1,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 140,
+     "mobile:text<12px": 13
+    },
+    "/c/virginia-highland": {
+     "mobile:cls": 1,
+     "mobile:journey": 1,
+     "mobile:taps<44": 19,
+     "mobile:text<12px": 5
+    },
+    "/c/west-end": {
+     "mobile:journey": 1,
+     "mobile:taps<44": 19,
+     "mobile:text<12px": 5
+    },
+    "/compose": {
+     "mobile:axe-critical": 1,
+     "mobile:journey": 1,
+     "mobile:taps<44": 8,
+     "mobile:text<12px": 5
+    },
+    "/daily": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 2,
+     "mobile:text<12px": 5
+    },
+    "/neighborhoods": {
+     "mobile:journey": 1,
+     "mobile:taps<44": 16,
+     "mobile:text<12px": 5
+    },
+    "/you": {
+     "mobile:axe-critical": 1,
+     "mobile:journey": 1,
+     "mobile:taps<44": 15,
+     "mobile:text<12px": 5
+    }
+   }
+  },
+  "fixac.co": {
+   "remove_by": "2026-11-04",
+   "profiles": "android-320",
+   "total": 482,
+   "pages": {
+    "/about": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 6
+    },
+    "/ac-repair-cost": {
+     "claims:new-uncited": 4,
+     "mobile:taps<44": 10
+    },
+    "/contact": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 6
+    },
+    "/credits": {
+     "mobile:taps<44": 6
+    },
+    "/guides": {
+     "claims:new-uncited": 2,
+     "mobile:axe-critical": 2,
+     "mobile:taps<44": 23,
+     "mobile:text<12px": 9
+    },
+    "/guides/ac-filters": {
+     "mobile:taps<44": 7
+    },
+    "/guides/ac-not-cooling": {
+     "claims:new-uncited": 3,
+     "mobile:taps<44": 6
+    },
+    "/guides/ac-water-leak": {
+     "claims:new-uncited": 5,
+     "mobile:taps<44": 6
+    },
+    "/guides/frozen-ac-coil": {
+     "claims:new-uncited": 3,
+     "mobile:taps<44": 6
+    },
+    "/guides/landlord-ac-rights-letter": {
+     "mobile:taps<44": 6
+    },
+    "/guides/no-ac-heat-relief": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 6
+    },
+    "/guides/repair-or-replace-ac": {
+     "claims:new-uncited": 6,
+     "mobile:taps<44": 6
+    },
+    "/guides/why-one-room-is-colder": {
+     "claims:new-uncited": 32,
+     "mobile:taps<44": 6
+    },
+    "/privacy": {
+     "mobile:taps<44": 6
+    },
+    "/terms": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 6
+    },
+    "/what-it-costs": {
+     "claims:new-uncited": 61,
+     "mobile:taps<44": 15,
+     "mobile:text<12px": 5
+    },
+    "/what-it-costs/ac-capacitor": {
+     "claims:new-uncited": 10,
+     "mobile:taps<44": 7,
+     "mobile:text<12px": 2
+    },
+    "/what-it-costs/ac-contactor": {
+     "claims:new-uncited": 8,
+     "mobile:taps<44": 7,
+     "mobile:text<12px": 2
+    },
+    "/what-it-costs/blower-motor": {
+     "claims:new-uncited": 6,
+     "mobile:taps<44": 7,
+     "mobile:text<12px": 2
+    },
+    "/what-it-costs/clogged-condensate-drain": {
+     "claims:new-uncited": 6,
+     "mobile:taps<44": 7,
+     "mobile:text<12px": 2
+    },
+    "/what-it-costs/compressor": {
+     "claims:new-uncited": 5,
+     "mobile:taps<44": 7,
+     "mobile:text<12px": 2
+    },
+    "/what-it-costs/condenser-fan-motor": {
+     "claims:new-uncited": 5,
+     "mobile:taps<44": 7,
+     "mobile:text<12px": 2
+    },
+    "/what-it-costs/control-board": {
+     "claims:new-uncited": 5,
+     "mobile:taps<44": 7,
+     "mobile:text<12px": 2
+    },
+    "/what-it-costs/dirty-air-filter": {
+     "claims:new-uncited": 7,
+     "mobile:taps<44": 7,
+     "mobile:text<12px": 2
+    },
+    "/what-it-costs/dirty-condenser-coil": {
+     "claims:new-uncited": 5,
+     "mobile:taps<44": 7,
+     "mobile:text<12px": 2
+    },
+    "/what-it-costs/frozen-evaporator-coil": {
+     "claims:new-uncited": 5,
+     "mobile:taps<44": 7,
+     "mobile:text<12px": 2
+    },
+    "/what-it-costs/full-system-replacement": {
+     "claims:new-uncited": 9,
+     "mobile:taps<44": 7,
+     "mobile:text<12px": 2
+    },
+    "/what-it-costs/refrigerant-leak": {
+     "claims:new-uncited": 11,
+     "mobile:taps<44": 7,
+     "mobile:text<12px": 2
+    },
+    "/what-it-costs/thermostat": {
+     "claims:new-uncited": 5,
+     "mobile:taps<44": 7,
+     "mobile:text<12px": 2
+    },
+    "/what-it-costs/tripped-breaker": {
+     "claims:new-uncited": 5,
+     "mobile:taps<44": 7,
+     "mobile:text<12px": 2
+    }
+   }
+  },
+  "riskfreetrial.org": {
+   "remove_by": "2026-11-05",
+   "profiles": "android-320",
+   "total": 376,
+   "pages": {
+    "/ad-gate": {
+     "mobile:taps<44": 1,
+     "mobile:text<12px": 2
+    },
+    "/brand-kit": {
+     "mobile:overflow": 1,
+     "mobile:taps<44": 1,
+     "mobile:text<12px": 20
+    },
+    "/credits": {
+     "mobile:taps<44": 2
+    },
+    "/dashboard": {
+     "mobile:taps<44": 10,
+     "mobile:text<12px": 13
+    },
+    "/for-builders": {
+     "claims:new-uncited": 11,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 9,
+     "mobile:text<12px": 2
+    },
+    "/free-trial-refund-tool": {
+     "mobile:taps<44": 10
+    },
+    "/guide/never-surprise-charged": {
+     "claims:new-uncited": 29,
+     "mobile:taps<44": 14,
+     "mobile:text<12px": 13
+    },
+    "/guide/portfolio-credits-explained": {
+     "claims:new-uncited": 22,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 13,
+     "mobile:text<12px": 7
+    },
+    "/guide/read-ai-terms-before-you-pay": {
+     "claims:new-uncited": 13,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 9
+    },
+    "/guide/refund-with-feedback": {
+     "claims:new-uncited": 16,
+     "mobile:taps<44": 11,
+     "mobile:text<12px": 9
+    },
+    "/guide/risk-free-trials-for-ai-products": {
+     "claims:new-uncited": 6,
+     "mobile:overflow": 1
+    },
+    "/guide/risk-free-vs-free-tiers": {
+     "claims:new-uncited": 17,
+     "mobile:taps<44": 16,
+     "mobile:text<12px": 9
+    },
+    "/how-we-built": {
+     "claims:new-uncited": 1
+    },
+    "/integrate": {
+     "claims:new-uncited": 1,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 5,
+     "mobile:text<12px": 3
+    },
+    "/library": {
+     "claims:new-uncited": 3,
+     "mobile:taps<44": 9,
+     "mobile:text<12px": 17
+    },
+    "/merchant": {
+     "claims:new-uncited": 12,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 9,
+     "mobile:text<12px": 12
+    },
+    "/privacy": {
+     "mobile:overflow": 1
+    },
+    "/show-hn": {
+     "mobile:overflow": 1
+    }
+   }
+  },
+  "datadaylabor.com": {
+   "remove_by": "2026-11-06",
+   "profiles": "android-320",
+   "total": 313,
+   "pages": {
+    "/api-docs": {
+     "claims:new-uncited": 1,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 18
+    },
+    "/category": {
+     "mobile:taps<44": 18
+    },
+    "/earn": {
+     "claims:new-uncited": 8,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 18,
+     "mobile:text<12px": 1
+    },
+    "/hire": {
+     "claims:new-uncited": 6,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 18
+    },
+    "/how-we-built": {
+     "mobile:taps<44": 18
+    },
+    "/library": {
+     "mobile:taps<44": 25
+    },
+    "/marketplace": {
+     "mobile:overflow": 1,
+     "mobile:taps<44": 19,
+     "mobile:text<12px": 2
+    },
+    "/pilot": {
+     "mobile:taps<44": 20
+    },
+    "/pricing": {
+     "mobile:taps<44": 18
+    },
+    "/privacy": {
+     "mobile:taps<44": 18
+    },
+    "/rubric": {
+     "mobile:overflow": 1,
+     "mobile:taps<44": 19
+    },
+    "/services": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 18,
+     "mobile:text<12px": 4
+    },
+    "/terms": {
+     "claims:new-uncited": 3,
+     "mobile:taps<44": 18
+    },
+    "/trust": {
+     "mobile:taps<44": 18
+    },
+    "/workspace": {
+     "mobile:taps<44": 19
+    }
+   }
+  },
+  "doting.co": {
+   "remove_by": "2026-11-07",
+   "profiles": "android-320",
+   "total": 302,
+   "pages": {
+    "/about": {
+     "mobile:taps<44": 7
+    },
+    "/ai-transparency": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 7
+    },
+    "/billing": {
+     "mobile:taps<44": 7
+    },
+    "/contact": {
+     "mobile:taps<44": 7
+    },
+    "/editorial-standards": {
+     "mobile:taps<44": 7
+    },
+    "/from-the-road": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/knowledge-base": {
+     "mobile:taps<44": 36
+    },
+    "/knowledge-base/active-constructive-responding": {
+     "claims:new-uncited": 2,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 8
+    },
+    "/knowledge-base/adult-friendship-maintenance": {
+     "mobile:taps<44": 8
+    },
+    "/knowledge-base/ai-mood-coach-in-real-life": {
+     "mobile:taps<44": 8
+    },
+    "/knowledge-base/attachment-in-everyday-life": {
+     "mobile:taps<44": 8
+    },
+    "/knowledge-base/client-gratitude-notes": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 8
+    },
+    "/knowledge-base/conflict-escalation-patterns": {
+     "mobile:taps<44": 8
+    },
+    "/knowledge-base/consistency-over-intensity": {
+     "mobile:taps<44": 8
+    },
+    "/knowledge-base/daily-positivity-buffer": {
+     "mobile:taps<44": 8
+    },
+    "/knowledge-base/emotional-intelligence-skill": {
+     "mobile:taps<44": 8
+    },
+    "/knowledge-base/gratitude-that-lands": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 8
+    },
+    "/knowledge-base/how-lessons-work": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 8
+    },
+    "/knowledge-base/how-to-show-you-care": {
+     "claims:new-uncited": 3,
+     "mobile:taps<44": 8
+    },
+    "/knowledge-base/long-distance-predictability": {
+     "mobile:taps<44": 8
+    },
+    "/knowledge-base/micro-moments-of-love": {
+     "mobile:taps<44": 8
+    },
+    "/knowledge-base/repair-after-conflict": {
+     "mobile:taps<44": 8
+    },
+    "/knowledge-base/repair-after-small-drifts": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 8
+    },
+    "/knowledge-base/shared-rituals-create-stability": {
+     "mobile:taps<44": 8
+    },
+    "/knowledge-base/small-surprises": {
+     "mobile:taps<44": 8
+    },
+    "/knowledge-base/the-5-to-1-principle": {
+     "mobile:taps<44": 10
+    },
+    "/knowledge-base/thoughtful-gift-ideas": {
+     "mobile:taps<44": 8
+    },
+    "/knowledge-base/turning-toward": {
+     "claims:new-uncited": 4,
+     "mobile:taps<44": 8
+    },
+    "/knowledge-base/validation-first": {
+     "mobile:taps<44": 8
+    },
+    "/knowledge-base/voice-notes-that-connect": {
+     "mobile:taps<44": 8
+    },
+    "/pricing": {
+     "mobile:taps<44": 1
+    },
+    "/privacy": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 7
+    },
+    "/show-hn": {
+     "mobile:taps<44": 1
+    },
+    "/support-resources": {
+     "mobile:taps<44": 7
+    },
+    "/terms": {
+     "claims:new-uncited": 3,
+     "mobile:taps<44": 7
+    }
+   }
+  },
+  "firmwebsite.com": {
+   "remove_by": "2026-11-09",
+   "profiles": "android-320",
+   "total": 302,
+   "pages": {
+    "/about": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 13
+    },
+    "/brand": {
+     "mobile:taps<44": 14,
+     "mobile:text<12px": 8
+    },
+    "/brand-kit": {
+     "claims:new-uncited": 1,
+     "mobile:axe-critical": 1,
+     "mobile:overflow": 1,
+     "mobile:text<12px": 13
+    },
+    "/claim": {
+     "claims:new-uncited": 1,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 14
+    },
+    "/community": {
+     "claims:new-uncited": 2,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 27,
+     "mobile:text<12px": 5
+    },
+    "/credits": {
+     "mobile:taps<44": 13
+    },
+    "/economic-shifts-2026": {
+     "mobile:axe-critical": 1,
+     "mobile:taps<44": 15,
+     "mobile:text<12px": 3
+    },
+    "/examples": {
+     "mobile:overflow": 1,
+     "mobile:taps<44": 17,
+     "mobile:text<12px": 3
+    },
+    "/hunting-clubs-2026": {
+     "mobile:axe-critical": 1,
+     "mobile:taps<44": 15,
+     "mobile:text<12px": 3
+    },
+    "/launch-photo-to-site": {
+     "mobile:taps<44": 3,
+     "mobile:text<12px": 1
+    },
+    "/library": {
+     "mobile:overflow": 1,
+     "mobile:taps<44": 22,
+     "mobile:text<12px": 9
+    },
+    "/preview": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 14,
+     "mobile:text<12px": 1
+    },
+    "/pricing": {
+     "mobile:overflow": 1,
+     "mobile:taps<44": 13,
+     "mobile:text<12px": 1
+    },
+    "/privacy": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 13
+    },
+    "/site/old-south-duck-club": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 4,
+     "mobile:text<12px": 3
+    },
+    "/terms": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 13
+    },
+    "/world-cup-2026": {
+     "claims:new-uncited": 1,
+     "mobile:axe-critical": 2,
+     "mobile:taps<44": 15,
+     "mobile:text<12px": 3
+    }
+   }
+  },
+  "roofleakatlanta.com": {
+   "remove_by": "2026-11-10",
+   "profiles": "android-320",
+   "total": 270,
+   "pages": {
+    "/atlanta-roof-leak-emergency": {
+     "mobile:taps<44": 1
+    },
+    "/emergency-plan": {
+     "mobile:taps<44": 7
+    },
+    "/for-roofers": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 8,
+     "mobile:text<12px": 13
+    },
+    "/help": {
+     "mobile:taps<44": 5,
+     "mobile:text<12px": 16
+    },
+    "/neighborhood/acworth": {
+     "claims:new-uncited": 9,
+     "mobile:taps<44": 7
+    },
+    "/neighborhoods": {
+     "mobile:taps<44": 51
+    },
+    "/roof-leak-cost-atlanta": {
+     "mobile:taps<44": 1
+    },
+    "/roof-leak-insurance-claim-atlanta": {
+     "mobile:taps<44": 1
+    },
+    "/roofer/absolute-commercial-roofing": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 1
+    },
+    "/roofer/atlanta-metro-roofing": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/roofer/atlanta-roofing-specialists": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/roofer/bell-roofing": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/roofer/bumble-roofing-of-north-atlanta": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 1
+    },
+    "/roofer/castle-roofing-atlanta-ga": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/roofer/clark-sons-llc": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/roofer/colony-roofers": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 1
+    },
+    "/roofer/dr-roof-atlanta": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 1
+    },
+    "/roofer/elite-roofing-llc": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 1
+    },
+    "/roofer/emergency-roofing-solutions": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/roofer/findlay-roofing": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 1
+    },
+    "/roofer/fraser-roofing-llc": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 1
+    },
+    "/roofer/garcia-sons-roof-repair": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/roofer/georgia-roofing-repair": {
+     "claims:new-uncited": 3,
+     "mobile:taps<44": 1
+    },
+    "/roofer/georgia-roofing-repair-inc": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/roofer/mighty-dog-roofing": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/roofer/mosaic-roofing-company-llc": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 1
+    },
+    "/roofer/mr-roofer": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/roofer/new-image-roofing-atlanta": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/roofer/preferred-roofing-exteriors-llc": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/roofer/remove-replace-llc": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/roofer/roofing-done-wright": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/roofer/roofing-rescue": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/roofer/rosie-s-roofing-and-restoration": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/roofer/stormroof-systems": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/roofer/the-new-roof": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/roofer/williams-brothers-llc": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/roofer/wright-sons-roofers-llc": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/roofers": {
+     "claims:new-uncited": 37,
+     "mobile:taps<44": 27
+    },
+    "/value": {
+     "mobile:taps<44": 5,
+     "mobile:text<12px": 13
+    }
+   }
+  },
+  "visualtos.com": {
+   "remove_by": "2026-11-11",
+   "profiles": "android-320",
+   "total": 204,
+   "pages": {
+    "/eula": {
+     "claims:new-uncited": 1
+    },
+    "/how-terms-of-service-work": {
+     "claims:new-uncited": 5,
+     "mobile:text<12px": 1
+    },
+    "/library": {
+     "claims:new-uncited": 4,
+     "mobile:taps<44": 37,
+     "mobile:text<12px": 30
+    },
+    "/mobile": {
+     "mobile:taps<44": 8,
+     "mobile:text<12px": 7
+    },
+    "/premium": {
+     "mobile:taps<44": 8,
+     "mobile:text<12px": 7
+    },
+    "/studio": {
+     "claims:new-uncited": 2,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 18,
+     "mobile:text<12px": 16
+    },
+    "/terms": {
+     "claims:new-uncited": 4,
+     "mobile:taps<44": 28,
+     "mobile:text<12px": 13
+    },
+    "/terms/compare": {
+     "mobile:taps<44": 10,
+     "mobile:text<12px": 4
+    }
+   }
+  },
+  "cascadeave.com": {
+   "remove_by": "2026-11-12",
+   "profiles": "android-320",
+   "total": 186,
+   "pages": {
+    "/about": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 6,
+     "mobile:text<12px": 1
+    },
+    "/contact": {
+     "mobile:taps<44": 3,
+     "mobile:text<12px": 1
+    },
+    "/how-atlanta-water-bills-work": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 5,
+     "mobile:text<12px": 1
+    },
+    "/library": {
+     "mobile:taps<44": 12,
+     "mobile:text<12px": 10
+    },
+    "/library/atlanta-dwm-high-water-bill": {
+     "mobile:taps<44": 8,
+     "mobile:text<12px": 4
+    },
+    "/library/black-owned-vendors": {
+     "claims:new-uncited": 4,
+     "mobile:taps<44": 8,
+     "mobile:text<12px": 4
+    },
+    "/library/cascade-neighborhood-history": {
+     "mobile:taps<44": 8,
+     "mobile:text<12px": 4
+    },
+    "/library/cascade-springs-nature-preserve": {
+     "claims:new-uncited": 5,
+     "mobile:taps<44": 8,
+     "mobile:text<12px": 4
+    },
+    "/library/eats-and-wings": {
+     "mobile:taps<44": 8,
+     "mobile:text<12px": 4
+    },
+    "/library/getting-around-cascade": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 8,
+     "mobile:text<12px": 4
+    },
+    "/library/live-music-events": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 8,
+     "mobile:text<12px": 4
+    },
+    "/library/savings-gpo": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 8,
+     "mobile:text<12px": 4
+    },
+    "/library/scaling-hospitality-popups": {
+     "mobile:taps<44": 8,
+     "mobile:text<12px": 4
+    },
+    "/local-pulse": {
+     "mobile:taps<44": 7,
+     "mobile:text<12px": 2
+    },
+    "/privacy": {
+     "mobile:taps<44": 4,
+     "mobile:text<12px": 1
+    },
+    "/terms": {
+     "mobile:taps<44": 3,
+     "mobile:text<12px": 1
+    },
+    "/what-s-good-today": {
+     "mobile:taps<44": 6,
+     "mobile:text<12px": 1
+    }
+   }
+  },
+  "10-7.org": {
+   "remove_by": "2026-11-13",
+   "profiles": "android-320",
+   "total": 138,
+   "pages": {
+    "/atlas": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 27,
+     "mobile:text<12px": 20
+    },
+    "/history": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 27,
+     "mobile:text<12px": 20
+    },
+    "/hostages": {
+     "mobile:taps<44": 2
+    },
+    "/jewish-story": {
+     "mobile:taps<44": 2,
+     "mobile:text<12px": 6
+    },
+    "/jewish-story/1": {
+     "mobile:taps<44": 2,
+     "mobile:text<12px": 6
+    },
+    "/jewish-story/2": {
+     "mobile:taps<44": 2,
+     "mobile:text<12px": 6
+    },
+    "/learn/path": {
+     "mobile:taps<44": 2,
+     "mobile:text<12px": 12
+    }
+   }
+  },
+  "makelife.org": {
+   "remove_by": "2026-11-15",
+   "profiles": "android-320",
+   "total": 136,
+   "pages": {
+    "/for-couples": {
+     "mobile:taps<44": 13,
+     "mobile:text<12px": 1
+    },
+    "/how-it-works": {
+     "mobile:taps<44": 13,
+     "mobile:text<12px": 1
+    },
+    "/how-we-built": {
+     "mobile:taps<44": 15,
+     "mobile:text<12px": 5
+    },
+    "/pricing": {
+     "mobile:taps<44": 13,
+     "mobile:text<12px": 1
+    },
+    "/privacy": {
+     "mobile:taps<44": 15,
+     "mobile:text<12px": 5
+    },
+    "/show-hn": {
+     "mobile:taps<44": 15,
+     "mobile:text<12px": 5
+    },
+    "/terms": {
+     "mobile:taps<44": 15,
+     "mobile:text<12px": 5
+    },
+    "/trust": {
+     "mobile:taps<44": 13,
+     "mobile:text<12px": 1
+    }
+   }
+  },
+  "communityinternet.co": {
+   "remove_by": "2026-11-16",
+   "profiles": "android-320",
+   "total": 133,
+   "pages": {
+    "/about": {
+     "claims:new-uncited": 4
+    },
+    "/articles": {
+     "claims:new-uncited": 1
+    },
+    "/c/oakview": {
+     "claims:new-uncited": 4
+    },
+    "/c/westview-demo": {
+     "claims:new-uncited": 4
+    },
+    "/c/westview-demo/meetings": {
+     "claims:new-uncited": 1
+    },
+    "/c/westview-demo/membership": {
+     "claims:new-uncited": 5
+    },
+    "/contact": {
+     "mobile:taps<44": 1
+    },
+    "/directory": {
+     "claims:new-uncited": 2
+    },
+    "/guides": {
+     "claims:new-uncited": 1
+    },
+    "/guides/board-votes": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 1
+    },
+    "/guides/hoa-dues": {
+     "claims:new-uncited": 19,
+     "mobile:taps<44": 3
+    },
+    "/guides/member-onboarding": {
+     "claims:new-uncited": 2
+    },
+    "/guides/treasurer-reporting": {
+     "claims:new-uncited": 13,
+     "mobile:taps<44": 2
+    },
+    "/how-community-internet-works": {
+     "claims:new-uncited": 28,
+     "mobile:axe-critical": 1,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 6,
+     "mobile:text<12px": 21
+    },
+    "/messaging": {
+     "claims:new-uncited": 1
+    },
+    "/migrate/westview": {
+     "mobile:taps<44": 1
+    },
+    "/terms": {
+     "claims:new-uncited": 9
+    }
+   }
+  },
+  "startbusiness.us": {
+   "remove_by": "2026-11-17",
+   "profiles": "android-320",
+   "total": 132,
+   "pages": {
+    "/app": {
+     "mobile:axe-critical": 1,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 29,
+     "mobile:text<12px": 10
+    },
+    "/brand-creator.html": {
+     "mobile:axe-critical": 2,
+     "mobile:taps<44": 20,
+     "mobile:text<12px": 23
+    },
+    "/library": {
+     "mobile:axe-critical": 1,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 16,
+     "mobile:text<12px": 13
+    },
+    "/quiz": {
+     "mobile:overflow": 1,
+     "mobile:taps<44": 13
+    },
+    "/terms": {
+     "claims:new-uncited": 1
+    }
+   }
+  },
+  "makeyourownbitcoin.com": {
+   "remove_by": "2026-11-18",
+   "profiles": "android-320",
+   "total": 123,
+   "pages": {
+    "/agents": {
+     "mobile:overflow": 1,
+     "mobile:taps<44": 16
+    },
+    "/api/agent/pack.yaml": {
+     "mobile:load-failed": 1
+    },
+    "/api/health": {
+     "mobile:journey": 1
+    },
+    "/api/mcp": {
+     "mobile:journey": 1
+    },
+    "/api/skills/export.yaml": {
+     "mobile:load-failed": 1
+    },
+    "/learn": {
+     "mobile:taps<44": 13
+    },
+    "/learn/bitcoin-vs-apps": {
+     "mobile:taps<44": 5
+    },
+    "/learn/proofs-explained": {
+     "mobile:taps<44": 5
+    },
+    "/learn/scams-and-red-flags": {
+     "mobile:taps<44": 6
+    },
+    "/learn/tokens-badges-not-money": {
+     "mobile:taps<44": 6
+    },
+    "/learn/try-safely": {
+     "mobile:taps<44": 4
+    },
+    "/learn/wallets-keys-safety": {
+     "mobile:taps<44": 6
+    },
+    "/learn/what-is-blockchain": {
+     "mobile:taps<44": 6
+    },
+    "/library": {
+     "mobile:taps<44": 2
+    },
+    "/library/agent-prompt-defense": {
+     "mobile:taps<44": 3
+    },
+    "/library/badge-issuance-playbook": {
+     "mobile:taps<44": 3
+    },
+    "/library/case-study-event-badges": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 3
+    },
+    "/library/compliance-preflight": {
+     "mobile:taps<44": 3
+    },
+    "/library/handshake-protocol": {
+     "mobile:taps<44": 3
+    },
+    "/library/incident-response-agent": {
+     "mobile:taps<44": 3
+    },
+    "/library/loyalty-badge-blueprint": {
+     "mobile:taps<44": 3
+    },
+    "/library/metadata-schema-certificates": {
+     "mobile:overflow": 1,
+     "mobile:taps<44": 3
+    },
+    "/library/primer-utility-vs-security": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 3
+    },
+    "/library/sandbox-simulation-lab": {
+     "mobile:taps<44": 3
+    },
+    "/library/skills-registry-spec": {
+     "mobile:taps<44": 3
+    },
+    "/library/testnet-launch-plan": {
+     "mobile:taps<44": 3
+    },
+    "/library/wallet-safety-checklist": {
+     "mobile:taps<44": 3
+    },
+    "/pricing": {
+     "mobile:taps<44": 6
+    }
+   }
+  },
+  "growinglaughs.com": {
+   "remove_by": "2026-11-20",
+   "profiles": "android-320",
+   "total": 117,
+   "pages": {
+    "/about": {
+     "mobile:taps<44": 9
+    },
+    "/break": {
+     "mobile:taps<44": 10
+    },
+    "/guides": {
+     "mobile:taps<44": 9
+    },
+    "/guides/how-to-be-witty": {
+     "mobile:taps<44": 10
+    },
+    "/guides/office-safe-rewrites": {
+     "mobile:taps<44": 10
+    },
+    "/guides/stress-laugh-break": {
+     "mobile:taps<44": 10
+    },
+    "/guides/work-icebreakers": {
+     "mobile:taps<44": 10
+    },
+    "/gym": {
+     "mobile:taps<44": 9
+    },
+    "/privacy": {
+     "mobile:taps<44": 10
+    },
+    "/roleplay": {
+     "mobile:taps<44": 9
+    },
+    "/streak": {
+     "mobile:taps<44": 9
+    },
+    "/terms": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 11
+    }
+   }
+  },
+  "kide.us": {
+   "remove_by": "2026-11-21",
+   "profiles": "android-320",
+   "total": 116,
+   "pages": {
+    "/clinician": {
+     "claims:new-uncited": 2,
+     "mobile:text<12px": 5
+    },
+    "/for-slps": {
+     "claims:new-uncited": 5,
+     "mobile:taps<44": 3
+    },
+    "/guides/potty-training-without-pressure": {
+     "claims:new-uncited": 3,
+     "mobile:taps<44": 1
+    },
+    "/guides/screen-time-that-ends-itself": {
+     "mobile:taps<44": 1
+    },
+    "/guides/your-childs-voice-stays-on-the-device": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/parent": {
+     "mobile:text<12px": 6
+    },
+    "/play": {
+     "mobile:load-failed": 1
+    },
+    "/sounds": {
+     "claims:new-uncited": 4
+    },
+    "/sounds/b": {
+     "claims:new-uncited": 4,
+     "mobile:taps<44": 1
+    },
+    "/sounds/ch": {
+     "claims:new-uncited": 4,
+     "mobile:taps<44": 1
+    },
+    "/sounds/d": {
+     "claims:new-uncited": 4,
+     "mobile:taps<44": 1
+    },
+    "/sounds/f": {
+     "claims:new-uncited": 4,
+     "mobile:taps<44": 1
+    },
+    "/sounds/g": {
+     "claims:new-uncited": 4,
+     "mobile:taps<44": 1
+    },
+    "/sounds/h": {
+     "claims:new-uncited": 4,
+     "mobile:taps<44": 1
+    },
+    "/sounds/k": {
+     "claims:new-uncited": 4,
+     "mobile:taps<44": 1
+    },
+    "/sounds/l": {
+     "claims:new-uncited": 4,
+     "mobile:taps<44": 1
+    },
+    "/sounds/m": {
+     "claims:new-uncited": 4,
+     "mobile:taps<44": 1
+    },
+    "/sounds/n": {
+     "claims:new-uncited": 4,
+     "mobile:taps<44": 1
+    },
+    "/sounds/p": {
+     "claims:new-uncited": 4,
+     "mobile:taps<44": 1
+    },
+    "/sounds/r": {
+     "claims:new-uncited": 4,
+     "mobile:taps<44": 1
+    },
+    "/sounds/s": {
+     "claims:new-uncited": 4,
+     "mobile:taps<44": 1
+    },
+    "/sounds/sh": {
+     "claims:new-uncited": 5,
+     "mobile:taps<44": 1
+    },
+    "/sounds/t": {
+     "claims:new-uncited": 4,
+     "mobile:taps<44": 1
+    },
+    "/sounds/w": {
+     "claims:new-uncited": 4,
+     "mobile:taps<44": 1
+    },
+    "/terms": {
+     "claims:new-uncited": 2
+    }
+   }
+  },
+  "affordablehome.us": {
+   "remove_by": "2026-11-22",
+   "profiles": "android-320",
+   "total": 115,
+   "pages": {
+    "/about": {
+     "mobile:taps<44": 1
+    },
+    "/affordable-housing-options": {
+     "mobile:taps<44": 1
+    },
+    "/buyer-packet": {
+     "mobile:taps<44": 2
+    },
+    "/contact": {
+     "mobile:taps<44": 1
+    },
+    "/deal-desk": {
+     "mobile:taps<44": 1
+    },
+    "/guides": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 1
+    },
+    "/guides/closing-costs-explained-line-by-line": {
+     "claims:new-uncited": 27,
+     "mobile:taps<44": 1
+    },
+    "/guides/debt-to-income-ratio-explained": {
+     "mobile:taps<44": 1
+    },
+    "/guides/fha-vs-conventional-loans": {
+     "mobile:overflow": 1,
+     "mobile:taps<44": 1
+    },
+    "/guides/first-time-buyer-assistance-programs": {
+     "claims:new-uncited": 8,
+     "mobile:taps<44": 1
+    },
+    "/guides/home-inspection-checklist-costs": {
+     "mobile:taps<44": 1
+    },
+    "/guides/how-much-house-can-i-afford": {
+     "mobile:taps<44": 1
+    },
+    "/guides/how-to-remove-pmi": {
+     "mobile:taps<44": 1
+    },
+    "/guides/mortgage-rate-locks-explained": {
+     "claims:new-uncited": 6,
+     "mobile:taps<44": 1
+    },
+    "/guides/seller-credits-vs-price-reduction": {
+     "claims:new-uncited": 28,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 1
+    },
+    "/how-home-water-bills-work": {
+     "claims:new-uncited": 6,
+     "mobile:taps<44": 2
+    },
+    "/how-we-built": {
+     "mobile:taps<44": 1
+    },
+    "/learn": {
+     "claims:new-uncited": 7,
+     "mobile:taps<44": 1
+    },
+    "/pricing": {
+     "mobile:taps<44": 1
+    },
+    "/privacy": {
+     "mobile:taps<44": 1
+    },
+    "/show-hn": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/terms": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/tools/affordability-calculator": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 1
+    }
+   }
+  },
+  "industrialrefurbisher.com": {
+   "remove_by": "2026-11-23",
+   "profiles": "android-320",
+   "total": 113,
+   "pages": {
+    "/about": {
+     "mobile:overflow": 1,
+     "mobile:taps<44": 10
+    },
+    "/contact": {
+     "mobile:taps<44": 10
+    },
+    "/library": {
+     "mobile:taps<44": 15
+    },
+    "/library/circular-economy": {
+     "mobile:taps<44": 11
+    },
+    "/library/predictive-maintenance": {
+     "mobile:taps<44": 11
+    },
+    "/library/refurb-vs-replace": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 11
+    },
+    "/library/triage-playbook": {
+     "mobile:taps<44": 11
+    },
+    "/library/vetting-checklist": {
+     "mobile:taps<44": 11
+    },
+    "/privacy": {
+     "mobile:taps<44": 10
+    },
+    "/terms": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 10
+    }
+   }
+  },
+  "grow.tax": {
+   "remove_by": "2026-11-24",
+   "profiles": "android-320",
+   "total": 112,
+   "pages": {
+    "/about": {
+     "claims:new-uncited": 8,
+     "mobile:taps<44": 1
+    },
+    "/contact": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 1
+    },
+    "/estimated-tax-penalty-calculator": {
+     "claims:new-uncited": 25,
+     "mobile:taps<44": 21,
+     "mobile:text<12px": 53
+    },
+    "/privacy": {
+     "mobile:taps<44": 1
+    }
+   }
+  },
+  "deadtreeatlanta.com": {
+   "remove_by": "2026-11-26",
+   "profiles": "android-320",
+   "total": 107,
+   "pages": {
+    "/how-tree-fall-zones-work": {
+     "claims:new-uncited": 30,
+     "mobile:text<12px": 1
+    },
+    "/will-this-tree-hit-my-house": {
+     "claims:new-uncited": 18,
+     "mobile:taps<44": 48,
+     "mobile:text<12px": 10
+    }
+   }
+  },
+  "checkinforwork.com": {
+   "remove_by": "2026-11-27",
+   "profiles": "android-320",
+   "total": 97,
+   "pages": {
+    "/app": {
+     "mobile:taps<44": 2,
+     "mobile:text<12px": 3
+    },
+    "/faq": {
+     "claims:new-uncited": 1
+    },
+    "/focus": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 28,
+     "mobile:text<12px": 1
+    },
+    "/guides/adhd-friendly-task-breakdown": {
+     "mobile:taps<44": 1
+    },
+    "/guides/body-doubling-solo": {
+     "mobile:taps<44": 1
+    },
+    "/guides/break-one-task-into-tiny-steps": {
+     "mobile:taps<44": 1
+    },
+    "/guides/break-scheduling-for-field-crews": {
+     "mobile:taps<44": 5
+    },
+    "/guides/crew-accountability-without-micromanaging": {
+     "mobile:taps<44": 1
+    },
+    "/guides/crew-no-show-callout-policy": {
+     "mobile:taps<44": 1
+    },
+    "/guides/daily-work-check-in": {
+     "mobile:taps<44": 1
+    },
+    "/guides/job-site-check-in-best-practices": {
+     "mobile:taps<44": 3
+    },
+    "/guides/morning-huddle-script-field-crews": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 2
+    },
+    "/guides/time-blindness-focus-blocks": {
+     "mobile:taps<44": 1
+    },
+    "/guides/timesheet-accuracy-basics": {
+     "mobile:taps<44": 4
+    },
+    "/pricing": {
+     "mobile:taps<44": 22
+    },
+    "/privacy": {
+     "claims:new-uncited": 1
+    },
+    "/security": {
+     "claims:new-uncited": 1
+    },
+    "/show-hn": {
+     "mobile:taps<44": 1
+    },
+    "/terms": {
+     "claims:new-uncited": 3
+    },
+    "/use-cases/cleaning-crew-check-in": {
+     "mobile:taps<44": 1
+    },
+    "/use-cases/construction-crew-check-in": {
+     "mobile:taps<44": 1
+    },
+    "/use-cases/electrical-crew-check-in": {
+     "mobile:taps<44": 1
+    },
+    "/use-cases/home-care-mobile-team-check-in": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/use-cases/hvac-crew-check-in": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/use-cases/landscaping-crew-check-in": {
+     "mobile:taps<44": 1
+    },
+    "/use-cases/pest-control-crew-check-in": {
+     "mobile:taps<44": 1
+    },
+    "/use-cases/plumbing-crew-check-in": {
+     "mobile:taps<44": 1
+    },
+    "/use-cases/property-maintenance-check-in": {
+     "mobile:taps<44": 1
+    }
+   }
+  },
+  "watershortcut.com": {
+   "remove_by": "2026-11-28",
+   "profiles": "android-320",
+   "total": 79,
+   "pages": {
+    "/analyze-water-bill": {
+     "claims:new-uncited": 1
+    },
+    "/calculators": {
+     "claims:new-uncited": 4
+    },
+    "/calculators/faucet": {
+     "claims:new-uncited": 2,
+     "mobile:axe-critical": 1
+    },
+    "/calculators/laundry": {
+     "claims:new-uncited": 3,
+     "mobile:axe-critical": 2,
+     "mobile:overflow": 1
+    },
+    "/calculators/outdoor": {
+     "mobile:axe-critical": 2
+    },
+    "/calculators/shower": {
+     "claims:new-uncited": 2,
+     "mobile:axe-critical": 1,
+     "mobile:overflow": 1
+    },
+    "/calculators/toilet": {
+     "claims:new-uncited": 3,
+     "mobile:axe-critical": 2,
+     "mobile:taps<44": 1
+    },
+    "/guides": {
+     "claims:new-uncited": 3
+    },
+    "/guides/showerheads": {
+     "mobile:axe-critical": 1
+    },
+    "/guides/water-bill": {
+     "mobile:axe-critical": 1
+    },
+    "/leak-check": {
+     "mobile:taps<44": 4
+    },
+    "/rebates": {
+     "mobile:axe-critical": 1,
+     "mobile:taps<44": 4
+    },
+    "/savings-plan": {
+     "claims:new-uncited": 1,
+     "mobile:axe-critical": 2,
+     "mobile:taps<44": 3
+    },
+    "/tools/is-my-water-usage-normal": {
+     "claims:new-uncited": 3,
+     "mobile:taps<44": 2,
+     "mobile:text<12px": 6
+    },
+    "/tools/water-bill-spike-splitter": {
+     "claims:new-uncited": 10,
+     "mobile:taps<44": 2,
+     "mobile:text<12px": 5
+    },
+    "/water-bill-help/atlanta": {
+     "claims:new-uncited": 1
+    },
+    "/water-bill-help/austin": {
+     "claims:new-uncited": 1
+    },
+    "/water-bill-help/los-angeles": {
+     "claims:new-uncited": 1
+    },
+    "/water-bill-help/phoenix": {
+     "claims:new-uncited": 1
+    },
+    "/water-bill-help/seattle": {
+     "claims:new-uncited": 1
+    }
+   }
+  },
+  "nirlevy.org": {
+   "remove_by": "2026-11-29",
+   "profiles": "android-320",
+   "total": 62,
+   "pages": {
+    "/how-we-built": {
+     "mobile:taps<44": 2
+    },
+    "/privacy": {
+     "mobile:taps<44": 2
+    },
+    "/rosh-hashanah": {
+     "claims:new-uncited": 1,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 7,
+     "mobile:text<12px": 9
+    },
+    "/show-hn": {
+     "mobile:taps<44": 2
+    },
+    "/terms": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 2
+    },
+    "/tesla-nav": {
+     "mobile:taps<44": 1,
+     "mobile:text<12px": 11
+    },
+    "/tesladash": {
+     "mobile:overflow": 1,
+     "mobile:taps<44": 1,
+     "mobile:text<12px": 21
+    }
+   }
+  },
+  "buypatioheater.com": {
+   "remove_by": "2026-12-01",
+   "profiles": "android-320",
+   "total": 56,
+   "pages": {
+    "/how-patio-heater-coverage-works": {
+     "claims:new-uncited": 55,
+     "mobile:taps<44": 1
+    }
+   }
+  },
+  "valuestockscreen.com": {
+   "remove_by": "2026-12-02",
+   "profiles": "android-320",
+   "total": 49,
+   "pages": {
+    "/how-value-stock-screening-works": {
+     "claims:new-uncited": 13,
+     "mobile:taps<44": 10,
+     "mobile:text<12px": 26
+    }
+   }
+  },
+  "chatulah.com": {
+   "remove_by": "2026-12-03",
+   "profiles": "android-320",
+   "total": 41,
+   "pages": {
+    "/affiliate": {
+     "claims:new-uncited": 1
+    },
+    "/app/game": {
+     "mobile:taps<44": 2,
+     "mobile:text<12px": 11
+    },
+    "/community-chat": {
+     "claims:new-uncited": 1
+    },
+    "/community-guidelines": {
+     "claims:new-uncited": 1
+    },
+    "/guides/cat-enrichment": {
+     "mobile:load-failed": 1
+    },
+    "/guides/cat-photography": {
+     "claims:new-uncited": 3
+    },
+    "/guides/kitten-development": {
+     "claims:new-uncited": 4
+    },
+    "/guides/senior-cat-care": {
+     "claims:new-uncited": 2
+    },
+    "/guides/winter-cats": {
+     "claims:new-uncited": 2
+    },
+    "/kb/interactive-toys-enrichment-2026": {
+     "claims:new-uncited": 2
+    },
+    "/library": {
+     "mobile:overflow": 1,
+     "mobile:taps<44": 4
+    },
+    "/share/b755df70-7d08-4641-957c-058370cfad7b": {
+     "claims:new-uncited": 2
+    },
+    "/terms": {
+     "claims:new-uncited": 3,
+     "mobile:taps<44": 1
+    }
+   }
+  },
+  "grocerydelivered.org": {
+   "remove_by": "2026-12-04",
+   "profiles": "android-320",
+   "total": 40,
+   "pages": {
+    "/guides/is-grocery-delivery-worth-it": {
+     "claims:new-uncited": 22,
+     "mobile:taps<44": 4
+    },
+    "/tools/delivery-cost-checker": {
+     "claims:new-uncited": 8,
+     "mobile:taps<44": 6
+    }
+   }
+  },
+  "trycrm.co": {
+   "remove_by": "2026-12-05",
+   "profiles": "android-320",
+   "total": 35,
+   "pages": {
+    "/app": {
+     "claims:new-uncited": 2,
+     "mobile:taps<44": 1,
+     "mobile:text<12px": 5
+    },
+    "/build": {
+     "mobile:journey": 1,
+     "mobile:taps<44": 2
+    },
+    "/field-sales-diagnosis": {
+     "mobile:taps<44": 8,
+     "mobile:text<12px": 5
+    },
+    "/field-sales-morning-ritual": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 8
+    },
+    "/show-hn": {
+     "mobile:taps<44": 1
+    },
+    "/terms": {
+     "claims:new-uncited": 1
+    }
+   }
+  },
+  "debtsettlements.co": {
+   "remove_by": "2026-12-07",
+   "profiles": "android-320",
+   "total": 32,
+   "pages": {
+    "/how-debt-settlement-works": {
+     "claims:new-uncited": 11,
+     "mobile:taps<44": 20,
+     "mobile:text<12px": 1
+    }
+   }
+  },
+  "voicesearch.cc": {
+   "remove_by": "2026-12-08",
+   "profiles": "android-320",
+   "total": 28,
+   "pages": {
+    "/how-voice-search-works": {
+     "claims:new-uncited": 4,
+     "mobile:axe-critical": 1,
+     "mobile:taps<44": 6,
+     "mobile:text<12px": 17
+    }
+   }
+  },
+  "partimepreneur.com": {
+   "remove_by": "2026-12-09",
+   "profiles": "android-320",
+   "total": 26,
+   "pages": {
+    "/how-hybrid-entrepreneurship-works": {
+     "mobile:axe-critical": 1,
+     "mobile:taps<44": 8,
+     "mobile:text<12px": 7
+    },
+    "/how-we-built": {
+     "mobile:taps<44": 2
+    },
+    "/onboarding": {
+     "mobile:text<12px": 1
+    },
+    "/show-hn": {
+     "mobile:taps<44": 4
+    },
+    "/you": {
+     "claims:new-uncited": 3
+    }
+   }
+  },
+  "investyourlifeinsurance.com": {
+   "remove_by": "2026-12-10",
+   "profiles": "android-320",
+   "total": 24,
+   "pages": {
+    "/explain": {
+     "mobile:taps<44": 8
+    },
+    "/infinite-banking-concept-explained": {
+     "mobile:taps<44": 6
+    },
+    "/iul-vs-whole-life-insurance": {
+     "mobile:taps<44": 6
+    },
+    "/knowledge": {
+     "mobile:taps<44": 1
+    },
+    "/knowledge/cash-value-101": {
+     "mobile:taps<44": 1
+    },
+    "/knowledge/loan-strategy-playbook": {
+     "mobile:taps<44": 1
+    },
+    "/knowledge/retirement-income-blueprint": {
+     "mobile:taps<44": 1
+    }
+   }
+  },
+  "smallbusinessholder.com": {
+   "remove_by": "2026-12-12",
+   "profiles": "android-320",
+   "total": 12,
+   "pages": {
+    "/how-commercial-water-bills-work": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 3
+    },
+    "/tools/pricing-check": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 7
+    }
+   }
+  },
+  "toptiertalent.co": {
+   "remove_by": "2026-12-13",
+   "profiles": "android-320",
+   "total": 11,
+   "pages": {
+    "/pricing": {
+     "mobile:redirected-off-origin": 1,
+     "mobile:taps<44": 2
+    },
+    "/scan": {
+     "mobile:journey": 1,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 6
+    }
+   }
+  },
+  "toptiertechnicaltalent.com": {
+   "remove_by": "2026-12-14",
+   "profiles": "android-320",
+   "total": 11,
+   "pages": {
+    "/pricing": {
+     "mobile:redirected-off-origin": 1,
+     "mobile:taps<44": 2
+    },
+    "/scan": {
+     "mobile:journey": 1,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 6
+    }
+   }
+  },
+  "earn.software": {
+   "remove_by": "2026-12-15",
+   "profiles": "android-320",
+   "total": 7,
+   "pages": {
+    "/expertise-income-calculator": {
+     "claims:new-uncited": 3,
+     "mobile:taps<44": 3,
+     "mobile:text<12px": 1
+    }
+   }
+  },
+  "softwarefinancing.co": {
+   "remove_by": "2026-12-16",
+   "profiles": "android-320",
+   "total": 7,
+   "pages": {
+    "/estimate": {
+     "claims:new-uncited": 1,
+     "mobile:overflow": 1,
+     "mobile:taps<44": 3,
+     "mobile:text<12px": 2
+    }
+   }
+  },
+  "staffing.how": {
+   "remove_by": "2026-12-18",
+   "profiles": "android-320",
+   "total": 7,
+   "pages": {
+    "/candidate-triage": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 4
+    },
+    "/privacy": {
+     "mobile:taps<44": 1
+    },
+    "/security": {
+     "mobile:taps<44": 1
+    }
+   }
+  },
+  "saasonsale.com": {
+   "remove_by": "2026-12-19",
+   "profiles": "android-320",
+   "total": 5,
+   "pages": {
+    "/about": {
+     "mobile:taps<44": 1
+    },
+    "/contact": {
+     "claims:new-uncited": 1,
+     "mobile:taps<44": 1
+    },
+    "/privacy": {
+     "mobile:taps<44": 2
+    }
+   }
+  },
+  "cloudgpo.com": {
+   "remove_by": "2026-12-20",
+   "profiles": "android-320",
+   "total": 3,
+   "pages": {
+    "/pricing": {
+     "mobile:redirected-off-origin": 1,
+     "mobile:taps<44": 2
+    }
+   }
+  },
+  "contentasaservice.co": {
+   "remove_by": "2026-12-21",
+   "profiles": "android-320",
+   "total": 3,
+   "pages": {
+    "/pricing": {
+     "mobile:redirected-off-origin": 1,
+     "mobile:taps<44": 2
+    }
+   }
+  },
+  "crmforlaw.com": {
+   "remove_by": "2026-12-23",
+   "profiles": "android-320",
+   "total": 3,
+   "pages": {
+    "/pricing": {
+     "mobile:redirected-off-origin": 1,
+     "mobile:taps<44": 2
+    }
+   }
+  },
+  "freestock.tips": {
+   "remove_by": "2026-12-23",
+   "profiles": "android-320",
+   "total": 0,
+   "pages": {}
+  },
+  "machinelearninglogistics.com": {
+   "remove_by": "2026-12-23",
+   "profiles": "android-320",
+   "total": 0,
+   "pages": {}
+  },
+  "quizbiz.org": {
+   "remove_by": "2026-12-23",
+   "profiles": "android-320",
+   "total": 0,
+   "pages": {}
+  },
+  "refundvat.info": {
+   "remove_by": "2026-12-23",
+   "profiles": "android-320",
+   "total": 0,
+   "pages": {}
+  },
+  "successclub.me": {
+   "remove_by": "2026-12-23",
+   "profiles": "android-320",
+   "total": 0,
+   "pages": {}
+  }
+ },
+ "source": "rescan 2026-10-22T16:01:30.126Z, profiles android-320, 52 sites; home + keyurls pages excluded (strict)"
+}

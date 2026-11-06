@@ -89,8 +89,7 @@
 
   <div class="card">
     <h2>Lesson Studio</h2>
-    <p class="muted">A monthly subscription for a lesson you approve before a child sees it.
-      Checkout is not open yet — coming soon.</p>
+    <p class="muted">A lesson you approve before a child sees it. Lesson Studio is not open for new lessons yet. That page does not ask you to pay.</p>
     <p class="row"><a class="btn" href="/parent/studio/">Open Lesson Studio</a></p>
   </div>
 
@@ -186,8 +185,9 @@
     <div class="note">
       <b>Nothing here is audio.</b> No recording, no voiceprint, nothing that could
       identify your child by their voice — which word was practiced and whether
-      it was heard. It is kept on this device and nowhere else.
+      it was heard. The practice record stays on this device.
     </div>
+    <p class="muted">If you used Lesson Studio, that page also keeps the age band you picked, the sounds to practice, and the lesson word list, until you delete those lessons. That is not a child's name or date of birth. There is no automatic expiry written here.</p>
     <div class="row" style="margin-top:12px">
       <button class="danger" id="btnClear">Delete everything</button>
     </div>
@@ -576,11 +576,20 @@ $('btnShare').addEventListener('click', async () => {
   }
 });
 
-$('btnClear').addEventListener('click', () => {
+$('btnClear').addEventListener('click', async () => {
   // A parent deleting their child's record is an obligation, not a feature --
-  // but it is irreversible, so it is confirmed once.
-  if (!confirm('Delete all practice history on this device? This cannot be undone.')) return;
+  // but it is irreversible, so it is confirmed once. Studio lessons live on
+  // the signed-in account, so this same control asks that store to forget them.
+  if (!confirm('Delete the practice record on this device, and Lesson Studio lessons on this account? This cannot be undone.')) return;
   Journal.clear();
+  try {
+    await fetch('/api/studio/clear', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+  } catch { /* signed-out visitors still cleared the on-device record */ }
   $('linkOut').textContent = '';
   $('btnOpen').style.display = 'none';
   render();

@@ -70,8 +70,9 @@ export function unsafeText(text) {
 }
 
 /**
- * The chat body may carry a short note so an unsafe request can be refused.
- * The note is never returned. Callers must not pass it to the model.
+ * The chat body may carry a short note. Extra keys and a few unsafe patterns
+ * are refused. This is not an absolute name/school filter. The note is never
+ * returned and callers must not pass it to the model.
  */
 export function screenChat(body) {
   if (!body || typeof body !== "object" || Array.isArray(body)) {

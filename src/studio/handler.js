@@ -1,19 +1,27 @@
 // Money path: signup → paid step (lesson_studio_monthly) → Stripe.
 // /parent/studio talks to these routes. Checkout is not opened here.
 // Pending lessons stay off the playlist a child can open.
+// Playlist/play never carry checkout, offering, or status jargon.
 
 import { AGE_BANDS, skillGapCatalog, screenChat } from "../../public/studio/schema.js";
 import {
-  CHECKOUT,
-  COMING_SOON_MESSAGE,
-  OFFERING_ID,
+  CHILD_ASK_GROWNUP,
   REFUSED_MESSAGE,
   readStudioParent,
   studioEntitlement,
   studioView,
 } from "./access.js";
 import { proposeLesson } from "./generate.js";
-import { approveLesson, getLesson, insertLesson, listLessons, newLessonId } from "./store.js";
+import {
+  approveLesson,
+  beginGenerate,
+  deleteLessons,
+  finishGenerate,
+  getLesson,
+  insertLesson,
+  listLessons,
+  newLessonId,
+} from "./store.js";
 
 const MAX_BODY = 4000;
 
@@ -22,6 +30,7 @@ const ROUTES = {
   "/api/studio/chat": "POST",
   "/api/studio/lessons": "GET",
   "/api/studio/approve": "POST",
+  "/api/studio/clear": "POST",
   "/api/studio/playlist": "GET",
   "/api/studio/play": "GET",
 };
@@ -36,15 +45,17 @@ function json(data, status = 200) {
   });
 }
 
-function closed(view) {
+function parentClosed(view) {
   return json({
     ok: false,
     enabled: false,
     state: view.body.state,
-    checkout: CHECKOUT,
-    offeringId: OFFERING_ID,
     message: view.body.message,
   }, view.http === 200 ? 403 : view.http);
+}
+
+function childPlaylist() {
+  return json({ ok: true, lessons: [] });
 }
 
 async function readJson(request) {
@@ -85,9 +96,9 @@ function playlistItem(lesson) {
 export async function handleStudio(request, env) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, "") || "/";
-  if (!(path in ROUTES)) return json({ ok: false, error: "not_found" }, 404);
+  if (!(path in ROUTES)) return json({ ok: false }, 404);
   const method = request.method === "HEAD" && ROUTES[path] === "GET" ? "GET" : request.method;
-  if (method !== ROUTES[path]) return json({ ok: false, error: "method_not_allowed" }, 405);
+  if (method !== ROUTES[path]) return json({ ok: false }, 405);
 
   const parent = await readStudioParent(request, env);
   const signedIn = Boolean(parent.parentId && parent.email);
@@ -103,6 +114,30 @@ export async function handleStudio(request, env) {
     return json(body, view.http);
   }
 
+  if (path === "/api/studio/playlist") {
+    if (!view.body.enabled || !env || !env.DB) return childPlaylist();
+    const rows = await listLessons(env.DB, parent.parentId, { approvedOnly: true });
+    return json({ ok: true, lessons: rows.map(playlistItem) });
+  }
+
+  if (path === "/api/studio/play") {
+    if (!view.body.enabled || !env || !env.DB) return json({ ok: false }, 404);
+    const id = url.searchParams.get("id") || "";
+    if (!id) return json({ ok: false }, 404);
+    const lesson = await getLesson(env.DB, parent.parentId, id);
+    if (!lesson || lesson.status !== "approved") return json({ ok: false }, 404);
+    return json({
+      ok: true,
+      lesson: {
+        version: lesson.version,
+        title: lesson.title,
+        ageBand: lesson.ageBand,
+        skillGaps: lesson.skillGaps,
+        beats: lesson.beats,
+      },
+    });
+  }
+
   if (path === "/api/studio/chat") {
     const body = await readJson(request);
     if (body.error) return json({ ok: false, error: "bad_request" }, 400);
@@ -110,26 +145,32 @@ export async function handleStudio(request, env) {
     if (!screen.ok && screen.error === "refused") {
       return json({ ok: false, error: "refused", message: REFUSED_MESSAGE }, 400);
     }
-    if (!view.body.enabled) return closed(view);
+    if (!view.body.enabled) return parentClosed(view);
     if (!screen.ok) return json({ ok: false, error: "bad_request" }, 400);
-    if (!env || !env.DB) return json({ ok: false, error: "storage_unavailable" }, 503);
-    const proposed = await proposeLesson(env.PORTFOLIO_AI_SERVICE, {
-      ageBand: screen.ageBand,
-      skillGaps: screen.skillGaps,
-    });
-    if (!proposed.ok) {
-      const status = proposed.error === "invalid_lesson" ? 422 : 503;
-      return json({ ok: false, error: proposed.error }, status);
+    if (!env || !env.DB) return json({ ok: false, error: "unavailable" }, 503);
+    const slot = await beginGenerate(env.DB, parent.parentId);
+    if (!slot.ok) return json({ ok: false, error: "limited", message: "Try again in a little while." }, 429);
+    try {
+      const proposed = await proposeLesson(env.PORTFOLIO_AI_SERVICE, {
+        ageBand: screen.ageBand,
+        skillGaps: screen.skillGaps,
+      });
+      if (!proposed.ok) {
+        const status = proposed.error === "invalid_lesson" ? 422 : 503;
+        return json({ ok: false, error: proposed.error }, status);
+      }
+      const id = newLessonId();
+      const now = new Date().toISOString();
+      await insertLesson(env.DB, { id, parentId: parent.parentId, lesson: proposed.lesson, now });
+      const stored = await getLesson(env.DB, parent.parentId, id);
+      return json({ ok: true, lesson: parentLesson(stored) });
+    } finally {
+      await finishGenerate(env.DB, parent.parentId);
     }
-    const id = newLessonId();
-    const now = new Date().toISOString();
-    await insertLesson(env.DB, { id, parentId: parent.parentId, lesson: proposed.lesson, now });
-    const stored = await getLesson(env.DB, parent.parentId, id);
-    return json({ ok: true, lesson: parentLesson(stored) });
   }
 
-  if (!view.body.enabled) return closed(view);
-  if (!env || !env.DB) return json({ ok: false, error: "storage_unavailable" }, 503);
+  if (!view.body.enabled) return parentClosed(view);
+  if (!env || !env.DB) return json({ ok: false, error: "unavailable" }, 503);
 
   if (path === "/api/studio/lessons") {
     const rows = await listLessons(env.DB, parent.parentId, { approvedOnly: false });
@@ -146,29 +187,12 @@ export async function handleStudio(request, env) {
     return json({ ok: true, lesson: parentLesson(result.lesson) });
   }
 
-  if (path === "/api/studio/playlist") {
-    const rows = await listLessons(env.DB, parent.parentId, { approvedOnly: true });
-    return json({
-      ok: true,
-      enabled: true,
-      lessons: rows.map(playlistItem),
-    });
+  if (path === "/api/studio/clear") {
+    await deleteLessons(env.DB, parent.parentId);
+    return json({ ok: true, lessons: [] });
   }
 
-  const id = url.searchParams.get("id") || "";
-  if (!id) return json({ ok: false, error: "bad_request" }, 400);
-  const lesson = await getLesson(env.DB, parent.parentId, id);
-  if (!lesson || lesson.status !== "approved") return json({ ok: false, error: "not_found" }, 404);
-  return json({
-    ok: true,
-    lesson: {
-      version: lesson.version,
-      title: lesson.title,
-      ageBand: lesson.ageBand,
-      skillGaps: lesson.skillGaps,
-      beats: lesson.beats,
-    },
-  });
+  return json({ ok: false }, 404);
 }
 
-export { COMING_SOON_MESSAGE };
+export { CHILD_ASK_GROWNUP };

@@ -20,104 +20,56 @@
   body{margin:0;background:linear-gradient(180deg,#BDEBFF,#FFFBF2 40%);color:var(--ink);line-height:1.4;
     padding:20px 16px calc(40px + env(safe-area-inset-bottom,0px))}
   .wrap{max-width:640px;margin:0 auto}
-  h1{font-size:32px;margin:0 0 8px}
+  h1{font-size:32px;margin:0 0 8px;animation:rise .35s ease both}
   p{font-size:18px;margin:0 0 14px}
-  button,a.btn{font:inherit;font-size:20px;font-weight:800;min-height:56px;min-width:56px;width:100%;
+  a.play{font:inherit;font-size:20px;font-weight:800;min-height:56px;min-width:56px;width:100%;
     margin:0 0 12px;padding:14px 16px;border:none;border-radius:20px;background:#fff;color:var(--ink);
-    box-shadow:0 5px 0 rgba(0,0,0,.08);cursor:pointer;display:flex;align-items:center;justify-content:center;
-    text-decoration:none}
-  button.primary{background:var(--sunstone)}
-  button.soft{background:var(--grass)}
-  .invite{font-size:28px;font-weight:800;min-height:72px}
-  .grown{font-size:15px;color:var(--ink-soft)}
-  [hidden]{display:none !important}
+    display:flex;align-items:center;justify-content:center;text-decoration:none;
+    animation:rise .4s ease both}
+  .grownup-zone{margin:28px auto 4px;border-top:2px dashed #D9D1C2;padding-top:16px;text-align:center}
+  .grownup-zone summary{cursor:pointer;color:var(--ink-soft);font-size:14px;font-weight:800;min-height:44px;padding:10px}
+  .grownup-zone a{color:var(--ink-soft);font-weight:700;padding:10px;min-height:44px;display:inline-flex;align-items:center}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion: reduce){
+    h1,a.play{animation:none}
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Made for you</h1>
-  <div id="list">
-    <p id="note">Lesson Studio needs a monthly subscription. Checkout is not open yet — coming soon.</p>
-    <div id="lessons"></div>
-  </div>
-  <div id="play" hidden>
-    <p class="invite" id="invite"></p>
-    <button class="primary" type="button" id="said">We said it</button>
-    <button class="soft" type="button" id="again">Say it together</button>
-    <button type="button" id="back">Back to the playlist</button>
-  </div>
-  <p class="grown"><a href="/parent/studio/">Grown-up Lesson Studio</a></p>
+  <p id="note">Ask a grown-up. Nothing is ready to play yet.</p>
+  <div id="lessons"></div>
+  <details class="grownup-zone">
+    <summary>Grown-ups</summary>
+    <a href="/parent/studio/">Lesson Studio</a>
+    <a href="/words">Say it with me</a>
+  </details>
 </div>
 <script type="module">
-import { startPlay, currentBeat, hear, STATE } from "/studio/play.js";
-
-const list = document.getElementById("list");
 const note = document.getElementById("note");
 const lessonsEl = document.getElementById("lessons");
-const play = document.getElementById("play");
-const invite = document.getElementById("invite");
-const said = document.getElementById("said");
-const again = document.getElementById("again");
-let run = null;
 
-function showList() {
-  play.hidden = true;
-  list.hidden = false;
-  run = null;
-}
-
-function renderBeat() {
-  if (!run || run.done) {
-    invite.textContent = "Goodnight. See you next time.";
-    said.hidden = true;
-    again.hidden = true;
-    return;
-  }
-  const beat = currentBeat(run);
-  invite.textContent = beat.invitation;
-  said.hidden = false;
-  again.hidden = false;
-}
-
-function paint(result) {
-  if (result.state === STATE.MODEL) invite.textContent = "Let's say it together. " + currentBeat(run).invitation;
-  else renderBeat();
-}
-
-said.addEventListener("click", () => { if (run) paint(hear(run, true)); });
-again.addEventListener("click", () => { if (run) paint(hear(run, false)); });
-document.getElementById("back").addEventListener("click", showList);
-
-async function openLesson(id) {
-  const res = await fetch(`/api/studio/play?id=${encodeURIComponent(id)}`);
+try {
+  const res = await fetch("/api/studio/playlist", { credentials: "same-origin" });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data.lesson) {
-    note.textContent = "That lesson is not on the playlist.";
-    return;
+  const lessons = Array.isArray(data.lessons) ? data.lessons : [];
+  if (!res.ok) {
+    note.textContent = "Ask a grown-up. Nothing is ready to play yet.";
+  } else if (!lessons.length) {
+    note.textContent = "Nothing here yet. A grown-up picks one first.";
+  } else {
+    note.textContent = "Pick one.";
+    for (const lesson of lessons) {
+      const a = document.createElement("a");
+      a.className = "play";
+      a.href = `/words/?made=${encodeURIComponent(lesson.id)}`;
+      a.textContent = lesson.title;
+      lessonsEl.appendChild(a);
+    }
   }
-  run = startPlay(data.lesson, { companionName: "Pip" });
-  list.hidden = true;
-  play.hidden = false;
-  said.hidden = false;
-  again.hidden = false;
-  renderBeat();
-}
-
-const res = await fetch("/api/studio/playlist");
-const data = await res.json().catch(() => ({}));
-if (!data.enabled) {
-  if (data.message) note.textContent = data.message;
-} else if (!data.lessons || !data.lessons.length) {
-  note.textContent = "Nothing here yet. A grown-up approves a lesson first.";
-} else {
-  note.textContent = "Pick one.";
-  for (const lesson of data.lessons) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.textContent = lesson.title;
-    btn.addEventListener("click", () => openLesson(lesson.id));
-    lessonsEl.appendChild(btn);
-  }
+} catch {
+  note.textContent = "Ask a grown-up. Nothing is ready to play yet.";
 }
 </script>
 </body>

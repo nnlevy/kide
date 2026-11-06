@@ -225,9 +225,10 @@ async function route(request: Request, env: Env): Promise<Response> {
       return handleUnlock(request, env);
     }
 
-    // Lesson Studio. Offering lesson_studio_monthly is checked on purchase
-    // history only. Checkout stays closed until a live price exists. No child
-    // name is accepted on this route, and a pending lesson is not playable.
+    // Lesson Studio (lesson_studio_monthly). Checkout stays closed. getCredits
+    // history never grants monthly access. A current-period hub snapshot is
+    // the only grant, and that seam is still closed here. A pending lesson is
+    // not playable.
     if (url.pathname.startsWith("/api/studio")) {
       return handleStudio(request, env);
     }
