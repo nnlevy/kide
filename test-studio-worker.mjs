@@ -324,5 +324,47 @@ await t("Worker fetch: session email is owner identity only; a failed read delet
   assert.equal((await db.prepare(`SELECT id FROM kide_lessons`).all()).results.length, 1);
 });
 
+await t("Worker fetch: a thrown lesson delete stays signed in and keeps the row", async () => {
+  const db = d1();
+  let armed = false;
+  const wrapped = {
+    prepare(sql) {
+      const stmt = db.prepare(sql);
+      const wrappedStmt = {
+        bind(...args) { stmt.bind(...args); return wrappedStmt; },
+        async run() {
+          if (armed && /DELETE FROM kide_lessons/i.test(sql)) throw new Error("d1 delete threw");
+          return stmt.run();
+        },
+        async first() { return stmt.first(); },
+        async all() { return stmt.all(); },
+      };
+      return wrappedStmt;
+    },
+    batch(stmts) { return db.batch(stmts); },
+  };
+  const env = envFor({
+    db: wrapped,
+    records: { [PARENT_A]: record(PARENT_A) },
+  });
+  const made = await read(await call(env, "/api/studio/chat", { method: "POST", cookie: "parent-a", body: chatBody }));
+  assert.equal(made.status, 200, JSON.stringify(made.data));
+  assert.equal((await db.prepare(`SELECT id FROM kide_lessons`).all()).results.length, 1);
+  armed = true;
+  const cleared = await read(await call(env, "/api/studio/clear", { method: "POST", cookie: "parent-a", body: {} }));
+  assert.equal(cleared.status, 500);
+  assert.equal(cleared.data.ok, false);
+  assert.equal(cleared.data.signedIn, true);
+  assert.equal(cleared.data.error, "delete_failed");
+  assert.equal((await db.prepare(`SELECT id FROM kide_lessons`).all()).results.length, 1);
+  armed = false;
+  const again = await read(await call(env, "/api/studio/clear", { method: "POST", cookie: "parent-a", body: {} }));
+  assert.equal(again.status, 200);
+  assert.equal(again.data.ok, true);
+  assert.equal(again.data.signedIn, true);
+  assert.deepEqual(again.data.lessons, []);
+  assert.equal((await db.prepare(`SELECT id FROM kide_lessons`).all()).results.length, 0);
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

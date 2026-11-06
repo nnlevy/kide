@@ -205,8 +205,8 @@
          understands in one line what they are about to get. -->
     <h2>Make a card for a child you know</h2>
     <p class="muted">Builds a small page where Pip says hello to them by name, with a preview
-      card that shows up properly when you text it. Nothing you type here is stored anywhere — it
-      travels in the link itself and we never see it.</p>
+      card that shows up properly when you text it. The name travels in the link, and the card is
+      built from that link. It is not saved as a stored record.</p>
     <div class="grid2" style="margin-top:12px">
       <label class="field">For<input id="giftTo" placeholder="Elie" maxlength="44" autocomplete="off"></label>
       <label class="field">From<input id="giftFrom" placeholder="Kaleigh &amp; Nir" maxlength="44" autocomplete="off"></label>
@@ -289,9 +289,8 @@ let record = null;
 window.__kideParent = () => ({ record, events: Journal.count() });
 
 /* ---- the gift link ------------------------------------------------------
-   Built entirely in the page. The names never reach a server from here: they
-   go into a URL the parent then sends to somebody, and the Worker renders that
-   URL for whoever opens it without storing a thing.
+   Built in the page as a link. Whoever opens that link gets a card built from
+   the name in the URL. That name is not written into a stored record.
 
    The live preview is not decoration. The reason to build a gift page rather
    than paste kide.us into a text is the card the other parent sees, so a
@@ -581,11 +580,9 @@ $('btnClear').addEventListener('click', async () => {
   // but it is irreversible, so it is confirmed once. Studio lessons live on
   // the signed-in account, so this same control asks that store to forget them.
   if (!confirm('Delete the practice record on this device, and Lesson Studio lessons on this account? This cannot be undone.')) return;
-  Journal.clear();
-  let accountCleared = false;
-  let signedIn = false;
-  let reached = false;
-  let identityDown = false;
+  // The device journal stays until the account delete is a real success.
+  // Clearing it first would hide a failed delete.
+  let outcome = 'dropped';
   try {
     const res = await fetch('/api/studio/clear', {
       method: 'POST',
@@ -593,20 +590,31 @@ $('btnClear').addEventListener('click', async () => {
       headers: { 'Content-Type': 'application/json' },
       body: '{}',
     });
-    reached = true;
-    const data = await res.json().catch(() => ({}));
-    signedIn = data.signedIn === true;
-    accountCleared = res.ok && data.ok === true;
-    identityDown = data.error === 'identity_unavailable';
-  } catch { /* the device record is already cleared; say so below */ }
-  if (accountCleared) {
+    let data = null;
+    try { data = await res.json(); } catch { data = null; }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      outcome = 'service';
+    } else if (data.error === 'identity_unavailable') {
+      outcome = 'identity';
+    } else if (res.ok && data.ok === true) {
+      outcome = 'cleared';
+    } else if (data.signedIn === true) {
+      outcome = 'kept';
+    } else if (res.status === 403 && data.signedIn === false) {
+      outcome = 'signed_out';
+    } else {
+      outcome = 'service';
+    }
+  } catch { outcome = 'dropped'; }
+  if (outcome === 'cleared') {
+    Journal.clear();
     $('linkOut').textContent = '';
-  } else if (signedIn) {
-    $('linkOut').textContent = 'The practice record on this device is gone. The Lesson Studio lessons on this account are still there.';
-  } else if (identityDown || !reached) {
-    $('linkOut').textContent = 'The practice record on this device is gone. Lesson Studio lessons on the account could not be deleted just now.';
+  } else if (outcome === 'kept') {
+    $('linkOut').textContent = 'The Lesson Studio lessons on this account are still there.';
+  } else if (outcome === 'signed_out') {
+    $('linkOut').textContent = 'Sign in before Lesson Studio lessons on the account can be deleted.';
   } else {
-    $('linkOut').textContent = 'The practice record on this device is gone. Sign in before Lesson Studio lessons on the account can be deleted.';
+    $('linkOut').textContent = 'Lesson Studio lessons on the account could not be deleted just now.';
   }
   $('btnOpen').style.display = 'none';
   render();

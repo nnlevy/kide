@@ -242,8 +242,21 @@ export async function handleStudio(request, env) {
   }
 
   if (path === "/api/studio/clear") {
-    await deleteLessons(env.DB, parent.parentId);
-    return json({ ok: true, lessons: [] });
+    // A thrown delete is a service failure for this signed-in parent. It is
+    // not a sign-out. Success is only a count of zero lesson rows afterward.
+    try {
+      await deleteLessons(env.DB, parent.parentId);
+    } catch { /* the count below decides whether anything was actually cleared */ }
+    let left;
+    try {
+      left = await listLessons(env.DB, parent.parentId, { approvedOnly: false });
+    } catch {
+      return json({ ok: false, signedIn: true, error: "delete_failed" }, 500);
+    }
+    if (left.length !== 0) {
+      return json({ ok: false, signedIn: true, error: "delete_failed" }, 500);
+    }
+    return json({ ok: true, signedIn: true, lessons: [] });
   }
 
   return json({ ok: false }, 404);

@@ -477,6 +477,11 @@ await t("parent delete removes that family's lessons and quota only", async () =
   assert.match(parentHtml, /still there/);
   assert.match(parentHtml, /identity_unavailable/);
   assert.match(parentHtml, /could not be deleted just now/);
+  assert.match(parentHtml, /Journal\.clear\(\)/);
+  assert.doesNotMatch(parentHtml, /Journal\.clear\(\);\s*\n\s*let outcome/);
+  assert.doesNotMatch(privacyHtml, /never collect a child's name/i);
+  assert.match(privacyHtml, /not a ban on every name/);
+  assert.doesNotMatch(parentHtml, /we never see it/);
   assert.match(privacyHtml, /age band/);
   assert.match(privacyHtml, /until (?:that parent deletes|the parent deletes|you delete)/i);
   assert.doesNotMatch(privacyHtml, /\b\d+\s+days?\b/);
