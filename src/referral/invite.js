@@ -14,6 +14,7 @@
 // The hub owns names, tokens and payouts (riskfreetrial src/cashReferrals.ts).
 // This file renders and forwards. It never decides a payout.
 
+import { SHARE_REWARD } from "./apply.js";
 import { normalizeRef, refFromUrl } from "./ref.js";
 
 const DOMAIN = "kide.us";
@@ -97,7 +98,7 @@ export async function inviteResponse(request, env, asset) {
       .on("#claimBar", setAttr("data-code", code))
       .on("#claimBar", setAttr("data-claim", claim))
       .on("#claimName", setText(ref.firstName ? `Welcome ${ref.firstName}` : "Welcome"))
-      .on("#claimReward", setText(ref.rewardLabel ? `You earn ${ref.rewardLabel}.` : "You earn a reward for each family that buys family play through your link."));
+      .on("#claimReward", setText(SHARE_REWARD));
   }
 
   const out = rw.transform(asset);
@@ -137,7 +138,7 @@ export async function handleRefClaim(request, env) {
   try {
     const out = await hub.claimCashReferrer({ domain: DOMAIN, code, claim, email });
     if (out && out.ok === true) {
-      return jsonRes({ ok: true, link: `https://${DOMAIN}/?ref=${code}`, rewardLabel: typeof out.rewardLabel === "string" ? out.rewardLabel : null });
+      return jsonRes({ ok: true, link: `https://${DOMAIN}/?ref=${code}`, rewardLabel: SHARE_REWARD });
     }
     const reason = out && out.reason;
     return jsonRes({ ok: false, error: CLAIM_ERRORS[reason] || "That didn't save. Try again?" }, 400);

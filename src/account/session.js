@@ -56,6 +56,24 @@ export async function currentParent(request, env) {
   return { parentId, unlocked: unlocked === true };
 }
 
+// Server-only. The session JSON API still returns parentId and unlocked.
+// Cash RPCs need the hub-verified email; they must not take a client address.
+// Phone-only sessions return null here (10409 owns that auth seam).
+export async function verifiedParentEmail(request, env) {
+  const messaging = messagingOf(env);
+  if (!messaging) return null;
+  try {
+    const result = await messaging.currentSession({
+      domain: DOMAIN,
+      session: request.headers.get("cookie") || "",
+    });
+    if (!result || result.ok !== true) return null;
+    return normalizeEmail(result.email);
+  } catch {
+    return null;
+  }
+}
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,

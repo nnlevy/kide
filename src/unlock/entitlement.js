@@ -3,7 +3,12 @@
 // reused here, so a licence purchase does not open family play and a family
 // purchase is not inferred from a bare credit count.
 
+import { AMOUNT_CENTS } from "./config.js";
+import { normalizeRef } from "../referral/ref.js";
+
 const REFUND = new Set(["refunded", "reversed", "canceled", "cancelled", "failed", "unpaid"]);
+const CLEARED = new Set(["paid", "fulfilled"]);
+const PURCHASE_REF = /^(cs_|ch_|pi_|in_|py_)[A-Za-z0-9_]+$/;
 
 function rowsOf(credits) {
   const out = [];
@@ -28,23 +33,144 @@ function namesOf(row) {
   return names;
 }
 
+function familyRow(row, { offeringId, priceId, domain }) {
+  if (!row || typeof row !== "object") return false;
+  if (row.domain && row.domain !== domain) return false;
+  const names = namesOf(row);
+  return names.includes(offeringId) || (priceId && names.includes(priceId));
+}
+
+export function isStablePurchaseRef(value) {
+  return typeof value === "string" && value.length >= 8 && value.length <= 180 && PURCHASE_REF.test(value);
+}
+
+export function purchaseRefOf(row) {
+  if (!row || typeof row !== "object") return null;
+  // Hub getCredits (pinned riskfreetrial main a686eaa) names the Checkout
+  // session sourceRef. Do not require an invented id / sessionId field.
+  for (const key of ["sourceRef", "id", "purchaseId", "sessionId", "paymentIntent", "chargeId"]) {
+    if (isStablePurchaseRef(row[key])) return row[key];
+  }
+  return null;
+}
+
+export function customRefOf(row) {
+  if (!row || typeof row !== "object") return null;
+  const meta = row.metadata && typeof row.metadata === "object" ? row.metadata : {};
+  return normalizeRef(
+    row.custom_ref || row.customRef || meta.custom_ref || meta.customRef || meta.ref,
+  );
+}
+
+export function paidAtOf(row) {
+  if (!row || typeof row !== "object") return null;
+  for (const key of ["paidAt", "paid_at", "createdAt", "created_at", "purchasedAt"]) {
+    const value = row[key];
+    if (typeof value === "number" && Number.isFinite(value) && value > 1e11) return Math.floor(value);
+    if (typeof value === "string") {
+      const ms = Date.parse(value);
+      if (Number.isFinite(ms)) return ms;
+    }
+  }
+  return null;
+}
+
+function amountMatches(row) {
+  if (!row || typeof row !== "object") return true;
+  const cents = Number(row.amountCents ?? row.amount_cents);
+  if (Number.isFinite(cents) && cents > 0) return cents === AMOUNT_CENTS;
+  const amount = Number(row.amount);
+  if (Number.isFinite(amount) && amount > 0) {
+    return amount === AMOUNT_CENTS || amount === AMOUNT_CENTS / 100;
+  }
+  const currency = typeof row.currency === "string" ? row.currency.trim().toLowerCase() : "";
+  if (currency && currency !== "usd") return false;
+  return true;
+}
+
+function statusOf(row) {
+  return String(row.status || row.state || "").toLowerCase();
+}
+
 /**
  * @returns {{ known: boolean, unlocked: boolean }}
  * known is false when the hub did not answer. That is not a "no".
+ * A refunded row for a purchase beats a paid row for the same id.
+ * Rows with no stable id share one bucket: any refund there beats a paid row.
  */
-export function purchaseGrantsUnlock(credits, { offeringId, priceId, domain }) {
+export function purchaseGrantsUnlock(credits, cfg) {
   if (!credits || credits.ok !== true) return { known: false, unlocked: false };
+  const groups = new Map();
   for (const row of rowsOf(credits)) {
-    if (!row || typeof row !== "object") continue;
-    if (row.domain && row.domain !== domain) continue;
-    const status = String(row.status || row.state || "").toLowerCase();
-    if (REFUND.has(status)) continue;
-    const names = namesOf(row);
-    if (names.includes(offeringId) || (priceId && names.includes(priceId))) {
-      return { known: true, unlocked: true };
+    if (!familyRow(row, cfg)) continue;
+    const key = purchaseRefOf(row) || "_noid_";
+    const status = statusOf(row);
+    const refunded = REFUND.has(status);
+    const cleared = !status || CLEARED.has(status);
+    const prev = groups.get(key) || { paid: false, refunded: false };
+    if (refunded) prev.refunded = true;
+    else if (cleared) prev.paid = true;
+    groups.set(key, prev);
+  }
+  let unlocked = false;
+  for (const group of groups.values()) {
+    if (group.paid && !group.refunded) unlocked = true;
+  }
+  return { known: true, unlocked };
+}
+
+/**
+ * Unlock receipts are not cash proof. getCredits returns sourceRef + status
+ * only. Missing paid time or checkout-time attribution means no $6 here.
+ * Platform cash attribution is recordCashReferralFromCheckout on the hub,
+ * not this poll. Do not invent getCredits fields to feed the leaf ledger.
+ */
+export function familyPurchaseFacts(credits, cfg) {
+  if (!credits || credits.ok !== true) return [];
+  const groups = new Map();
+  for (const row of rowsOf(credits)) {
+    if (!familyRow(row, cfg)) continue;
+    const purchaseRef = purchaseRefOf(row);
+    if (!purchaseRef) continue;
+    const status = statusOf(row);
+    const refunded = REFUND.has(status);
+    const cleared = CLEARED.has(status);
+    const prev = groups.get(purchaseRef) || {
+      purchaseRef,
+      customRef: null,
+      paidAt: null,
+      amountOk: true,
+      paid: false,
+      refunded: false,
+    };
+    if (refunded) prev.refunded = true;
+    else if (cleared) prev.paid = true;
+    prev.customRef = prev.customRef || customRefOf(row);
+    prev.paidAt = prev.paidAt || paidAtOf(row);
+    prev.amountOk = prev.amountOk && amountMatches(row);
+    groups.set(purchaseRef, prev);
+  }
+  const out = [];
+  for (const fact of groups.values()) {
+    if (fact.refunded) {
+      out.push({
+        state: "refunded",
+        purchaseRef: fact.purchaseRef,
+        customRef: fact.customRef,
+        paidAt: fact.paidAt,
+      });
+      continue;
+    }
+    if (fact.paid && fact.customRef && fact.paidAt && fact.amountOk) {
+      out.push({
+        state: "paid",
+        purchaseRef: fact.purchaseRef,
+        customRef: fact.customRef,
+        paidAt: fact.paidAt,
+      });
     }
   }
-  return { known: true, unlocked: false };
+  return out;
 }
 
 export function unlockKey(email) {

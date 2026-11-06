@@ -1,3 +1,5 @@
+Provenance on this branch: attached canonical reference kit `kide-platform-gate-reference-20261105` (VERSION `ab09c0c+claims-fix`). Upstream commit remains `ab09c0c14accfb5af23939de6c0c229c9c5bea68`; UPSTREAM.sha256 keeps those original hashes. This is not a pristine upstream identity.
+
 # Vendored platform gate
 Byte-identical copy of `tools/platform-gate/` from private `nnlevy/scripts` at the commit in `VERSION`
 (minus the upstream `node_modules` symlink). `UPSTREAM.sha256` lists every upstream file's hash; do not edit them here.

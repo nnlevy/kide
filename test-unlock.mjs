@@ -17,11 +17,12 @@ import {
 } from './src/unlock/config.js';
 import { checkoutInput, httpsUrl } from './src/unlock/checkout.js';
 import { COPY, readable } from './src/unlock/copy.js';
-import { purchaseGrantsUnlock } from './src/unlock/entitlement.js';
+import { familyPurchaseFacts, purchaseGrantsUnlock, purchaseRefOf } from './src/unlock/entitlement.js';
 import { advance, overLimit } from './src/unlock/minutes.js';
 import { answerMatches, makeHold, nextPoll, ENTITLEMENT_WAIT_MS as WAIT } from './public/unlock/gate.js';
 import { isMeasured } from './public/engine/measure.js';
 import { normalizeRef, refFromRequest, withRefCookie } from './src/referral/ref.js';
+import { SHARE_REWARD } from './src/referral/apply.js';
 import { claimFromUrl, handleRefClaim, inviteCopy, lookupReferrer } from './src/referral/invite.js';
 
 let pass = 0, fail = 0;
@@ -133,7 +134,25 @@ await t('purchase history must name the family offering', () => {
   }, cfg).unlocked, false);
   assert.equal(purchaseGrantsUnlock({
     ok: true,
+    purchases: [
+      { domain: 'kide.us', offeringId: 'family_unlock', status: 'paid', id: 'cs_test_same' },
+      { domain: 'kide.us', offeringId: 'family_unlock', status: 'refunded', id: 'cs_test_same' },
+    ],
+  }, cfg).unlocked, false, 'a refunded row beats a paid row for the same purchase');
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
     purchases: [{ domain: 'other.example', offeringId: 'family_unlock', status: 'paid' }],
+  }, cfg).unlocked, false);
+  const hubShape = {
+    domain: 'kide.us', offeringId: 'family_unlock', sourceRef: 'cs_test_hub_session', status: 'fulfilled',
+  };
+  assert.equal(purchaseRefOf(hubShape), 'cs_test_hub_session');
+  assert.equal(purchaseRefOf({ domain: 'kide.us', offeringId: 'family_unlock', status: 'paid' }), null);
+  assert.equal(purchaseGrantsUnlock({ ok: true, purchases: [hubShape] }, cfg).unlocked, true);
+  assert.deepEqual(familyPurchaseFacts({ ok: true, purchases: [hubShape] }, cfg), [], 'no paidAt or custom_ref means no $6');
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
+    purchases: [{ ...hubShape, status: 'refunded' }],
   }, cfg).unlocked, false);
 });
 
@@ -597,8 +616,9 @@ await t('share links reach the Worker, so the referral cookie is actually set', 
 });
 
 // A share link names who sent it (first name only); the claim link is the
-// referrer's own and is the only place the payout shows.
-await t('share links name the sender and a claim link can add a payout email', async () => {
+// referrer's own. Claiming saves an email on the share link. It does not
+// open cash or send a payout.
+await t('share links name the sender and a claim link can add an email', async () => {
   assert.equal(claimFromUrl('https://kide.us/?ref=AB3DEFGH&claim=4e0f345409350d2ccad17e5b'), '4e0f345409350d2ccad17e5b');
   assert.equal(claimFromUrl('https://kide.us/?ref=AB3DEFGH&claim=<x>'), null);
   assert.equal(inviteCopy('Austin').headline, 'Austin thought your kiddo should meet Pip.');
@@ -615,7 +635,7 @@ await t('share links name the sender and a claim link can add a payout email', a
   assert.equal(await lookupReferrer({ PORTFOLIO_BILLING_SERVICE: { getCashReferrerPublic: async () => { throw new Error('down'); } } }, 'AB3DEFGH', null), null);
   let res = await handleRefClaim(req('/api/ref/claim', { method: 'POST', body: { code: 'AB3DEFGH', claim: 'a'.repeat(24), email: 'austin@example.com' } }), env);
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { ok: true, link: 'https://kide.us/?ref=AB3DEFGH', rewardLabel: '$7.50 for each family' });
+  assert.deepEqual(await res.json(), { ok: true, link: 'https://kide.us/?ref=AB3DEFGH', rewardLabel: SHARE_REWARD });
   assert.deepEqual(calls.at(-1), { domain: 'kide.us', code: 'AB3DEFGH', claim: 'a'.repeat(24), email: 'austin@example.com' });
   res = await handleRefClaim(req('/api/ref/claim', { method: 'POST', body: { code: 'AB3DEFGH', claim: 'b'.repeat(24), email: 'austin@example.com' } }), env);
   assert.equal(res.status, 400);
@@ -626,21 +646,25 @@ await t('share links name the sender and a claim link can add a payout email', a
 });
 
 await t('checkout carries the ref code to the hub, and no code means no metadata', async () => {
+  const notices = [];
   const hub = billing(unpaid);
+  hub.notifyReferralActivity = async (input) => { notices.push(input); return { ok: true }; };
   const env = { KIDE_LEADS: memoryKv(), PORTFOLIO_BILLING_SERVICE: hub };
   await handleUnlock(req('/api/unlock/checkout', { method: 'POST', cookie: 'kide_ref=AB3DEFGH', body: { email: 'friend@example.com' } }), env, { now: 1 });
   assert.deepEqual(hub.calls[0].customMetadata, { ref: 'AB3DEFGH' });
+  assert.deepEqual(notices, [{ domain: 'kide.us', code: 'AB3DEFGH', step: 'checkout_open' }]);
   await handleUnlock(req('/api/unlock/checkout', { method: 'POST', body: { email: 'friend@example.com' } }), env, { now: 1 });
   assert.equal('customMetadata' in hub.calls[1], false);
+  assert.equal(notices.length, 1);
   assert.equal('customMetadata' in checkoutInput({ origin: 'https://kide.us', email: 'a@b.co', ref: 'bad' }), false);
 });
 
-await t('only a family with play on this device (or the signed-in parent) gets a share link', async () => {
+await t('only a server-verified parent email gets a share link, and hub $5 cents stay closed', async () => {
   const issued = [];
   const hub = {
     ...billing(paid),
     async issueCashReferralCode(input) { issued.push(input); return { ok: true, code: 'AB3DEFGH', link: 'https://kide.us/?ref=AB3DEFGH', rewardLabel: '$5 for you' }; },
-    async getCashReferralStatus() { return { ok: true, families: 2, earnedCents: 1000 }; },
+    async getCashReferralStatus() { return { ok: true, families: 2, earnedCents: 1000, rewardLabel: '$5 for you when a family you shared with buys family play' }; },
   };
   const env = { KIDE_LEADS: memoryKv(), PORTFOLIO_BILLING_SERVICE: hub };
   const stranger = await handleUnlock(req('/api/unlock/referral', { method: 'POST', body: { email: 'someone@example.com' } }), env, { now: 1 });
@@ -650,14 +674,31 @@ await t('only a family with play on this device (or the signed-in parent) gets a
   assert.ok(readable(strangerData.message));
 
   const confirmed = await handleUnlock(req('/api/unlock/confirm', { method: 'POST', body: { email: 'parent@example.com' } }), env, { now: 1 });
-  const cookie = cookiePair(confirmed);
-  const other = await handleUnlock(req('/api/unlock/referral', { method: 'POST', cookie, body: { email: 'someone@example.com' } }), env, { now: 2 });
-  assert.equal(other.status, 403, 'a paid device cannot mint a code for another address');
-  const mine = await handleUnlock(req('/api/unlock/referral', { method: 'POST', cookie, body: { email: 'Parent@Example.com' } }), env, { now: 2 });
+  const device = cookiePair(confirmed);
+  const clientOnly = await handleUnlock(req('/api/unlock/referral', {
+    method: 'POST', cookie: device, body: { email: 'parent@example.com' },
+  }), env, { now: 2 });
+  assert.equal(clientOnly.status, 403, 'a paid device cookie is not a parent identity');
+  assert.equal(issued.length, 0);
+
+  env.PORTFOLIO_MESSAGING_SERVICE = { async currentSession() { return { ok: true, email: 'someone@example.com' }; } };
+  const other = await handleUnlock(req('/api/unlock/referral', {
+    method: 'POST', cookie: `${device}; session=1`, body: { email: 'parent@example.com' },
+  }), env, { now: 2 });
+  assert.equal(other.status, 403, 'session B cannot mint on device unlock A');
+  assert.equal(issued.length, 0);
+
+  env.PORTFOLIO_MESSAGING_SERVICE = { async currentSession() { return { ok: true, email: 'Parent@Example.com' }; } };
+  const mine = await handleUnlock(req('/api/unlock/referral', {
+    method: 'POST', cookie: `${device}; session=1`, body: { email: 'someone@example.com' },
+  }), env, { now: 2 });
   const data = await mine.json();
   assert.equal(mine.status, 200);
   assert.equal(data.link, 'https://kide.us/?ref=AB3DEFGH');
-  assert.equal(data.families, 2);
+  assert.equal(data.closed, true);
+  assert.equal(data.families, 0);
+  assert.equal(data.earnedCents, 0);
+  assert.equal(data.reward, SHARE_REWARD);
   assert.deepEqual(issued, [{ domain: 'kide.us', email: 'parent@example.com' }]);
 });
 
