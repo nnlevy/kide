@@ -466,16 +466,21 @@ await t('account page at 320px: no overflow, 44px controls, 16px inputs, long em
   let chromium;
   try { ({ chromium } = await import('playwright')); }
   catch { try { ({ chromium } = await import('playwright-core')); } catch { /* none */ } }
-  const chrome = ['/usr/local/bin/google-chrome', '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser']
-    .find((p) => existsSync(p));
+  const bundled = chromium && typeof chromium.executablePath === 'function' ? chromium.executablePath() : '';
+  const chrome = ['/usr/local/bin/google-chrome', '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser', bundled]
+    .find((p) => p && existsSync(p));
   if (!chromium || !chrome) {
-    throw Object.assign(new Error('playwright or system chrome is not installed'), { skip: true });
+    const err = new Error('playwright chromium is not installed');
+    if (!process.env.CI) err.skip = true;
+    throw err;
   }
   let browser;
   try {
     browser = await chromium.launch({ executablePath: chrome, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
   } catch (e) {
-    throw Object.assign(new Error(String(e.message).split('\n')[0]), { skip: true });
+    const err = new Error(String(e.message).split('\n')[0]);
+    if (!process.env.CI) err.skip = true;
+    throw err;
   }
   const port = 9327;
   const server = await serveAccount(port);
