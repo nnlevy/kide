@@ -7,7 +7,7 @@ import { browserOrSkip } from './test-browser.mjs';
 
 if (!existsSync('dist/words/index.html')) {
   console.log('\n(skipped test-words-browser: run `npm run build` first)\n');
-  process.exit(0);
+  process.exit(process.env.CI ? 1 : 0);
 }
 
 const PORT = Number(process.env.WORDS_TEST_PORT || 8794);

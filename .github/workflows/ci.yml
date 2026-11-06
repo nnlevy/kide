@@ -7,13 +7,16 @@ name: CI
 # pull_request and push to main must produce a real check run. kide is public,
 # so this file does not call a private reusable workflow.
 #
-# What runs: npm ci, a hard browser launch (Chromium and WebKit), wrangler
-# types, npm test, then the vendored canonical preflight (full discovery, all
-# 15 profiles, no path or device narrowing). The unfiltered gate JSON is
-# uploaded. A missing gate file, a browser that will not launch, or a gate
-# finding fails the job.
+# What runs: npm ci, a hard browser launch (Chromium and WebKit), ffprobe,
+# wrangler types, npm test, then the vendored canonical preflight (full
+# discovery, all 15 profiles, no path or device narrowing). The unfiltered
+# gate JSON is uploaded. A missing gate file, a browser that will not launch,
+# a missing ffprobe, or a gate finding fails the job.
 # What does not run: wrangler deploy (including deploy --dry-run), Stripe,
 # DNS, Cloudflare secrets, and any live checkout.
+# Three catalog checks still skip inside npm test. They read a sibling
+# riskfreetrial billing.ts that names kide.us, which this job does not have.
+# Those skips are missing dependencies, not proof the hub catalog is present.
 
 on:
   pull_request:
@@ -21,9 +24,15 @@ on:
   push:
     branches: [main]
 
+# GITHUB_TOKEN stays contents: read for checkout. actions/upload-artifact@v4
+# (tag v4, package 4.6.2, dist/upload/index.js getRuntimeToken) sends
+# CreateArtifact with Bearer ACTIONS_RUNTIME_TOKEN to ACTIONS_RESULTS_URL.
+# That is not the GITHUB_TOKEN actions scope. The workflow syntax docs give
+# actions: write as the example that can cancel a workflow run, which this
+# file does not do. overwrite is left at its default false, so the bundled
+# delete path that can call the REST API with a token is not used.
 permissions:
   contents: read
-  actions: write
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -77,6 +86,14 @@ jobs:
             }
           '
 
+      - name: Require ffprobe
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          command -v ffprobe
+          command -v ffmpeg
+          ffprobe -version
+
       - name: wrangler types
         run: npx wrangler types "${RUNNER_TEMP}/worker-configuration.d.ts"
 
@@ -111,7 +128,10 @@ jobs:
             console.log(gate.summary);
           '
 
+      # A failed gate still produced JSON. Uploading it does not clear that
+      # failure: this step has no continue-on-error, and a missing file errors.
       - name: Upload gate JSON
+        if: always() && !cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: gate-preflight
