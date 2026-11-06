@@ -31,7 +31,7 @@ import { jsErrorFindings } from "./js-errors.mjs";
 import { blockRum } from "./rum-block.mjs";
 import { assetHtmlFallback, assetPlan, isHtml, referencedPaths, swRegisterUrls } from "./asset-html.mjs";
 const HERE = dirname(fileURLToPath(import.meta.url));
-const { extractBlocks } = createRequire(import.meta.url)("./extract-blocks.js");
+const { extractBlocksExpr, parseBlocks } = createRequire(import.meta.url)("./extract-blocks.js");
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : d; };
 const has = (k) => argv.includes(`--${k}`);
@@ -57,7 +57,7 @@ for (const url of urls) {
     if (!sameSite(url, page.url())) throw new Error(`redirected off-origin: ${url} -> ${page.url()} (refusing to audit a different site than requested)`);
     if (!has("no-js-errors")) { const js = jsErrorFindings(pageErrors, url, host); result.claims.push(...js.findings); (result.jsErrorsIgnored ||= []).push(...js.ignored);
       for (const i of js.ignored) console.log(`  js_error ignored (third-party ${i.source}): ${i.name}: ${i.message}`); }
-    const blocks = await page.evaluate(extractBlocks, cfg);
+    const blocks = parseBlocks(await page.evaluate(extractBlocksExpr(cfg)));
     const fetchSource = has("check-sources") ? async (u) => (await fetch(u)).text() : null;
     const claims = await auditBlocks(blocks, cfg, { requireMetadata: has("require-metadata"), fetchSource, claimsJson });
     result.claims.push(...claims);

@@ -1,7 +1,9 @@
-// Money path: paid parent's share link → referred parent's $15 family_unlock
-// → $6 cash. This ledger is not the credits balance and not kide_entitlements.
-// Nir chose Stripe Connect for sending the cash. This file records the request
-// only. It does not create a Connect account, a price, or a transfer.
+// Money path: this file is NOT the cash authority. Production issue/status/
+// landing/notify paths call the five hub RPCs in apply.js. Do not wire HTTP
+// or confirm back through these tables. Fourteen-day HOLD_MS here was only a
+// proposal. Approved terms remain $6 / $50 / Stripe Connect; hub source is
+// $5 / 30-day processing / owner queue. Kept so older unit fixtures still
+// compile; new cash work must not write these rows.
 
 import { normalizeRef } from "./ref.js";
 

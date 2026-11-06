@@ -1,16 +1,26 @@
-// Money path: /r/<code> keeps the share, /parent/earnings shows the cash.
-// Pending, available, and paid are the parent's own figures. The send queue
-// stays off this page.
+// Money path: /r/<code> keeps the share cookie for checkout custom_ref;
+// /parent/earnings shows the family's own link. Cash balances stay closed
+// until the shared program matches the approved $6 / $50 / Connect terms.
+// D1 is not a second cash authority. Client email is not an identity.
 
-import { currentParent } from "../account/session.js";
-import { SHARE_REWARD, issueShareCode, shareStatus } from "./apply.js";
-import { codeByValue } from "./ledger.js";
+import { currentParent, verifiedParentEmail } from "../account/session.js";
+import {
+  CASH_CLOSED,
+  SHARE_REWARD,
+  closedCash,
+  issueShareCode,
+  lookupPublicCode,
+  notifyReferralActivity,
+  shareStatus,
+} from "./apply.js";
 import { normalizeRef, refCookie } from "./ref.js";
 
 export const EARNINGS_COPY = {
   signedOut: "Sign in to see what your link has earned.",
   locked: "Your link opens once family play is on.",
+  needAccount: "Sign in with your parent account to open your link.",
   reward: SHARE_REWARD,
+  closed: CASH_CLOSED,
   retry: "Pip could not open that just now. Try again in a moment.",
 };
 
@@ -26,20 +36,7 @@ function notFound() {
   return new Response(html, { status: 404, headers: { "Content-Type": "text/html; charset=utf-8" } });
 }
 
-export async function handleRefLanding(request, env, raw) {
-  if (request.method !== "GET" && request.method !== "HEAD") {
-    return json({ ok: false, message: "Open the link in the browser." }, 405);
-  }
-  const code = normalizeRef(raw);
-  if (!code) return notFound();
-  if (env && env.DB) {
-    try {
-      const row = await codeByValue(env.DB, code);
-      if (!row) return notFound();
-    } catch {
-      // A database miss should not eat a link a parent already sent.
-    }
-  }
+function redirectHome(request, code) {
   const dest = new URL(request.url);
   dest.pathname = "/";
   dest.search = `?ref=${code}`;
@@ -51,19 +48,30 @@ export async function handleRefLanding(request, env, raw) {
   return new Response(null, { status: 302, headers });
 }
 
-async function parentContact(db, parentId) {
-  if (!db) return { email: null, phone: null };
-  try {
-    const row = await db.prepare(
-      `SELECT email, phone_e164 FROM kide_parents WHERE id = ?`,
-    ).bind(parentId).first();
-    return {
-      email: row && typeof row.email === "string" ? row.email : null,
-      phone: row && typeof row.phone_e164 === "string" ? row.phone_e164 : null,
-    };
-  } catch {
-    return { email: null, phone: null };
+export async function handleRefLanding(request, env, raw) {
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    return json({ ok: false, message: "Open the link in the browser." }, 405);
   }
+  const code = normalizeRef(raw);
+  if (!code) return notFound();
+  const hub = env && env.PORTFOLIO_BILLING_SERVICE;
+  if (hub && typeof hub.getCashReferrerPublic === "function") {
+    const pub = await lookupPublicCode(env, code);
+    if (pub.ok !== true) return json({ ok: false, message: EARNINGS_COPY.retry }, 503);
+    if (pub.found !== true) return notFound();
+    await notifyReferralActivity(env, { code, step: "link_open" });
+    return redirectHome(request, code);
+  }
+  // Hub unbound: cookie only so checkout can send customMetadata.ref.
+  // That is not a cash credit and not a completed payout journey.
+  return redirectHome(request, code);
+}
+
+function zeros(message) {
+  return {
+    ok: true,
+    ...closedCash({ message }),
+  };
 }
 
 export async function handleEarnings(request, env) {
@@ -71,40 +79,52 @@ export async function handleEarnings(request, env) {
     return json({ ok: false, message: EARNINGS_COPY.retry }, 405);
   }
   const who = await currentParent(request, env);
-  const zeros = { pendingCents: 0, availableCents: 0, paidCents: 0, link: null, code: null, openSendCents: 0, families: 0 };
+  const email = await verifiedParentEmail(request, env);
   if (!who.parentId) {
-    return json({ ok: true, signedIn: false, unlocked: false, ...zeros, message: EARNINGS_COPY.signedOut });
+    return json({ signedIn: false, unlocked: false, ...zeros(EARNINGS_COPY.signedOut) });
   }
-  if (!env || !env.DB) {
-    return json({ ok: false, signedIn: true, message: EARNINGS_COPY.retry }, 503);
-  }
-  const now = Date.now();
-  try {
-    if (who.unlocked) {
-      const contact = await parentContact(env.DB, who.parentId);
-      await issueShareCode(env, {
-        parentId: who.parentId,
-        email: contact.email,
-      });
-    }
-    const summary = await shareStatus(env, who.parentId, now);
+  if (!email) {
+    // 10409 owns auth: phone-only or unverified sessions cannot mint cash identity.
     return json({
-      ok: true,
       signedIn: true,
       unlocked: who.unlocked === true,
-      pendingCents: summary.pendingCents,
-      availableCents: summary.availableCents,
-      paidCents: summary.paidCents,
-      families: summary.families,
-      openSendCents: summary.openSendCents,
-      link: summary.link,
-      code: summary.code,
-      reward: summary.link ? EARNINGS_COPY.reward : "",
-      message: who.unlocked ? "" : EARNINGS_COPY.locked,
+      ...zeros(EARNINGS_COPY.needAccount),
     });
-  } catch {
-    return json({ ok: false, signedIn: true, message: EARNINGS_COPY.retry }, 503);
   }
+  if (!who.unlocked) {
+    return json({
+      signedIn: true,
+      unlocked: false,
+      ...zeros(EARNINGS_COPY.locked),
+    });
+  }
+  const issued = await issueShareCode(env, { email });
+  const summary = await shareStatus(env, { email });
+  const link = (summary && summary.link) || (issued && issued.link) || null;
+  const code = (summary && summary.code) || (issued && issued.code) || null;
+  if (!issued && !summary) {
+    return json({
+      ok: false,
+      signedIn: true,
+      unlocked: true,
+      ...closedCash({ message: EARNINGS_COPY.retry }),
+    }, 503);
+  }
+  return json({
+    ok: true,
+    signedIn: true,
+    unlocked: true,
+    closed: true,
+    pendingCents: 0,
+    availableCents: 0,
+    paidCents: 0,
+    families: 0,
+    openSendCents: 0,
+    link,
+    code,
+    reward: link ? SHARE_REWARD : "",
+    message: CASH_CLOSED,
+  });
 }
 
 export async function handleReferralHttp(request, env) {

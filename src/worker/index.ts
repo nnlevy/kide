@@ -46,6 +46,9 @@ type PortfolioBillingServiceBinding = {
   }>;
   getCashReferrerPublic?: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
   claimCashReferrer?: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  issueCashReferralCode?: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  getCashReferralStatus?: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  notifyReferralActivity?: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
   getCredits: (email: string) => Promise<{
     ok: true;
     exists: boolean;

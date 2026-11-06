@@ -1,7 +1,9 @@
-// Money path: $15 family_unlock checkout can unlock play on this leaf.
-// Cash attribution is not a getCredits poll and is not this local ledger.
+// Money path: visit → share → $15 family_unlock checkout → intended $6 cash
+// at a $50 send threshold via Stripe Connect. This leaf does not keep a cash
+// ledger and does not reconstruct commissions from getCredits, cookies,
+// sourceRef, or an invented paidAt.
 //
-// Five PortfolioBillingService RPCs (packet v2, a686eaa source, not live):
+// Callable PortfolioBillingService RPCs (packet v2, a686eaa source, not live):
 //   issueCashReferralCode({ domain, email, label? })
 //     → { ok:true, code, link, rewardLabel } | { ok:false, reason }
 //   getCashReferralStatus({ domain, email })
@@ -16,35 +18,34 @@
 // Hub created_at / 30-day eligible_at are processing nowIso, not buyer paidAt.
 // Hub paid_at is owner-confirmed payout time, not purchase time.
 // getCredits receipts are { domain, offeringId, sourceRef, status } only.
-// Billing receipt metadata_json is { eventId, offeringId, offeringKind, mode,
-// subscriptionId } — no custom_ref. Attribution is Stripe session metadata.
+// Billing receipt metadata_json has no custom_ref. Attribution is the hub
+// Stripe-session-metadata path inside recordCashReferralFromCheckout.
 //
-// Terms check: AGENTS.md approves $15 family_unlock and $39 licence, not $6/$50.
-// Hub kide program source: defaultPayoutCents 500, holdDays 30, owner queue.
-// This leaf still shows $6 / 14 days / $50 and does not send cash. That is a
-// copy/policy mismatch, not a buyer-paidAt contract and not live coverage.
+// Approved terms (Nir, 31 Oct; AGENTS omission is not revocation):
+//   $6 per referred family_unlock, $50 send threshold, Stripe Connect.
+// Hub kide program source: defaultPayoutCents 500, holdDays 30, owner queue,
+// rewardLabel "$5 for you when a family you shared with buys family play".
+// That mismatch is a shared-platform engineering gap, not permission to
+// downgrade. Fourteen days was only a proposal. This leaf fail-closes cash
+// balances and never treats hub $5 rows as the approved journey completed.
+// Live hub 1a75001 unpublished. No Connect. No payouts. No hub edits.
 //
-// Gap: env.DB uses this local ledger; issue/status hub RPCs run only when DB
-// is missing. invite.js already uses getCashReferrerPublic / claimCashReferrer.
-// notifyReferral here sends event/source/live, not step:link_open|checkout_open.
-// Live hub 1a75001 unpublished. No new ledger. No Connect. No payouts.
+// Storage this leaf actually touches for share: the 30-day kide_ref cookie,
+// checkout customMetadata.ref, and the five RPCs above (hub stores referrer
+// email/code). It does not write kide_referral_* as a second cash authority.
+// 10409 owns auth/funnel: issue/status use a server-verified parent email.
 
-import { parentIdFor } from "../account/parent-id.js";
-import { DOMAIN, OFFERING_ID, STRIPE_PRICE_ID } from "../unlock/config.js";
-import { familyPurchaseFacts } from "../unlock/entitlement.js";
-import {
-  FAMILY_OFFERING,
-  PAYOUT_METHOD,
-  REWARD_CENTS,
-  earningsFor,
-  issueCode,
-  recordClearedPurchase,
-  reverseClearedPurchase,
-} from "./ledger.js";
+import { DOMAIN } from "../unlock/config.js";
+import { httpsUrl } from "../unlock/checkout.js";
+import { normalizeRef } from "./ref.js";
 
 export const SHARE_REWARD =
-  "You get $6 when a parent you invite buys family play. It waits 14 days. When those $6 add up to $50, we can ask to send the cash. We do not send it yet.";
+  "You get $6 when a parent you invite buys family play. When those $6 add up to $50, we can ask to send the cash. We do not send it yet.";
 
+export const CASH_CLOSED =
+  "Your link is yours to share. Cash is not open yet. We do not send it yet.";
+
+const ACTIVITY_STEPS = new Set(["link_open", "checkout_open"]);
 const HUB_TIMEOUT_MS = 1500;
 
 function withTimeout(promise) {
@@ -54,119 +55,123 @@ function withTimeout(promise) {
   ]);
 }
 
-export async function notifyReferral(env, event) {
-  const hub = env && env.PORTFOLIO_BILLING_SERVICE;
-  if (!hub || typeof hub.notifyReferralActivity !== "function") return;
+function billingOf(env) {
+  return env && env.PORTFOLIO_BILLING_SERVICE ? env.PORTFOLIO_BILLING_SERVICE : null;
+}
+
+function shareLinkOf(code, link) {
+  const fromHub = httpsUrl(link);
+  if (fromHub) return fromHub;
+  const normalized = normalizeRef(code);
+  return normalized ? `https://kide.us/?ref=${normalized}` : null;
+}
+
+// Hub $5 / 30-day / owner-queue is not the approved $6 / $50 / Connect journey.
+// Status also does not reconcile refunds or prove webhook freshness. Always
+// fail-closed on money. A matching future program still needs a reviewed hub
+// change before this leaf may surface cents.
+export function approvedProgram(stats) {
+  if (!stats || stats.ok !== true) return false;
+  const label = String(stats.rewardLabel || "");
+  if (/\$5\b/.test(label) || /\b5 for /i.test(label)) return false;
+  return false;
+}
+
+export function closedCash(extra = {}) {
+  return {
+    ok: true,
+    closed: true,
+    pendingCents: 0,
+    availableCents: 0,
+    paidCents: 0,
+    families: 0,
+    earnedCents: 0,
+    openSendCents: 0,
+    link: extra.link || null,
+    code: extra.code || null,
+    reward: extra.reward || "",
+    message: extra.message || CASH_CLOSED,
+  };
+}
+
+export async function notifyReferralActivity(env, { code, step, device, at } = {}) {
+  const hub = billingOf(env);
+  if (!hub || typeof hub.notifyReferralActivity !== "function") {
+    return { ok: false, reason: "no_hub" };
+  }
+  const normalized = normalizeRef(code);
+  if (!normalized) return { ok: false, reason: "code_required" };
+  if (!ACTIVITY_STEPS.has(step)) return { ok: false, reason: "step_unknown" };
+  const input = { domain: DOMAIN, code: normalized, step };
+  if (device === "phone" || device === "tablet" || device === "computer") input.device = device;
+  if (typeof at === "string" && at) input.at = at;
   try {
-    await withTimeout(hub.notifyReferralActivity({
-      domain: DOMAIN,
-      source: "kide_referral_ledger",
-      live: false,
-      method: PAYOUT_METHOD,
-      ...event,
-    }));
+    const out = await withTimeout(hub.notifyReferralActivity(input));
+    if (!out || out.ok !== true) return { ok: false, reason: (out && out.reason) || "notify_failed" };
+    return { ok: true };
   } catch {
-    // The ledger row is already written. The hub can hear about it later.
+    return { ok: false, reason: "notify_failed" };
   }
 }
 
-export async function issueShareCode(env, { parentId, email }) {
-  const issued = await issueCode(env.DB, { parentId, email });
-  if (!issued) return null;
-  if (issued.fresh) {
-    await notifyReferral(env, { event: "code_issued", code: issued.code, parentId });
+export async function lookupPublicCode(env, code, claim) {
+  const hub = billingOf(env);
+  if (!hub || typeof hub.getCashReferrerPublic !== "function") {
+    return { ok: false, reason: "no_hub" };
   }
-  return { ...issued, reward: SHARE_REWARD };
-}
-
-async function fanOut(env, events) {
-  for (const event of events || []) {
-    await notifyReferral(env, {
-      event: event.event,
-      parentId: event.parentId,
-      amountCents: event.amountCents,
-      payoutId: event.id,
-    });
-  }
-}
-
-export async function applyClearedPurchase(env, input) {
-  if (!env || !env.DB) return { ok: false, reason: "no_ledger" };
-  const now = typeof input.now === "number" ? input.now : Date.now();
-  const result = await recordClearedPurchase(env.DB, {
-    code: input.code,
-    buyerId: input.buyerId,
-    purchaseRef: input.purchaseRef,
-    paidAt: typeof input.paidAt === "number" ? input.paidAt : null,
-    offeringId: input.offeringId || FAMILY_OFFERING,
-  }, now);
-  if (result.ok && result.fresh) {
-    await notifyReferral(env, {
-      event: "pending",
-      code: result.code,
-      parentId: result.referrerId,
-      amountCents: REWARD_CENTS,
-      purchaseRef: input.purchaseRef,
-    });
-  } else if (!result.ok && result.reason === "self") {
-    await notifyReferral(env, { event: "self_blocked", code: input.code, parentId: input.buyerId });
-  }
-  if (result.ok) await fanOut(env, result.events);
-  return result;
-}
-
-export async function applyRefund(env, input) {
-  if (!env || !env.DB) return { ok: false, reason: "no_ledger" };
-  const now = typeof input.now === "number" ? input.now : Date.now();
-  const result = await reverseClearedPurchase(env.DB, {
-    purchaseRef: input.purchaseRef,
-  }, now);
-  if (result.reversed) {
-    await notifyReferral(env, {
-      event: "reversed",
-      parentId: result.referrerId,
-      amountCents: result.amountCents,
-      purchaseRef: input.purchaseRef,
-    });
-    await fanOut(env, result.events);
-  }
-  return result;
-}
-
-// Called when purchase history says family play cleared, or a refund landed.
-// A missing database does nothing. A thrown error does not un-pay the family.
-// The request cookie is ignored. Only hub purchase fields can credit $6.
-export async function noteFamilyUnlock(env, _request, email, credits, now) {
+  const normalized = normalizeRef(code);
+  if (!normalized) return { ok: false, reason: "code_required" };
   try {
-    if (!env || !env.DB || !email) return;
-    const facts = familyPurchaseFacts(credits, {
-      offeringId: OFFERING_ID,
-      priceId: STRIPE_PRICE_ID,
-      domain: DOMAIN,
-    });
-    const buyerId = await parentIdFor("email", email);
-    for (const fact of facts) {
-      if (fact.state === "refunded") {
-        await applyRefund(env, { purchaseRef: fact.purchaseRef, now });
-      }
-    }
-    for (const fact of facts) {
-      if (fact.state !== "paid") continue;
-      await applyClearedPurchase(env, {
-        code: fact.customRef,
-        buyerId,
-        purchaseRef: fact.purchaseRef,
-        paidAt: fact.paidAt,
-        now,
-        offeringId: OFFERING_ID,
-      });
-    }
+    const input = { domain: DOMAIN, code: normalized };
+    if (claim) input.claim = claim;
+    const out = await withTimeout(hub.getCashReferrerPublic(input));
+    if (!out || out.ok !== true) return { ok: false, reason: (out && out.reason) || "lookup_failed" };
+    return out;
   } catch {
-    // Family play stays as the hub reported it.
+    return { ok: false, reason: "lookup_failed" };
   }
 }
 
-export async function shareStatus(env, parentId, now) {
-  if (!env || !env.DB || !parentId) return null;
-  return earningsFor(env.DB, parentId, typeof now === "number" ? now : Date.now());
+export async function issueShareCode(env, { email } = {}) {
+  const hub = billingOf(env);
+  if (!hub || typeof hub.issueCashReferralCode !== "function") return null;
+  const want = typeof email === "string" && email.includes("@") ? email : "";
+  if (!want) return null;
+  try {
+    const issued = await withTimeout(hub.issueCashReferralCode({ domain: DOMAIN, email: want }));
+    if (!issued || issued.ok !== true) return null;
+    const code = normalizeRef(issued.code);
+    const link = shareLinkOf(code, issued.link);
+    if (!code || !link) return null;
+    return { code, link, reward: SHARE_REWARD, fresh: true };
+  } catch {
+    return null;
+  }
+}
+
+export async function shareStatus(env, { email } = {}) {
+  const hub = billingOf(env);
+  if (!hub || typeof hub.getCashReferralStatus !== "function") return null;
+  const want = typeof email === "string" && email.includes("@") ? email : "";
+  if (!want) return null;
+  try {
+    const stats = await withTimeout(hub.getCashReferralStatus({ domain: DOMAIN, email: want }));
+    if (!stats || stats.ok !== true) return null;
+    const code = normalizeRef(stats.code);
+    const link = shareLinkOf(code, stats.link);
+    return closedCash({
+      link,
+      code,
+      reward: link ? SHARE_REWARD : "",
+      message: CASH_CLOSED,
+    });
+  } catch {
+    return null;
+  }
+}
+
+// Play unlock uses getCredits. Cash attribution is hub-internal
+// recordCashReferralFromCheckout (not an RPC). Do not invent $6 here.
+export async function noteFamilyUnlock() {
+  return;
 }

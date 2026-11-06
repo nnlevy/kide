@@ -13,3 +13,11 @@ These rules apply to every AI agent session in this repo (Cursor, Claude Code, C
 4. **Dashboard over freebies.** Integrate tools into the logged-in user dashboard with a paid path (existing credits, paid steps, existing Stripe products) instead of shipping standalone free tools. Never create new Stripe products or prices, or change pricing, without Nir. Never expose Nir's private ops dashboard.
 
 _Money path checked against this repo on 2026-11-01. The $39 licence is unchanged. Family play uses Stripe price `price_1UWqYjIzTeKgjbPrOtu7jVAG` ($15 one-time, product `prod_VXwRuRo0HAZXKh`) through the existing hub checkout. The hub catalog still has to list `family_unlock` before that checkout can open. If the path changes, update rule 1 in the same PR._
+
+_Referral cash terms (Nir, 31 Oct request; AGENTS omission is not revocation): $6 per referred `family_unlock` and a $50 send threshold. The recorded subsequent payout choice is Stripe Connect. A 14-day hold was only a proposal. The hub source program ($5, 30-day processing hold, owner queue) is a shared-platform engineering gap, not permission to downgrade those approved terms. Cash stays fail-closed until the authoritative shared program matches. No new Stripe objects, Connect setup, or payouts without Nir._
+
+## Platform gate (required before every PR)
+The deploy gate (`nnlevy/scripts` tools/platform-gate, the same `gate.mjs --strict` Ozer's deploy runs) is vendored at `tools/platform-gate/`. VERSION is `ab09c0c+claims-fix`: upstream `ab09c0c14accfb5af23939de6c0c229c9c5bea68` plus the disclosed claims-transport patch. `UPSTREAM.sha256` keeps the original unpatched hashes; this is not a pristine upstream identity.
+1. `npm run gate:preflight` — builds, serves `dist/` on http://127.0.0.1:8787, discovers pages, runs the gate, writes `gate-preflight-out/gate.json`, exits non-zero on any finding.
+2. Fix until it exits 0 with `failing: 0` (uncited claims, taps<44, text<12px, overflow, axe-critical, CLS, js_error, orphan tools, asset HTML fallback).
+3. Paste the full `gate-preflight-out/gate.json` in the PR body. A static zero is not functional approval of cash or auth journeys.

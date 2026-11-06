@@ -1,9 +1,9 @@
-// Money path: A's share link → B's $15 family_unlock → A pending $6.
-// Cash lives in kide_referral_* only. No Stripe Connect account, price, or transfer.
+// Money path: A's share link → B's $15 family_unlock → intended $6 cash at $50.
+// This leaf adapts the five hub RPCs. It does not keep a second cash ledger.
 
 import { readFileSync } from 'node:fs';
+import { createServer } from 'node:http';
 import assert from 'node:assert';
-import { spawn } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 
 import { parentIdFor } from './src/account/parent-id.js';
@@ -12,17 +12,15 @@ import { handleUnlock } from './src/unlock/handler.js';
 import { STRIPE_PRICE_ID } from './src/unlock/config.js';
 import { readable } from './src/unlock/copy.js';
 import {
-  HOLD_MS,
-  PAYOUT_AT_CENTS,
-  PAYOUT_METHOD,
-  REWARD_CENTS,
-  codeByValue,
-  earningsFor,
-  ipCluster,
-  issueCode,
-  listPayoutQueue,
-} from './src/referral/ledger.js';
-import { applyClearedPurchase, applyRefund } from './src/referral/apply.js';
+  CASH_CLOSED,
+  SHARE_REWARD,
+  approvedProgram,
+  closedCash,
+  issueShareCode,
+  noteFamilyUnlock,
+  notifyReferralActivity,
+  shareStatus,
+} from './src/referral/apply.js';
 import { EARNINGS_COPY, handleEarnings, handleRefLanding, handleReferralHttp } from './src/referral/http.js';
 
 let pass = 0;
@@ -38,7 +36,7 @@ const t = async (name, fn) => {
   }
 };
 
-function memoryDb() {
+function memoryDbSync() {
   const sqlite = new DatabaseSync(':memory:');
   const wrap = (sql, args) => {
     const stmt = sqlite.prepare(sql);
@@ -80,10 +78,9 @@ function memoryKv() {
   };
 }
 
-function req(path, { method = 'GET', cookie = '', body, ip } = {}) {
+function req(path, { method = 'GET', cookie = '', body } = {}) {
   const headers = {};
   if (cookie) headers.cookie = cookie;
-  if (ip) headers['cf-connecting-ip'] = ip;
   if (body !== undefined) headers['content-type'] = 'application/json';
   return new Request('https://kide.us' + path, {
     method,
@@ -92,496 +89,403 @@ function req(path, { method = 'GET', cookie = '', body, ip } = {}) {
   });
 }
 
-const DAY = Date.parse('2026-11-05T12:00:00Z');
-
-function hub(events) {
+function messaging(email, extras = {}) {
   return {
-    events,
-    async notifyReferralActivity(input) { events.push(input); return { ok: true }; },
+    async currentSession() {
+      return { ok: true, email, ...extras };
+    },
   };
 }
 
-async function parent(email) {
-  return parentIdFor('email', email);
+function cashHub({ events = [], code = 'AB3DEFGH', rewardLabel = '$5 for you when a family you shared with buys family play' } = {}) {
+  return {
+    events,
+    async issueCashReferralCode(input) {
+      events.push({ rpc: 'issue', ...input });
+      if (input.fail) return { ok: false, reason: 'program_disabled' };
+      return { ok: true, code, link: `https://kide.us/?ref=${code}`, rewardLabel };
+    },
+    async getCashReferralStatus(input) {
+      events.push({ rpc: 'status', ...input });
+      return {
+        ok: true,
+        code,
+        link: `https://kide.us/?ref=${code}`,
+        families: 3,
+        earnedCents: 1500,
+        paidCents: 500,
+        rewardLabel,
+      };
+    },
+    async notifyReferralActivity(input) {
+      events.push({ rpc: 'notify', ...input });
+      return { ok: true };
+    },
+    async getCashReferrerPublic(input) {
+      events.push({ rpc: 'public', ...input });
+      return { ok: true, found: input.code === code, firstName: 'Ada', claimable: false };
+    },
+    async getCredits() {
+      return { ok: true, purchases: [] };
+    },
+  };
 }
 
-console.log('\ncash ledger, separate from credits');
+console.log('\nhub RPC adaptation; D1 is not a cash authority');
 
-await t('a referred family_unlock leaves the sharer pending $6', async () => {
-  const db = memoryDb();
+await t('issue and status use the five RPCs and never keep hub $5 cents', async () => {
   const events = [];
-  const env = { DB: db, PORTFOLIO_BILLING_SERVICE: hub(events) };
-  const a = await parent('a@example.com');
-  const b = await parent('b@example.com');
-  const issued = await issueCode(db, { parentId: a, email: 'a@example.com', phone: '+1 415 555 0100', ip: '198.51.100.8' });
-  const bought = await applyClearedPurchase(env, {
-    code: issued.code,
-    buyerId: b,
-    buyerPhone: '+1 212 555 0199',
-    buyerCardFp: 'card_bbbb',
-    buyerIp: '203.0.113.10',
-    purchaseRef: 'cs_test_b_family',
-    paidAt: DAY,
-    now: DAY,
-    offeringId: 'family_unlock',
-  });
-  assert.equal(bought.ok, true);
-  assert.equal(bought.fresh, true);
-  assert.equal(bought.amountCents, 600);
-  const view = await earningsFor(db, a, DAY);
-  assert.equal(view.pendingCents, REWARD_CENTS);
-  assert.equal(view.availableCents, 0);
-  assert.equal(view.paidCents, 0);
-  assert.equal(view.link, `https://kide.us/r/${issued.code}`);
-  const again = await applyClearedPurchase(env, {
-    code: issued.code,
-    buyerId: b,
-    purchaseRef: 'cs_test_b_family',
-    paidAt: DAY,
-    now: DAY,
-    offeringId: 'family_unlock',
-  });
-  assert.equal(again.fresh, false);
-  assert.equal((await earningsFor(db, a, DAY)).pendingCents, 600);
-  assert.equal(events.filter((e) => e.event === 'pending').length, 1);
-  assert.equal(events[0].live, false);
-  assert.equal(events.find((e) => e.event === 'pending').amountCents, 600);
-  const names = db.names();
-  assert.deepEqual(names.filter((n) => n.startsWith('kide_referral_')).sort(), [
-    'kide_referral_codes',
-    'kide_referral_ledger',
-    'kide_referral_payouts',
-  ]);
-  assert.equal(names.includes('kide_entitlements'), false);
-  assert.equal(names.some((n) => /credit/i.test(n)), false);
-});
-
-await t('a refund reverses the $6', async () => {
-  const db = memoryDb();
-  const env = { DB: db, PORTFOLIO_BILLING_SERVICE: hub([]) };
-  const a = await parent('a@example.com');
-  const b = await parent('b@example.com');
-  const issued = await issueCode(db, { parentId: a, email: 'a@example.com' });
-  await applyClearedPurchase(env, {
-    code: issued.code, buyerId: b, purchaseRef: 'cs_test_b_family', paidAt: DAY, now: DAY, offeringId: 'family_unlock',
-  });
-  const reversed = await applyRefund(env, { buyerId: b, purchaseRef: 'cs_test_b_family', now: DAY + 1000 });
-  assert.equal(reversed.reversed, true);
-  const view = await earningsFor(db, a, DAY + 1000);
+  const env = { PORTFOLIO_BILLING_SERVICE: cashHub({ events }) };
+  const issued = await issueShareCode(env, { email: 'a@example.com' });
+  assert.equal(issued.code, 'AB3DEFGH');
+  assert.equal(issued.link, 'https://kide.us/?ref=AB3DEFGH');
+  assert.equal(issued.reward, SHARE_REWARD);
+  const view = await shareStatus(env, { email: 'a@example.com' });
+  assert.equal(view.closed, true);
   assert.equal(view.pendingCents, 0);
   assert.equal(view.availableCents, 0);
   assert.equal(view.paidCents, 0);
   assert.equal(view.families, 0);
+  assert.equal(view.earnedCents, 0);
+  assert.equal(view.openSendCents, 0);
+  assert.equal(view.link, 'https://kide.us/?ref=AB3DEFGH');
+  assert.equal(approvedProgram({
+    ok: true, rewardLabel: '$5 for you when a family you shared with buys family play', earnedCents: 1500,
+  }), false);
+  assert.equal(events.filter((e) => e.rpc === 'issue').length, 1);
+  assert.deepEqual(events.find((e) => e.rpc === 'issue'), {
+    rpc: 'issue', domain: 'kide.us', email: 'a@example.com',
+  });
+  assert.deepEqual(events.find((e) => e.rpc === 'status'), {
+    rpc: 'status', domain: 'kide.us', email: 'a@example.com',
+  });
 });
 
-await t('self-referral is the same parent id only; phone, card, and IP are not trusted inputs', async () => {
-  const db = memoryDb();
-  const env = { DB: db };
-  const a = await parent('a@example.com');
-  const b = await parent('b@example.com');
-  const issued = await issueCode(db, { parentId: a, email: 'a@example.com' });
-  const base = { code: issued.code, paidAt: DAY, now: DAY, offeringId: 'family_unlock' };
-  const sameParent = await applyClearedPurchase(env, { ...base, buyerId: a, purchaseRef: 'cs_test_self_parent' });
-  const neighbor = await applyClearedPurchase(env, {
-    ...base, buyerId: b, buyerPhone: '415-555-0100', buyerCardFp: 'card_aaaa', buyerIp: '203.0.113.250', purchaseRef: 'cs_test_ok_b',
-  });
-  assert.equal(sameParent.reason, 'self');
-  assert.equal(neighbor.ok, true);
-  assert.equal(ipCluster('203.0.113.4'), ipCluster('203.0.113.250'));
-  assert.equal((await earningsFor(db, a, DAY)).pendingCents, 600);
-  const clinician = await applyClearedPurchase(env, {
-    ...base, buyerId: await parent('c@example.com'), purchaseRef: 'cs_test_licence', offeringId: 'clinician_report',
-  });
-  assert.equal(clinician.reason, 'not_family');
-  assert.equal((await earningsFor(db, a, DAY)).pendingCents, 600);
-  const unstable = await applyClearedPurchase(env, {
-    ...base, buyerId: await parent('d@example.com'), purchaseRef: `family_unlock:d@example.com`,
-  });
-  assert.equal(unstable.reason, 'purchase');
-  const noPaidAt = await applyClearedPurchase(env, {
-    code: issued.code, buyerId: await parent('e@example.com'), purchaseRef: 'cs_test_no_paid', now: DAY, offeringId: 'family_unlock',
-  });
-  assert.equal(noPaidAt.reason, 'paid_at');
-});
-
-await t('after 14 days the $6 is available, and $50 opens one send request', async () => {
-  const db = memoryDb();
-  const env = { DB: db, PORTFOLIO_BILLING_SERVICE: hub([]) };
-  const a = await parent('a@example.com');
-  const issued = await issueCode(db, { parentId: a, email: 'a@example.com', ip: '192.0.2.10' });
-  for (let i = 0; i < 8; i++) {
-    const buyer = await parent(`friend${i}@example.com`);
-    const out = await applyClearedPurchase(env, {
-      code: issued.code,
-      buyerId: buyer,
-      buyerIp: `198.51.${i}.10`,
-      purchaseRef: `cs_test_${i}`,
-      paidAt: DAY,
-      now: DAY,
-      offeringId: 'family_unlock',
-    });
-    assert.equal(out.ok, true, out.reason);
-  }
-  const early = await earningsFor(db, a, DAY + HOLD_MS - 1);
-  assert.equal(early.pendingCents, 8 * REWARD_CENTS);
-  assert.equal(early.availableCents, 0);
-  assert.equal((await listPayoutQueue(db)).length, 0);
-  const ninth = await parent('friend8@example.com');
-  await applyClearedPurchase(env, {
-    code: issued.code, buyerId: ninth, buyerIp: '198.51.100.10', purchaseRef: 'cs_test_8', paidAt: DAY, now: DAY, offeringId: 'family_unlock',
-  });
-  const ready = await earningsFor(db, a, DAY + HOLD_MS);
-  assert.equal(ready.pendingCents, 0);
-  assert.equal(ready.availableCents, 9 * REWARD_CENTS);
-  assert.equal(ready.paidCents, 0);
-  assert.ok(ready.availableCents >= PAYOUT_AT_CENTS);
-  const queue = await listPayoutQueue(db);
-  assert.equal(queue.length, 1);
-  assert.equal(queue[0].amount_cents, 5400);
-  assert.equal(queue[0].method, PAYOUT_METHOD);
-  assert.equal(Number(queue[0].live), 0);
-  assert.equal(queue[0].id.startsWith('kide_rq_'), true);
-  await applyRefund(env, { buyerId: ninth, purchaseRef: 'cs_test_8', now: DAY + HOLD_MS + 1 });
-  const after = await earningsFor(db, a, DAY + HOLD_MS + 1);
-  assert.equal(after.availableCents, 4800);
-  assert.equal((await listPayoutQueue(db)).length, 0);
-});
-
-await t('confirm credits A only from hub custom_ref, not the browser cookie', async () => {
-  const db = memoryDb();
+await t('notify uses step link_open or checkout_open only', async () => {
   const events = [];
-  const a = await parent('a@example.com');
-  const issued = await issueCode(db, { parentId: a, email: 'a@example.com' });
-  // MOCKED getCredits. Not a live hub or Stripe call.
-  const paidNoRef = {
-    ok: true,
-    purchases: [{
-      domain: 'kide.us', offeringId: 'family_unlock', priceId: STRIPE_PRICE_ID,
-      status: 'paid', id: 'cs_test_b', paidAt: DAY,
-    }],
-  };
-  const env = { DB: db, KIDE_LEADS: memoryKv(), PORTFOLIO_BILLING_SERVICE: { ...hub(events), async getCredits() { return paidNoRef; } } };
-  const cookieOnly = await handleUnlock(req('/api/unlock/confirm', {
-    method: 'POST',
-    cookie: `kide_ref=${issued.code}`,
-    ip: '203.0.113.20',
-    body: { email: 'b@example.com' },
-  }), env, { now: DAY + 60_000 });
-  assert.equal(cookieOnly.status, 200);
-  assert.equal((await cookieOnly.json()).unlocked, true);
-  assert.equal((await earningsFor(db, a, DAY)).pendingCents, 0, 'cookie is not proof of a paid referral');
-
-  const paid = {
-    ok: true,
-    purchases: [{
-      domain: 'kide.us', offeringId: 'family_unlock', priceId: STRIPE_PRICE_ID,
-      status: 'paid', id: 'cs_test_b', paidAt: DAY,
-      metadata: { custom_ref: issued.code },
-    }],
-  };
-  env.PORTFOLIO_BILLING_SERVICE.getCredits = async () => paid;
-  const confirm = await handleUnlock(req('/api/unlock/confirm', {
-    method: 'POST',
-    cookie: 'kide_ref=ZZZZZZZZ',
-    ip: '198.51.100.1',
-    body: { email: 'b@example.com' },
-  }), env, { now: DAY + 60_000 });
-  assert.equal((await confirm.json()).unlocked, true);
-  const view = await earningsFor(db, a, DAY);
-  assert.equal(view.pendingCents, 600);
-  assert.equal(events.some((e) => e.event === 'pending' && e.amountCents === 600 && e.live === false), true);
-  const hold = await db.prepare('SELECT hold_until FROM kide_referral_ledger').first();
-  assert.equal(hold.hold_until, new Date(DAY + HOLD_MS).toISOString());
-
-  const refunded = {
-    ok: true,
-    purchases: [
-      { domain: 'kide.us', offeringId: 'family_unlock', status: 'paid', id: 'cs_test_b', paidAt: DAY, metadata: { custom_ref: issued.code } },
-      { domain: 'kide.us', offeringId: 'family_unlock', status: 'refunded', id: 'cs_test_b' },
-    ],
-  };
-  env.PORTFOLIO_BILLING_SERVICE.getCredits = async () => refunded;
-  const back = await handleUnlock(req('/api/unlock/confirm', {
-    method: 'POST',
-    cookie: `kide_ref=${issued.code}`,
-    body: { email: 'b@example.com' },
-  }), env, { now: DAY + 5000 });
-  assert.equal((await back.json()).unlocked, false);
-  assert.equal((await earningsFor(db, a, DAY + 5000)).pendingCents, 0);
-  assert.equal(events.some((e) => e.event === 'reversed'), true);
+  const env = { PORTFOLIO_BILLING_SERVICE: cashHub({ events }) };
+  const open = await notifyReferralActivity(env, { code: 'ab3defgh', step: 'link_open' });
+  const pay = await notifyReferralActivity(env, { code: 'AB3DEFGH', step: 'checkout_open' });
+  const bad = await notifyReferralActivity(env, { code: 'AB3DEFGH', step: 'pending', live: false, event: 'code_issued' });
+  assert.equal(open.ok, true);
+  assert.equal(pay.ok, true);
+  assert.equal(bad.ok, false);
+  assert.equal(bad.reason, 'step_unknown');
+  const notices = events.filter((e) => e.rpc === 'notify');
+  assert.equal(notices.length, 2);
+  assert.deepEqual(notices[0], { rpc: 'notify', domain: 'kide.us', code: 'AB3DEFGH', step: 'link_open' });
+  assert.deepEqual(notices[1], { rpc: 'notify', domain: 'kide.us', code: 'AB3DEFGH', step: 'checkout_open' });
+  assert.equal(JSON.stringify(notices).includes('code_issued'), false);
+  assert.equal(JSON.stringify(notices).includes('"live"'), false);
 });
 
-await t('a second purchase id for the same buyer does not pay a second $6', async () => {
-  const db = memoryDb();
-  const a = await parent('a@example.com');
-  const b = await parent('b@example.com');
-  const issued = await issueCode(db, { parentId: a, email: 'a@example.com' });
-  const env = { DB: db };
-  const first = await applyClearedPurchase(env, {
-    code: issued.code, buyerId: b, purchaseRef: 'cs_test_b1', paidAt: DAY, now: DAY, offeringId: 'family_unlock',
-  });
-  const second = await applyClearedPurchase(env, {
-    code: issued.code, buyerId: b, purchaseRef: 'cs_test_b2', paidAt: DAY, now: DAY, offeringId: 'family_unlock',
-  });
-  assert.equal(first.fresh, true);
-  assert.equal(second.fresh, false);
-  assert.equal((await earningsFor(db, a, DAY)).pendingCents, 600);
-  const missed = await applyRefund(env, { buyerId: b, purchaseRef: 'cs_test_missing', now: DAY + 1 });
-  assert.equal(missed.reversed, false);
-  assert.equal((await earningsFor(db, a, DAY + 1)).pendingCents, 600);
-  const reversed = await applyRefund(env, { purchaseRef: 'cs_test_b1', now: DAY + 2 });
-  assert.equal(reversed.reversed, true);
-  assert.equal((await earningsFor(db, a, DAY + 2)).pendingCents, 0);
-});
-
-await t('hub sourceRef/status unlocks play and credits $0 without paidAt and custom_ref', async () => {
-  const db = memoryDb();
+await t('concurrent issue and notify hit the hub twice and write no D1 cash row', async () => {
   const events = [];
-  const a = await parent('a@example.com');
-  const issued = await issueCode(db, { parentId: a, email: 'a@example.com' });
-  // MOCKED getCredits shaped like pinned riskfreetrial a686eaa. Not live hub 1a75001.
-  const hubPaid = {
-    ok: true,
-    purchases: [{
-      domain: 'kide.us',
-      offeringId: 'family_unlock',
-      sourceRef: 'cs_test_source_ref',
-      status: 'paid',
-    }],
+  const db = memoryDbSync();
+  let inflight = 0;
+  let peak = 0;
+  const hub = cashHub({ events });
+  hub.issueCashReferralCode = async (input) => {
+    inflight += 1;
+    peak = Math.max(peak, inflight);
+    events.push({ rpc: 'issue', ...input });
+    await new Promise((r) => setTimeout(r, 20));
+    inflight -= 1;
+    return { ok: true, code: 'AB3DEFGH', link: 'https://kide.us/?ref=AB3DEFGH', rewardLabel: '$5 for you' };
   };
-  const env = { DB: db, KIDE_LEADS: memoryKv(), PORTFOLIO_BILLING_SERVICE: { ...hub(events), async getCredits() { return hubPaid; } } };
+  const env = { DB: db, PORTFOLIO_BILLING_SERVICE: hub };
+  const [a, b] = await Promise.all([
+    issueShareCode(env, { email: 'a@example.com' }),
+    issueShareCode(env, { email: 'a@example.com' }),
+  ]);
+  assert.equal(a.code, b.code);
+  assert.equal(events.filter((e) => e.rpc === 'issue').length, 2);
+  assert.ok(peak >= 2, 'both RPCs were in flight');
+  const [n1, n2] = await Promise.all([
+    notifyReferralActivity(env, { code: 'AB3DEFGH', step: 'link_open' }),
+    notifyReferralActivity(env, { code: 'AB3DEFGH', step: 'link_open' }),
+  ]);
+  assert.equal(n1.ok && n2.ok, true);
+  assert.equal(db.names().some((n) => n.startsWith('kide_referral_')), false);
+});
+
+await t('mismatch, timeout, and program_disabled fail closed', async () => {
+  assert.deepEqual(closedCash().pendingCents, 0);
+  const disabled = {
+    async issueCashReferralCode() { return { ok: false, reason: 'program_disabled' }; },
+    async getCashReferralStatus() { return { ok: false, reason: 'program_disabled' }; },
+  };
+  assert.equal(await issueShareCode({ PORTFOLIO_BILLING_SERVICE: disabled }, { email: 'a@example.com' }), null);
+  assert.equal(await shareStatus({ PORTFOLIO_BILLING_SERVICE: disabled }, { email: 'a@example.com' }), null);
+  const slow = {
+    async issueCashReferralCode() { return new Promise(() => {}); },
+  };
+  assert.equal(await issueShareCode({ PORTFOLIO_BILLING_SERVICE: slow }, { email: 'a@example.com' }), null);
+  assert.equal(await issueShareCode({}, { email: 'a@example.com' }), null);
+  assert.equal(await notifyReferralActivity({}, { code: 'AB3DEFGH', step: 'link_open' }).then((r) => r.reason), 'no_hub');
+});
+
+await t('getCredits, cookies, and sourceRef alone do not credit cash', async () => {
+  const db = memoryDbSync();
+  const events = [];
+  const env = {
+    DB: db,
+    KIDE_LEADS: memoryKv(),
+    PORTFOLIO_BILLING_SERVICE: {
+      ...cashHub({ events }),
+      async getCredits() {
+        return {
+          ok: true,
+          purchases: [{
+            domain: 'kide.us',
+            offeringId: 'family_unlock',
+            priceId: STRIPE_PRICE_ID,
+            sourceRef: 'cs_test_source_ref',
+            status: 'paid',
+            paidAt: Date.parse('2026-11-05T12:00:00Z'),
+            metadata: { custom_ref: 'AB3DEFGH' },
+          }],
+        };
+      },
+    },
+  };
+  await noteFamilyUnlock(env, req('/'), 'b@example.com', await env.PORTFOLIO_BILLING_SERVICE.getCredits(), Date.now());
   const paid = await handleUnlock(req('/api/unlock/confirm', {
     method: 'POST',
-    cookie: `kide_ref=${issued.code}`,
+    cookie: 'kide_ref=AB3DEFGH',
     body: { email: 'b@example.com' },
-  }), env, { now: DAY });
+  }), env, { now: Date.now() });
   assert.equal((await paid.json()).unlocked, true);
-  assert.equal((await earningsFor(db, a, DAY)).pendingCents, 0, 'sourceRef without paidAt and custom_ref is not a $6');
-
-  env.PORTFOLIO_BILLING_SERVICE.getCredits = async () => ({
-    ok: true,
-    purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', sourceRef: 'cs_test_source_ref', status: 'fulfilled' }],
-  });
-  const fulfilled = await handleUnlock(req('/api/unlock/confirm', {
-    method: 'POST',
-    cookie: `kide_ref=${issued.code}`,
-    body: { email: 'b@example.com' },
-  }), env, { now: DAY + 1 });
-  assert.equal((await fulfilled.json()).unlocked, true);
-  assert.equal((await earningsFor(db, a, DAY + 1)).pendingCents, 0);
-
+  assert.equal(db.names().some((n) => n.startsWith('kide_referral_')), false);
+  assert.equal(events.some((e) => e.rpc === 'notify' && e.step === 'pending'), false);
   env.PORTFOLIO_BILLING_SERVICE.getCredits = async () => ({
     ok: true,
     purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', sourceRef: 'cs_test_source_ref', status: 'refunded' }],
   });
-  const refunded = await handleUnlock(req('/api/unlock/confirm', {
+  const back = await handleUnlock(req('/api/unlock/confirm', {
     method: 'POST',
     body: { email: 'b@example.com' },
-  }), env, { now: DAY + 2 });
-  assert.equal((await refunded.json()).unlocked, false);
-  assert.equal((await earningsFor(db, a, DAY + 2)).pendingCents, 0);
-  assert.equal(events.some((e) => e.event === 'reversed'), false, 'refunded status alone is not a webhook');
-
-  env.PORTFOLIO_BILLING_SERVICE.getCredits = async () => ({
-    ok: true,
-    purchases: [{
-      domain: 'kide.us',
-      offeringId: 'family_unlock',
-      sourceRef: 'cs_test_source_ref',
-      status: 'paid',
-      paidAt: DAY,
-      metadata: { custom_ref: issued.code },
-    }],
-  });
-  const credited = await handleUnlock(req('/api/unlock/confirm', {
-    method: 'POST',
-    cookie: 'kide_ref=ZZZZZZZZ',
-    body: { email: 'b@example.com' },
-  }), env, { now: DAY + 3 });
-  assert.equal((await credited.json()).unlocked, true);
-  assert.equal((await earningsFor(db, a, DAY + 3)).pendingCents, 600);
-  const row = await db.prepare('SELECT purchase_ref, hold_until FROM kide_referral_ledger').first();
-  assert.equal(row.purchase_ref, 'cs_test_source_ref');
-  assert.equal(row.hold_until, new Date(DAY + HOLD_MS).toISOString());
+  }), env, { now: Date.now() + 1 });
+  assert.equal((await back.json()).unlocked, false);
+  assert.equal(events.some((e) => e.event === 'reversed'), false);
 });
 
-await t('the sharer cannot be the buyer on the confirm path', async () => {
-  const db = memoryDb();
-  const aEmail = 'a@example.com';
-  const a = await parent(aEmail);
-  const issued = await issueCode(db, { parentId: a, email: aEmail, ip: '203.0.113.8' });
-  const paid = {
-    ok: true,
-    purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', status: 'paid', id: 'cs_test_self', cardFingerprint: 'card_same' }],
-  };
+await t('cross-parent: session A cannot mint or read B', async () => {
+  const events = [];
+  const db = memoryDbSync();
+  const a = await parentIdFor('email', 'a@example.com');
   const env = {
     DB: db,
     KIDE_LEADS: memoryKv(),
-    PORTFOLIO_BILLING_SERVICE: { async getCredits() { return paid; } },
+    PORTFOLIO_MESSAGING_SERVICE: messaging('a@example.com'),
+    PORTFOLIO_BILLING_SERVICE: cashHub({ events, code: 'AAAAAAAA' }),
   };
-  await handleUnlock(req('/api/unlock/confirm', {
+  await setUnlock(env, a, 'cs_a');
+  const mine = await handleEarnings(req('/api/parent/earnings', { cookie: 'session=1' }), env);
+  const shown = await mine.json();
+  assert.equal(mine.status, 200);
+  assert.equal(shown.link, 'https://kide.us/?ref=AAAAAAAA');
+  assert.equal(shown.pendingCents, 0);
+  assert.equal(shown.closed, true);
+  assert.ok(events.every((e) => !e.email || e.email === 'a@example.com'));
+
+  env.PORTFOLIO_MESSAGING_SERVICE = messaging('b@example.com');
+  const other = await handleUnlock(req('/api/unlock/referral', {
     method: 'POST',
-    cookie: `kide_ref=${issued.code}`,
-    ip: '198.51.100.8',
-    body: { email: aEmail },
-  }), env, { now: DAY });
-  assert.equal((await earningsFor(db, a, DAY)).pendingCents, 0);
-  assert.equal(await codeByValue(db, 'nope'), null);
-});
+    cookie: 'session=1',
+    body: { email: 'a@example.com' },
+  }), env);
+  assert.equal(other.status, 403);
+  assert.equal(events.filter((e) => e.rpc === 'issue' && e.email === 'b@example.com').length, 0);
+  assert.equal(events.filter((e) => e.rpc === 'issue' && e.email === 'a@example.com').length, 1);
 
-await t('/r/<code> sets the share cookie and unknown codes do not', async () => {
-  const db = memoryDb();
-  const a = await parent('a@example.com');
-  const issued = await issueCode(db, { parentId: a, email: 'a@example.com' });
-  const res = await handleRefLanding(req(`/r/${issued.code.toLowerCase()}`), { DB: db }, issued.code.toLowerCase());
-  assert.equal(res.status, 302);
-  assert.equal(res.headers.get('location'), `https://kide.us/?ref=${issued.code}`);
-  assert.match(res.headers.get('set-cookie') || '', new RegExp(`kide_ref=${issued.code}`));
-  const missing = await handleReferralHttp(req('/r/ZZZZZZZZ'), { DB: db });
-  assert.equal(missing.status, 404);
-  const junk = await handleReferralHttp(req('/r/<script>'), { DB: db });
-  assert.equal(junk.status, 404);
-});
-
-await t('/parent/earnings reports pending, available, and paid for the signed-in parent', async () => {
-  const db = memoryDb();
-  const events = [];
-  const email = 'a@example.com';
-  const id = await parent(email);
-  const env = {
-    DB: db,
-    PORTFOLIO_MESSAGING_SERVICE: { async currentSession() { return { ok: true, email }; } },
-    PORTFOLIO_BILLING_SERVICE: hub(events),
-  };
-  await setUnlock(env, id, 'family_unlock');
-  const first = await handleEarnings(req('/api/parent/earnings', { cookie: 'session=1', ip: '192.0.2.15' }), env);
-  const opened = await first.json();
-  assert.equal(first.status, 200);
-  assert.equal(opened.signedIn, true);
-  assert.match(opened.link, /^https:\/\/kide\.us\/r\/[2-9A-HJKMNP-TV-Z]{8}$/);
-  assert.equal(opened.pendingCents, 0);
-  assert.equal(opened.availableCents, 0);
-  assert.equal(opened.paidCents, 0);
-  assert.equal(readable(opened.reward), true);
-  const b = await parent('b@example.com');
-  await applyClearedPurchase(env, {
-    code: opened.code,
-    buyerId: b,
-    buyerIp: '203.0.113.40',
-    purchaseRef: 'cs_test_from_page',
-    paidAt: DAY,
-    now: DAY,
-    offeringId: 'family_unlock',
-  });
-  const second = await handleEarnings(req('/api/parent/earnings', { cookie: 'session=1' }), env);
-  const shown = await second.json();
-  assert.equal(shown.pendingCents, 600);
-  assert.equal(shown.availableCents, 0);
-  assert.equal(shown.paidCents, 0);
-  const stranger = await handleEarnings(req('/api/parent/earnings'), { DB: db });
+  const stranger = await handleEarnings(req('/api/parent/earnings'), { DB: db, PORTFOLIO_BILLING_SERVICE: cashHub({ events }) });
   const out = await stranger.json();
   assert.equal(out.signedIn, false);
   assert.equal(out.pendingCents, 0);
-  assert.equal(readable(out.message), true);
+});
+
+await t('/r/<code> asks getCashReferrerPublic and notifies link_open', async () => {
+  const events = [];
+  const env = { PORTFOLIO_BILLING_SERVICE: cashHub({ events, code: 'AB3DEFGH' }) };
+  const res = await handleRefLanding(req('/r/ab3defgh'), env, 'ab3defgh');
+  assert.equal(res.status, 302);
+  assert.equal(res.headers.get('location'), 'https://kide.us/?ref=AB3DEFGH');
+  assert.match(res.headers.get('set-cookie') || '', /kide_ref=AB3DEFGH/);
+  assert.deepEqual(events.find((e) => e.rpc === 'public'), { rpc: 'public', domain: 'kide.us', code: 'AB3DEFGH' });
+  assert.deepEqual(events.find((e) => e.rpc === 'notify'), { rpc: 'notify', domain: 'kide.us', code: 'AB3DEFGH', step: 'link_open' });
+  const missing = await handleReferralHttp(req('/r/ZZZZZZZZ'), env);
+  assert.equal(missing.status, 404);
+  const junk = await handleReferralHttp(req('/r/<script>'), env);
+  assert.equal(junk.status, 404);
+  const down = await handleRefLanding(req('/r/AB3DEFGH'), {
+    PORTFOLIO_BILLING_SERVICE: { async getCashReferrerPublic() { throw new Error('down'); } },
+  }, 'AB3DEFGH');
+  assert.equal(down.status, 503);
+});
+
+await t('/parent/earnings uses the session email and stays closed on hub $5', async () => {
+  const events = [];
+  const db = memoryDbSync();
+  const email = 'a@example.com';
+  const id = await parentIdFor('email', email);
+  const env = {
+    DB: db,
+    PORTFOLIO_MESSAGING_SERVICE: messaging(email),
+    PORTFOLIO_BILLING_SERVICE: cashHub({ events }),
+  };
+  await setUnlock(env, id, 'family_unlock');
+  const first = await handleEarnings(req('/api/parent/earnings', { cookie: 'session=1' }), env);
+  const opened = await first.json();
+  assert.equal(first.status, 200);
+  assert.equal(opened.signedIn, true);
+  assert.equal(opened.closed, true);
+  assert.equal(opened.link, 'https://kide.us/?ref=AB3DEFGH');
+  assert.equal(opened.pendingCents, 0);
+  assert.equal(opened.availableCents, 0);
+  assert.equal(opened.paidCents, 0);
+  assert.equal(opened.openSendCents, 0);
+  assert.equal(opened.message, CASH_CLOSED);
+  assert.equal(readable(opened.reward), true);
+  assert.equal(readable(opened.message), true);
   assert.equal(readable(EARNINGS_COPY.locked), true);
+  assert.equal(readable(SHARE_REWARD), true);
+  const phoneOnly = await handleEarnings(req('/api/parent/earnings', { cookie: 'session=1' }), {
+    DB: db,
+    PORTFOLIO_MESSAGING_SERVICE: { async currentSession() { return { ok: true, phone: '+15555550100' }; } },
+    PORTFOLIO_BILLING_SERVICE: cashHub({ events }),
+  });
+  const phoneView = await phoneOnly.json();
+  assert.equal(phoneView.pendingCents, 0);
+  assert.equal(phoneView.link, null);
+  assert.equal(phoneView.message, EARNINGS_COPY.needAccount);
   const html = readFileSync('public/parent/earnings/index.html', 'utf8');
   assert.match(html, />Pending</);
   assert.match(html, />Available</);
   assert.match(html, />Paid</);
   assert.match(html, /We do not send it yet/);
-  assert.match(html, /class="preview"/);
-  assert.match(html, /noindex/);
+  assert.doesNotMatch(html, /waits 14 days|Waiting 14 days/);
   assert.doesNotMatch(html, /we send it|Already sent|ready to send/i);
   assert.doesNotMatch(html, /stripe|ledger|webhook|operator|queue|connect/i);
   const js = readFileSync('public/parent/earnings/earnings.js', 'utf8');
   assert.doesNotMatch(js, /stripe|ledger|webhook|operator/i);
-  const src = (readFileSync('src/referral/ledger.js', 'utf8') + readFileSync('src/referral/apply.js', 'utf8'))
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/(^|[^:])\/\/.*$/gm, '$1');
-  assert.doesNotMatch(src, /api\.stripe\.com|consumeCredits|kide_entitlements|sk_live|sk_test/);
-  assert.match(src, /live INTEGER NOT NULL DEFAULT 0/);
-  assert.doesNotMatch(readFileSync('src/worker/index.ts', 'utf8'), /notifyReferralActivity|issueCashReferralCode/);
-  assert.match(readFileSync('tools/platform-gate/VERSION', 'utf8'), /ab09c0c14accfb5af23939de6c0c229c9c5bea68/);
+  const apply = readFileSync('src/referral/apply.js', 'utf8');
+  assert.doesNotMatch(apply, /from "\.\/ledger\.js"|recordClearedPurchase|earningsFor|issueCode\(/);
+  assert.match(apply, /step: link_open\|checkout_open/);
+  const worker = readFileSync('src/worker/index.ts', 'utf8');
+  assert.doesNotMatch(worker, /issueCashReferralCode\(|notifyReferralActivity\(|getCashReferralStatus\(/);
+  assert.match(readFileSync('tools/platform-gate/VERSION', 'utf8'), /ab09c0c\+claims-fix/);
   assert.match(readFileSync('package.json', 'utf8'), /tools\/platform-gate\/preflight\.mjs/);
   assert.match(readFileSync('scripts/gate-preflight.mjs', 'utf8'), /tool":"missing"/);
   assert.match(readFileSync('scripts/gate-preflight.mjs', 'utf8'), /process\.exit\(2\)/);
 });
 
-await t('a paid parent on this device gets /r/<code> from the ledger', async () => {
-  const db = memoryDb();
+console.log('\nauthenticated Worker + mobile earnings/share journeys');
+
+async function workerAndMobile() {
   const events = [];
-  const paid = { ok: true, purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', status: 'paid' }] };
+  const db = memoryDbSync();
+  const email = 'a@example.com';
+  const id = await parentIdFor('email', email);
   const env = {
     DB: db,
     KIDE_LEADS: memoryKv(),
+    PORTFOLIO_MESSAGING_SERVICE: messaging(email),
     PORTFOLIO_BILLING_SERVICE: {
-      ...hub(events),
-      async getCredits() { return paid; },
-      async issueCashReferralCode() { throw new Error('hub codes are not the ledger'); },
+      ...cashHub({ events }),
+      async getCredits() {
+        return { ok: true, purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', status: 'paid', sourceRef: 'cs_test_a' }] };
+      },
     },
   };
-  const confirmed = await handleUnlock(req('/api/unlock/confirm', {
-    method: 'POST', body: { email: 'parent@example.com' },
-  }), env, { now: DAY });
-  const cookie = (confirmed.headers.get('set-cookie') || '').split(';')[0];
-  const mine = await handleUnlock(req('/api/unlock/referral', {
-    method: 'POST', cookie, body: { email: 'parent@example.com' },
-  }), env, { now: DAY + 1 });
-  const data = await mine.json();
-  assert.equal(mine.status, 200);
-  assert.match(data.link, /^https:\/\/kide\.us\/r\/[2-9A-HJKMNP-TV-Z]{8}$/);
-  assert.equal(readable(data.reward), true);
-  assert.equal(events.some((e) => e.event === 'code_issued'), true);
-});
+  await setUnlock(env, id, 'cs_test_a');
 
-console.log('\nearnings page');
+  const html = readFileSync('public/parent/earnings/index.html', 'utf8');
+  const pageJs = readFileSync('public/parent/earnings/earnings.js', 'utf8');
+  const css = readFileSync('public/mobile.css', 'utf8');
+  const server = createServer(async (incoming, outgoing) => {
+    const url = new URL(incoming.url, 'http://127.0.0.1');
+    const headers = {};
+    for (const [key, value] of Object.entries(incoming.headers)) {
+      if (typeof value === 'string') headers[key] = value;
+    }
+    let raw = '';
+    if (incoming.method !== 'GET' && incoming.method !== 'HEAD') {
+      raw = await new Promise((resolve) => {
+        const chunks = [];
+        incoming.on('data', (c) => chunks.push(c));
+        incoming.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+      });
+    }
+    const request = new Request(url, {
+      method: incoming.method,
+      headers,
+      body: raw || undefined,
+    });
+    let response;
+    if (url.pathname.startsWith('/api/parent/earnings')) response = await handleEarnings(request, env);
+    else if (url.pathname.startsWith('/api/unlock/')) response = await handleUnlock(request, env);
+    else if (url.pathname.startsWith('/r/')) response = await handleReferralHttp(request, env);
+    else if (url.pathname === '/parent/earnings/' || url.pathname === '/parent/earnings') {
+      response = new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8' } });
+    } else if (url.pathname === '/parent/earnings/earnings.js') {
+      response = new Response(pageJs, { headers: { 'content-type': 'text/javascript' } });
+    } else if (url.pathname === '/mobile.css') {
+      response = new Response(css, { headers: { 'content-type': 'text/css' } });
+    } else {
+      response = new Response('not found', { status: 404 });
+    }
+    const outHeaders = {};
+    response.headers.forEach((value, key) => { outHeaders[key] = value; });
+    outgoing.writeHead(response.status, outHeaders);
+    outgoing.end(Buffer.from(await response.arrayBuffer()));
+  });
+  const port = await new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server.address().port)));
+  const base = `http://127.0.0.1:${port}`;
 
-async function browserCheck() {
+  const earn = await fetch(`${base}/api/parent/earnings`, { headers: { cookie: 'session=1' } });
+  const earnJson = await earn.json();
+  assert.equal(earn.status, 200);
+  assert.equal(earnJson.closed, true);
+  assert.equal(earnJson.pendingCents, 0);
+  assert.equal(earnJson.link, 'https://kide.us/?ref=AB3DEFGH');
+
+  const share = await fetch(`${base}/api/unlock/referral`, {
+    method: 'POST',
+    headers: { cookie: 'session=1', 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'b@example.com' }),
+  });
+  const shareJson = await share.json();
+  assert.equal(share.status, 200);
+  assert.equal(shareJson.earnedCents, 0);
+  assert.equal(shareJson.link, 'https://kide.us/?ref=AB3DEFGH');
+  assert.ok(events.filter((e) => e.rpc === 'issue').every((e) => e.email === email));
+
+  const land = await fetch(`${base}/r/AB3DEFGH`, { redirect: 'manual' });
+  assert.equal(land.status, 302);
+  assert.ok(events.some((e) => e.rpc === 'notify' && e.step === 'link_open'));
+
   let chromium;
   try {
     ({ chromium } = await import('playwright'));
   } catch {
-    console.log('  SKIP browser: playwright is not installed');
+    server.close();
+    console.log('  SKIP mobile Worker: playwright is not installed');
     return;
   }
   let browser;
   try {
     browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
   } catch (e) {
-    console.log('  SKIP browser: ' + String(e.message || e).split('\n')[0]);
+    server.close();
+    console.log('  SKIP mobile Worker: ' + String(e.message || e).split('\n')[0]);
     return;
   }
-  const port = 9177;
-  const srv = spawn('python3', ['-c', `
-import http.server, socketserver, os
-os.chdir("public")
-class H(http.server.SimpleHTTPRequestHandler):
-    def log_message(self, *a): pass
-class T(socketserver.ThreadingTCPServer):
-    allow_reuse_address = True
-    daemon_threads = True
-T(("127.0.0.1", ${port}), H).serve_forever()
-`], { stdio: 'ignore' });
-  await new Promise((r) => setTimeout(r, 300));
   const page = await browser.newPage({ viewport: { width: 320, height: 700 }, isMobile: true, hasTouch: true });
   try {
-    await page.route('**/api/parent/earnings', (route) => route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        ok: true,
-        signedIn: true,
-        unlocked: true,
-        pendingCents: 600,
-        availableCents: 0,
-        paidCents: 0,
-        openSendCents: 0,
-        link: 'https://kide.us/r/AB3DEFGH',
-        message: '',
-      }),
-    }));
-    await page.goto(`http://127.0.0.1:${port}/parent/earnings/`, { waitUntil: 'networkidle' });
-    await page.waitForFunction(() => document.getElementById('pending').textContent === '$6');
+    await page.context().addCookies([{ name: 'session', value: '1', url: base }]);
+    await page.goto(`${base}/parent/earnings/`, { waitUntil: 'networkidle' });
+    await page.waitForFunction(() => document.getElementById('pending').textContent === '$0');
     const seen = await page.evaluate(() => {
       const text = document.body.innerText;
       const de = document.documentElement;
@@ -594,55 +498,28 @@ T(("127.0.0.1", ${port}), H).serve_forever()
         text,
         overflow: de.scrollWidth - de.clientWidth,
         share: document.getElementById('shareCard').hidden === false,
+        pending: document.getElementById('pending').textContent,
+        url: document.getElementById('shareUrl').textContent,
         small,
       };
     });
-    assert.match(seen.text, /Pending/);
-    assert.match(seen.text, /Available/);
-    assert.match(seen.text, /Paid/);
-    assert.match(seen.text, /\$6/);
+    assert.equal(seen.pending, '$0');
+    assert.match(seen.text, /Cash is not open yet/);
+    assert.match(seen.url, /https:\/\/kide\.us\/\?ref=AB3DEFGH/);
     assert.equal(seen.share, true);
     assert.equal(seen.overflow, 0, 'horizontal overflow ' + seen.overflow);
     assert.deepEqual(seen.small, []);
-    await page.click('#copyGo');
     await page.setViewportSize({ width: 1280, height: 800 });
     const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     assert.equal(wide, 0, 'desktop overflow ' + wide);
-    await page.unroute('**/api/parent/earnings');
-    await page.route('**/api/parent/earnings', (route) => route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        ok: true,
-        signedIn: false,
-        unlocked: false,
-        pendingCents: 0,
-        availableCents: 0,
-        paidCents: 0,
-        link: null,
-        message: 'Sign in to see what your link has earned.',
-      }),
-    }));
-    await page.goto(`http://127.0.0.1:${port}/parent/earnings/`, { waitUntil: 'networkidle' });
-    const signedOut = await page.evaluate(() => ({
-      text: document.body.innerText,
-      share: document.getElementById('shareCard').hidden,
-    }));
-    assert.match(signedOut.text, /Sign in to see what your link has earned/);
-    assert.match(signedOut.text, /Pending/);
-    assert.equal(signedOut.share, true);
-    console.log('  ok   earnings page at 320px and 1280px');
-    pass++;
-  } catch (e) {
-    console.log(`  FAIL earnings page at 320px\n       ${e.message}`);
-    fail++;
+    console.log('  ok   authenticated Worker earnings at 320px and 1280px');
   } finally {
     await browser.close().catch(() => {});
-    srv.kill();
+    server.close();
   }
 }
 
-await browserCheck();
+await t('authenticated local Worker covers earnings and share', workerAndMobile);
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

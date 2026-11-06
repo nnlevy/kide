@@ -21,8 +21,8 @@ import { deviceUnlockKey, purchaseGrantsUnlock, unlockKey } from "./entitlement.
 import { normalizeEmail } from "./email.js";
 import { advance, capSeconds, dayStamp, mergePeak, overLimit, playKey } from "./minutes.js";
 import { parentIdFor } from "../account/parent-id.js";
-import { setUnlock } from "../account/session.js";
-import { issueShareCode, noteFamilyUnlock, shareStatus } from "../referral/apply.js";
+import { currentParent, setUnlock, verifiedParentEmail } from "../account/session.js";
+import { SHARE_REWARD, issueShareCode, noteFamilyUnlock, notifyReferralActivity } from "../referral/apply.js";
 import { refFromRequest } from "../referral/ref.js";
 
 const DEVICE_RE = /^[A-Za-z0-9_-]{22,80}$/;
@@ -241,7 +241,10 @@ export async function handleUnlock(request, env, opts = {}) {
     try {
       const out = await billing.createCheckout(input);
       const payUrl = httpsUrl(out && out.url);
-      if (payUrl) return json({ ok: true, url: payUrl }, 200, cookie);
+      if (payUrl) {
+        if (ref) await notifyReferralActivity(env, { code: ref, step: "checkout_open" });
+        return json({ ok: true, url: payUrl }, 200, cookie);
+      }
       return json({ ok: false, message: COPY.retry }, 502, cookie);
     } catch {
       return json({ ok: false, message: COPY.retry }, 503, cookie);
@@ -286,54 +289,24 @@ export async function handleUnlock(request, env, opts = {}) {
 
   const unlock = await readUnlock(env, kv, deviceId, email, billing, now, request);
 
-  // A family's own share link. Only for an email that has family play on this
-  // device (a paid receipt) or is the signed-in parent, so a stranger cannot
-  // mint a payout code for someone else's address from this page.
+  // A family's own share link. Identity is the server-verified parent email
+  // (10409). Client body.email is ignored. D1 is not a cash authority.
   if (path === "/api/unlock/referral") {
-    const body = await readJson(request);
-    if (body.error) return json({ ok: false, message: COPY.needEmail }, 400, cookie);
-    const want = normalizeEmail(body.email) || unlock.email || email;
-    const allowed = want && ((unlock.unlocked && unlock.email === want) || email === want);
+    const want = await verifiedParentEmail(request, env);
+    if (!want) return json({ ok: false, message: COPY.referralLocked }, 403, cookie);
+    const who = await currentParent(request, env);
+    const allowed = (unlock.unlocked && unlock.email === want) || who.unlocked === true;
     if (!allowed) return json({ ok: false, message: COPY.referralLocked }, 403, cookie);
-    if (env && env.DB) {
-      try {
-        const parentId = await parentIdFor("email", want);
-        const issued = await issueShareCode(env, { parentId, email: want, request });
-        if (!issued) return json({ ok: false, message: COPY.retry }, 503, cookie);
-        const summary = await shareStatus(env, parentId, now);
-        return json({
-          ok: true,
-          link: issued.link,
-          reward: issued.reward,
-          families: summary ? summary.families : 0,
-          earnedCents: summary ? summary.earnedCents : 0,
-        }, 200, cookie);
-      } catch {
-        return json({ ok: false, message: COPY.retry }, 503, cookie);
-      }
-    }
-    if (!billing || typeof billing.issueCashReferralCode !== "function") {
-      return json({ ok: false, message: COPY.retry }, 503, cookie);
-    }
-    try {
-      const issued = await billing.issueCashReferralCode({ domain: DOMAIN, email: want });
-      if (!issued || issued.ok !== true || typeof issued.link !== "string") {
-        return json({ ok: false, message: COPY.retry }, 502, cookie);
-      }
-      let stats = null;
-      if (typeof billing.getCashReferralStatus === "function") {
-        try { stats = await billing.getCashReferralStatus({ domain: DOMAIN, email: want }); } catch { stats = null; }
-      }
-      return json({
-        ok: true,
-        link: httpsUrl(issued.link),
-        reward: typeof issued.rewardLabel === "string" ? issued.rewardLabel : "",
-        families: stats && stats.ok ? Number(stats.families || 0) : 0,
-        earnedCents: stats && stats.ok ? Number(stats.earnedCents || 0) : 0,
-      }, 200, cookie);
-    } catch {
-      return json({ ok: false, message: COPY.retry }, 503, cookie);
-    }
+    const issued = await issueShareCode(env, { email: want });
+    if (!issued) return json({ ok: false, message: COPY.retry }, 503, cookie);
+    return json({
+      ok: true,
+      closed: true,
+      link: issued.link,
+      reward: SHARE_REWARD,
+      families: 0,
+      earnedCents: 0,
+    }, 200, cookie);
   }
 
   const day = dayStamp(now);

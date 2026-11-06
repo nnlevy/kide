@@ -32,15 +32,11 @@
     $("paid").textContent = money(data.paidCents);
     say("earnMsg", data.message || "");
     const send = $("sendLine");
-    if (send) {
-      if (Number(data.openSendCents) >= 5000) {
-        send.hidden = false;
-        send.textContent = money(data.openSendCents) + " is ready. We asked to send it. It has not gone out.";
-      } else {
-        send.hidden = true;
-      }
-    }
-    const link = typeof data.link === "string" && data.link.startsWith("https://kide.us/r/") ? data.link : "";
+    if (send) send.hidden = true;
+    const rawLink = typeof data.link === "string" ? data.link : "";
+    const link = rawLink.startsWith("https://kide.us/r/") || rawLink.startsWith("https://kide.us/?ref=")
+      ? rawLink
+      : "";
     const card = $("shareCard");
     if (!link || !card) return;
     card.hidden = false;

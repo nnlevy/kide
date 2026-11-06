@@ -1,19 +1,11 @@
+Provenance on this branch: attached canonical reference kit `kide-platform-gate-reference-20261105` (VERSION `ab09c0c+claims-fix`). Upstream commit remains `ab09c0c14accfb5af23939de6c0c229c9c5bea68`; UPSTREAM.sha256 keeps those original hashes. This is not a pristine upstream identity.
+
 # Vendored platform gate
+Byte-identical copy of `tools/platform-gate/` from private `nnlevy/scripts` at the commit in `VERSION`
+(minus the upstream `node_modules` symlink). `UPSTREAM.sha256` lists every upstream file's hash; do not edit them here.
+Local-only additions: `VERSION`, `UPSTREAM.sha256`, `VENDORED.md`, `preflight.mjs`, `.gitignore`, `runtime/` (pinned
+Playwright 1.62.1 + @axe-core/playwright 4.14.0, same as Ozer's deploy runtime).
+Run from repo root: `npm run gate:preflight`. Verify: `cd tools/platform-gate && sha256sum -c UPSTREAM.sha256`.
+Updates come only from upstream (re-vendor at a new SHA); drift check: `/workspace/platform/gate-preflight/sync-vendored.sh` on the box.
 
-Provenance on this branch: copied from kide `origin/cursor/vendor-platform-gate-97f9`
-(`tools/platform-gate/`), itself a copy of private `nnlevy/scripts`
-`tools/platform-gate/` at the commit in `VERSION`
-(`ab09c0c14accfb5af23939de6c0c229c9c5bea68`).
-
-Byte-identical with that vendor lane (minus a `node_modules` symlink).
-`UPSTREAM.sha256` lists every upstream file's hash; do not edit those files here.
-Local-only additions: `VERSION`, `UPSTREAM.sha256`, `VENDORED.md`, `preflight.mjs`,
-`.gitignore`, `runtime/` (Playwright 1.62.1 + `@axe-core/playwright` 4.14.0).
-
-Route coverage: `discover-pages.mjs` (sitemap + home links, cap 40) and optional
-`GATE_PATHS`. Runtime: Chromium + WebKit, 15 mobile profiles, claims, `js_error`,
-orphan tools, asset HTML fallback.
-
-Run from repo root: `npm run gate:preflight`.
-Verify: `cd tools/platform-gate && sha256sum -c UPSTREAM.sha256`.
-Updates come only from upstream (re-vendor at a new SHA).
+**Local patch (2026-11-01):** `claims.mjs`, `extract-blocks.js`, `gate.mjs` and `test/claims-blocks-iterable.test.mjs` differ from ab09c0c by `patches/claims-blocks-iterable.patch` (VERSION `ab09c0c+claims-fix`); `UPSTREAM.sha256` still lists the unpatched upstream hashes for those files. Drop the patch once upstream carries it.
