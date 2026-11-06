@@ -1,7 +1,23 @@
 // Money path: visit → free Pip practice → /account/ signup → /unlock/ $15 family play.
-// The visitor-facing storage promise has to match what this head actually keeps.
-// It must not say we store "only" answer timing, and it must not invent
-// retention days, Studio, or a live cash-referral ledger.
+// Visitor copy must match THIS head. It must not say we store "only" answer
+// timing, invent retention days or Studio, or pretend unmerged PR16 funnel
+// writes are live. Reviewer10409 owns the separate 20+16 auth/unlock/funnel
+// correction — do not add play_day / gate_day / paid-dedup / referrer-count
+// collection here.
+//
+// Live on this head:
+//   parent email + passkey public (kide_parents); session cookie __Host-rft_session;
+//   signed-in /api/play/events rows (item, skill, latency, correct, mode);
+//   family-unlock device cookie kide_device; share-link cookie kide_ref (GET/HEAD);
+//   on-device journal / visitAge / companion / listening consent;
+//   gift names in the URL only; compete handle if opted in; notify email (+ optional name/need).
+//   Play tickSession is local sleepy UI only. Client does not POST /api/funnel.
+// Not live on this head (PR16 review facts; 20+16 owner):
+//   server play_day / gate_day on the play tick carrying kide_ref;
+//   2-day paid-dedup email-hash KV; funnel events with no TTL;
+//   notification source sending referral code+counts to the referrer.
+// Compatibility: do not promise "games send none of this" or "counts are not
+// shared". Leave those facts for the 20+16 page when that journey ships.
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -19,6 +35,8 @@ const FORBIDDEN = [
   /We don't collect names, ages/i,
   /We never collect a child's name, age/i,
   /latency only/i,
+  /games send none/i,
+  /counts are not shared/i,
 ];
 
 function walk(dir, out = [], ext = ['.html', '.js', '.ts', '.mjs']) {
@@ -107,6 +125,9 @@ t('privacy names the actual stores without inventing deletion days or Studio', (
   assert.equal(/\$15\/month|Lesson Studio|studio_monthly|we delete after \d+ days|retained for \d+ days/i.test(page), false);
   assert.equal(/We store only answer timing/i.test(page), false);
   assert.equal(/the only cookie this site sets/i.test(page), false);
+  assert.equal(/games send none|counts are not shared/i.test(page), false);
+  assert.equal(/play_day|gate_day|\/api\/funnel|2-day email hash/i.test(page), false);
+  assert.match(page, /Play on this phone can also keep practice timing/);
 });
 
 t('play events comment and response still name device or account rows, not timing-only', () => {
