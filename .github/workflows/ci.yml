@@ -1,0 +1,61 @@
+name: CI
+
+# Money path: no visitor copy and no price change. This file only fills the
+# check rollup so paid-path PRs can merge (pricing → /clinician/ $39 licence;
+# family play → /unlock/ family_unlock $15, price_1UWqYjIzTeKgjbPrOtu7jVAG).
+#
+# A repo with zero workflows reports an empty statusCheckRollup. Portfolio
+# merge policy fails closed on that emptiness. pull_request and push to main
+# must produce a real check run.
+#
+# Sibling private repos call
+# nnlevy/portfolio-ci/.github/workflows/reusable-ci.yml@23a5e46e4b079d7827fb50c1bfe7d8cf196a9227 # v1
+# kide is public, and GitHub only lets a public caller use a public reusable
+# workflow. That file is not publicly readable. An unresolved uses: finishes
+# with zero jobs and leaves the rollup empty again, so this workflow runs the
+# same kind of check locally.
+#
+# What runs: npm ci, wrangler types for the Worker (src/worker/index.ts) plus
+# static assets (./dist), then npm test. Browser suites skip when Playwright
+# Chromium is not installed; billing, unlock, account, parent, seo, and engine
+# still run.
+# What does not run: wrangler deploy (including deploy --dry-run), Stripe,
+# DNS, Cloudflare secrets, and the platform-gate 480-wide mobile matrix.
+# Canonical gate stays in agents/preflight.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # Worker + static dist. Types are generated off the checkout so CI does
+      # not need a committed worker-configuration.d.ts. No Cloudflare login.
+      - name: wrangler types
+        run: npx wrangler types "${RUNNER_TEMP}/worker-configuration.d.ts"
+
+      - name: npm test
+        run: npm test
