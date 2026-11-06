@@ -196,6 +196,19 @@ await t('me reads currentSession and fails closed when the hub has no such metho
   assert.equal(nameless.status, 200);
   assert.equal(nameless.data.signedIn, false);
   assert.equal('email' in nameless.data, false);
+
+  messaging.currentSession = async () => ({ ok: false, error: 'storage_error', message: 'd1 down', email: 'parent@example.com' });
+  const outage = await read(await handleAccount(req('/api/account/me', { method: 'GET', cookie: COOKIE }), { PORTFOLIO_MESSAGING_SERVICE: messaging }));
+  assert.equal(outage.status, 503);
+  assert.equal(outage.data.signedIn, false);
+  assert.equal('email' in outage.data, false);
+  assert.equal(outage.text.includes('d1 down'), false);
+  assert.equal(outage.text.includes('error'), false);
+
+  messaging.currentSession = async () => { throw new Error('hub threw'); };
+  const thrown = await read(await handleAccount(req('/api/account/me', { method: 'GET', cookie: COOKIE }), { PORTFOLIO_MESSAGING_SERVICE: messaging }));
+  assert.equal(thrown.status, 503);
+  assert.equal(thrown.data.signedIn, false);
 });
 
 await t('sign-out calls endSession with kide.us and the cookie, and fails closed without it', async () => {
@@ -215,6 +228,18 @@ await t('sign-out calls endSession with kide.us and the cookie, and fails closed
   assert.match(res.setCookie, /Max-Age=0/);
   assert.equal(calls.at(-1)[0], 'endSession');
   assert.deepEqual(calls.at(-1)[1], { domain: 'kide.us', session: COOKIE });
+
+  messaging.endSession = async () => ({ ok: false, error: 'storage_error', message: 'd1 down' });
+  const outage = await read(await handleAccount(req('/api/account/signout', { cookie: COOKIE }), { PORTFOLIO_MESSAGING_SERVICE: messaging }));
+  assert.equal(outage.status, 503);
+  assert.equal(outage.data.ok, false);
+  assert.equal(outage.data.message.includes('signed out'), false);
+  assert.match(outage.setCookie, /Max-Age=0/);
+
+  messaging.endSession = async () => { throw new Error('hub threw'); };
+  const thrown = await read(await handleAccount(req('/api/account/signout', { cookie: COOKIE }), { PORTFOLIO_MESSAGING_SERVICE: messaging }));
+  assert.equal(thrown.status, 503);
+  assert.match(thrown.setCookie, /Max-Age=0/);
 });
 
 await t('passkey registration forwards the session and a bounded credential', async () => {

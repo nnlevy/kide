@@ -70,6 +70,7 @@ function mulberry32(seed) {
 }
 
 const PID = "abcdef0123456789";
+const SESSION = { cookie: "__Host-rft_session=" + "c".repeat(43) };
 const NOW = Date.UTC(2026, 9, 31, 15, 0, 0);
 const ACCOUNT = "parent_acct_01";
 
@@ -245,9 +246,10 @@ console.log("--- the board is opt-in, anonymous, and can take an account later -
   const rng = mulberry32(31);
   const issued = await issueQuestion(db, PID, NOW, rng);
   const secret = db.raw("SELECT answer FROM kide_compete_questions WHERE id = ?", issued.body.question.id);
-  const expectedId = await parentIdFrom(new Request("http://kide.test/api/compete/answer"), env);
+  const expectedId = await parentIdFrom(new Request("http://kide.test/api/compete/answer", { headers: SESSION }), env);
   await handleCompete(new Request("http://kide.test/api/compete/answer", {
     method: "POST",
+    headers: SESSION,
     body: JSON.stringify({
       playerId: PID,
       questionId: issued.body.question.id,
@@ -277,10 +279,11 @@ console.log("--- practice timing is not a score ---");
   eq("anonymous timing does not open a table", db.raw("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'kide_play_events'"), null);
 
   const env = signedEnv(db);
-  const expectedId = await parentIdFrom(new Request("http://kide.test/api/play/events"), env);
+  const expectedId = await parentIdFrom(new Request("http://kide.test/api/play/events", { headers: SESSION }), env);
   ok("the session parent id is the one currentParent returns", typeof expectedId === "string" && expectedId.startsWith("p_"));
   const signed = await handlePlayEvents(new Request("http://kide.test/api/play/events", {
     method: "POST",
+    headers: SESSION,
     body: JSON.stringify({
       playerId: PID,
       accountId: ACCOUNT,

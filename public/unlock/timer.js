@@ -87,6 +87,8 @@
   var shown = false;
   var timer = 0;
   var poll = 0;
+  var from = "gate";
+  var NO_CHARGE = "No charge was made. Family play is here whenever you're ready.";
   // A playtime in progress is never cut short. If free time runs out mid-play,
   // the ask waits for Pip's goodnight (or the child leaving for the home screen).
   // A child who never tucks Pip in still meets the ask, after LONG_PLAY_MS.
@@ -117,6 +119,7 @@
   function showAfterGoodnight() {
     if (shown) return;
     shown = true;
+    from = "goodnight";
     pending = false;
     if (poll) clearInterval(poll);
     if (fallback) clearTimeout(fallback);
@@ -145,6 +148,7 @@
   function show(seconds) {
     if (shown) return;
     shown = true;
+    from = "gate";
     pending = false;
     if (poll) clearInterval(poll);
     if (fallback) clearTimeout(fallback);
@@ -186,7 +190,68 @@
 
   function go() {
     if (timer) clearInterval(timer);
-    location.href = "/unlock/";
+    location.href = "/unlock/?from=" + from;
+  }
+
+  function showCancelNote() {
+    var params;
+    try { params = new URLSearchParams(location.search); }
+    catch (e) { return; }
+    if (params.get("checkout") !== "cancel") return;
+    if (document.getElementById("kide-no-charge")) return;
+    params.delete("checkout");
+    var qs = params.toString();
+    try { history.replaceState(null, "", location.pathname + (qs ? "?" + qs : "") + location.hash); }
+    catch (e) { /* the note still shows for this visit */ }
+    var style = document.createElement("style");
+    style.id = "kide-no-charge-style";
+    style.textContent = "#kide-no-charge{position:fixed;z-index:90;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top,0px));background:#fff;color:#2E3A3F;border-radius:18px;padding:14px 14px 12px;box-shadow:0 8px 0 rgba(0,0,0,.08);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Rounded','Segoe UI',Roboto,sans-serif;}#kide-no-charge p{margin:0 0 10px;font-size:16px;line-height:1.35;font-weight:700;}#kide-no-charge button{appearance:none;width:100%;min-height:48px;border:none;border-radius:999px;padding:12px 16px;font:inherit;font-size:16px;font-weight:800;color:#2E3A3F;cursor:pointer;background:#E7F6EE;}";
+    document.head.appendChild(style);
+    var note = document.createElement("div");
+    note.id = "kide-no-charge";
+    note.setAttribute("role", "status");
+    var p = document.createElement("p");
+    p.textContent = NO_CHARGE;
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = "Keep playing";
+    btn.addEventListener("click", function () { note.remove(); });
+    note.appendChild(p);
+    note.appendChild(btn);
+    document.body.appendChild(note);
+  }
+
+  var resting = false;
+
+  function hideRest() {
+    var node = document.getElementById("kide-grownup-rest");
+    if (node) node.remove();
+    resting = false;
+  }
+
+  function showRest() {
+    if (shown || resting) return;
+    resting = true;
+    if (!document.getElementById("kide-grownup-rest-style")) {
+      var style = document.createElement("style");
+      style.id = "kide-grownup-rest-style";
+      style.textContent = "#kide-grownup-rest{position:fixed;inset:0;z-index:80;background:rgba(255,248,240,.96);display:flex;align-items:flex-end;justify-content:center;padding:16px 16px calc(16px + env(safe-area-inset-bottom));font-family:-apple-system,BlinkMacSystemFont,'SF Pro Rounded','Segoe UI',Roboto,sans-serif;}#kide-grownup-rest .kg-card{width:min(420px,100%);background:#fff;color:#2E3A3F;border-radius:24px;padding:22px 18px;box-shadow:0 10px 0 rgba(0,0,0,.08);}#kide-grownup-rest h2{margin:0 0 8px;font-size:22px;line-height:1.2;}#kide-grownup-rest p{margin:0;font-size:16px;line-height:1.4;}";
+      document.head.appendChild(style);
+    }
+    var root = document.createElement("div");
+    root.id = "kide-grownup-rest";
+    root.setAttribute("role", "status");
+    var card = document.createElement("div");
+    card.className = "kg-card";
+    var title = document.createElement("h2");
+    title.id = "kide-grownup-rest-title";
+    title.textContent = "Pip is taking a short rest";
+    var line = document.createElement("p");
+    line.textContent = "Try again in a moment.";
+    card.appendChild(title);
+    card.appendChild(line);
+    root.appendChild(card);
+    document.body.appendChild(root);
   }
 
   function apply(data) {
@@ -199,6 +264,20 @@
       return;
     }
     show(Number(data.countdownSeconds));
+  }
+
+  function applyPack(pack) {
+    if (!pack) return;
+    if (pack.status === 503) {
+      showRest();
+      return;
+    }
+    if (pack.data && pack.data.ok === true && pack.data.unlocked === true) {
+      hideRest();
+      return;
+    }
+    hideRest();
+    apply(pack.data);
   }
 
   document.addEventListener("kide:session", function (e) {
@@ -221,17 +300,24 @@
       cache: "no-store",
       headers: body ? { "Content-Type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
-    }).then(function (res) { return res.json(); }).catch(function () { return null; });
+    }).then(function (res) {
+      return res.json().then(function (data) {
+        return { status: res.status, data: data };
+      }, function () {
+        return { status: res.status, data: null };
+      });
+    }).catch(function () { return null; });
   }
 
   function beat() {
     if (document.hidden || shown) return;
-    post("/api/unlock/tick", {}).then(apply);
+    post("/api/unlock/tick", {}).then(applyPack);
   }
 
   function start() {
-    post("/api/unlock/status").then(function (data) {
-      apply(data);
+    showCancelNote();
+    post("/api/unlock/status").then(function (pack) {
+      applyPack(pack);
       if (!shown) poll = setInterval(beat, 15000);
     });
     document.addEventListener("visibilitychange", function () {

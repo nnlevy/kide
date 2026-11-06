@@ -8,6 +8,7 @@ import { handlePlayEvents } from "../perf/http.js";
 import { handleCompete } from "../compete/http.js";
 import { handleUnlock } from "../unlock/handler.js";
 import { withRefCookie } from "../referral/ref.js";
+import { handleFunnel, recordLinkOpen } from "../funnel/funnel.js";
 import { handleRefClaim, inviteResponse } from "../referral/invite.js";
 
 // kide.us is a leaf on the Quizbiz portfolio billing hub (riskfreetrial) and
@@ -49,8 +50,16 @@ type PortfolioBillingServiceBinding = {
     ok: true;
     exists: boolean;
     email: string;
+    globalUserId?: string;
     creditsBalance: number;
     summaries?: { domain: string; creditsPurchased: number | null }[];
+    // PaidPurchaseReceipt. sourceRef is the Stripe Checkout session id.
+    purchases?: {
+      domain: string;
+      offeringId: string;
+      sourceRef: string;
+      status: string;
+    }[];
   }>;
 };
 
@@ -87,12 +96,12 @@ export interface Env {
 const NOT_FOUND_HTML = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Page not found · Kide</title><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#56C6E6,#BDEBFF);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;text-align:center;color:#fff;}h1{font-size:22px;}a{color:#fff;font-weight:800;}</style></head><body><div><div style="font-size:64px">🌱</div><h1>Pip couldn't find that page</h1><p><a href="/">Back to Kide</a></p></div></body></html>`;
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    return withRefCookie(request, await route(request, env));
+  async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
+    return withRefCookie(request, await route(request, env, ctx));
   },
 };
 
-async function route(request: Request, env: Env): Promise<Response> {
+async function route(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
   {
     const url = new URL(request.url);
 
@@ -184,6 +193,10 @@ async function route(request: Request, env: Env): Promise<Response> {
         }),
         { headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
       );
+    }
+
+    if (url.pathname === "/api/funnel") {
+      return handleFunnel(request, env);
     }
 
     if (url.pathname === "/api/notify" && request.method === "POST") {
@@ -290,7 +303,12 @@ async function route(request: Request, env: Env): Promise<Response> {
       //      the 404 below, honestly.
       const asset = await env.ASSETS.fetch(request);
       // A share link (?ref=CODE) names who sent it, in the page and its link preview.
-      if (asset.status !== 404) return url.pathname === "/" ? await inviteResponse(request, env, asset) : asset;
+      if (asset.status !== 404) {
+        if (url.pathname !== "/") return asset;
+        if (ctx && typeof ctx.waitUntil === "function") ctx.waitUntil(recordLinkOpen(request, env));
+        else await recordLinkOpen(request, env);
+        return await inviteResponse(request, env, asset);
+      }
     } catch {
       // static asset lookup failed — fall through to the 404 below
     }
