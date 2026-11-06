@@ -1,29 +1,33 @@
 // Money path: $15 family_unlock checkout can unlock play on this leaf.
-// Cash attribution is a hub concern, not a getCredits poll on this worker.
+// Cash attribution is not a getCredits poll and is not this local ledger.
 //
-// Authoritative hub interface (packet a686eaa / 1a75001 source, not live proof):
-//   createCheckout({ domain, offeringId, email, customMetadata: { ref } })
-//     → Stripe metadata[custom_ref] plus hub-set metadata.domain, offering_id, email
-//   recordCashReferralFromCheckout(session) — INTERNAL webhook helper, not an RPC.
-//     Idempotent on session.id. Reads metadata.custom_ref. Not on the binding.
-//   syncCashReferralPayouts() — INTERNAL cron. Voids held rows when
-//     purchases.status becomes refunded. Opens owner_decisions cards. Not an RPC.
-//   Leaf RPCs already on PortfolioBillingService:
-//     issueCashReferralCode({ domain, email }) → { ok, code, link, rewardLabel }
-//     getCashReferralStatus({ domain, email }) → { ok, code, link, families,
-//       earnedCents, paidCents, rewardLabel }
-//     notifyReferralActivity({ domain, code, step: link_open|checkout_open })
-//   getCredits(email) purchases[] = { domain, offeringId, sourceRef, status }
-//     for unlock only. No paidAt. No custom_ref. Refunded status is not a webhook.
+// Five PortfolioBillingService RPCs (packet v2, a686eaa source, not live):
+//   issueCashReferralCode({ domain, email, label? })
+//     → { ok:true, code, link, rewardLabel } | { ok:false, reason }
+//   getCashReferralStatus({ domain, email })
+//     → { ok, code, link, families, earnedCents, paidCents, rewardLabel }
+//     SUM of stored held|paid rows only. No Stripe, no sync, no refund void.
+//   notifyReferralActivity({ domain, code, step: link_open|checkout_open,
+//     device?, at?, opens?, checkouts?, paid? }) → { ok:true } | { ok:false, reason }
+//   getCashReferrerPublic({ domain, code, claim? })
+//   claimCashReferrer({ domain, code, claim, email })
+// recordCashReferralFromCheckout and syncCashReferralPayouts are INTERNAL
+// exports, not binding methods. Sync voids HELD refunded rows only, not paid.
+// Hub created_at / 30-day eligible_at are processing nowIso, not buyer paidAt.
+// Hub paid_at is owner-confirmed payout time, not purchase time.
+// getCredits receipts are { domain, offeringId, sourceRef, status } only.
+// Billing receipt metadata_json is { eventId, offeringId, offeringKind, mode,
+// subscriptionId } — no custom_ref. Attribution is Stripe session metadata.
 //
-// Adaptation gap (HOLD, no new hub contract, no leaf-ledger expansion):
-//   This worker still has a local cash ledger from PR18. It must not grow, and
-//   it must not invent getCredits fields to feed itself. Real hub shape credits
-//   $0 here. Hub program source says $5 / 30-day hold / owner queue; visitor
-//   copy on this leaf still says $6 / 14 days / $50 and does not send cash.
-//   /api/unlock/referral already calls issueCashReferralCode when env.DB is
-//   missing. Earnings with a local DB do not read getCashReferralStatus.
-// Live hub remains 1a75001, publication HELD. No Connect. No payouts.
+// Terms check: AGENTS.md approves $15 family_unlock and $39 licence, not $6/$50.
+// Hub kide program source: defaultPayoutCents 500, holdDays 30, owner queue.
+// This leaf still shows $6 / 14 days / $50 and does not send cash. That is a
+// copy/policy mismatch, not a buyer-paidAt contract and not live coverage.
+//
+// Gap: env.DB uses this local ledger; issue/status hub RPCs run only when DB
+// is missing. invite.js already uses getCashReferrerPublic / claimCashReferrer.
+// notifyReferral here sends event/source/live, not step:link_open|checkout_open.
+// Live hub 1a75001 unpublished. No new ledger. No Connect. No payouts.
 
 import { parentIdFor } from "../account/parent-id.js";
 import { DOMAIN, OFFERING_ID, STRIPE_PRICE_ID } from "../unlock/config.js";
