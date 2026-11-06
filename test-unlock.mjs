@@ -444,17 +444,24 @@ console.log('\nfamily play page at 320px');
 
 async function browserCheck() {
   let chromium;
+  const skipBrowser = (why) => {
+    console.log('  SKIP browser: ' + why);
+    if (process.env.CI) {
+      console.log('  CI requires this browser to launch. A skip is a failed check.');
+      process.exit(1);
+    }
+  };
   try {
     ({ chromium } = await import('playwright'));
   } catch {
-    console.log('  SKIP browser: playwright is not installed');
+    skipBrowser('playwright is not installed');
     return;
   }
   let browser;
   try {
     browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
   } catch (e) {
-    console.log('  SKIP browser: ' + String(e.message || e).split('\n')[0]);
+    skipBrowser(String(e.message || e).split('\n')[0]);
     return;
   }
   const port = 9141;
