@@ -207,6 +207,7 @@ t('the parent next step stays the existing account and family-unlock journey', (
   assert.equal(/we never see it/i.test(parent), false);
   assert.match(parent, /Profile\.clear\(\)/);
   assert.match(parent, /Consent\.revoke\(\)/);
+  assert.match(parent, /renderMic\(\)/);
   assert.match(parent, /pip_ttf_progress_v1/);
   assert.match(parent, /kide_voice_prefs_v1/);
   assert.match(parent, /Today\\'s free minutes stay so Pip\\'s timer still works/);
