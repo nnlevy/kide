@@ -1,4 +1,5 @@
 node_modules/
+gate-preflight-out/
 .wrangler/
 dist/
 .DS_Store

@@ -7,6 +7,7 @@ import { routeParentAccount } from "../account/router.js";
 import { handlePlayEvents } from "../perf/http.js";
 import { handleCompete } from "../compete/http.js";
 import { handleUnlock } from "../unlock/handler.js";
+import { handleStudio } from "../studio/handler.js";
 import { withRefCookie } from "../referral/ref.js";
 import { handleRefClaim, inviteResponse } from "../referral/invite.js";
 
@@ -222,6 +223,15 @@ async function route(request: Request, env: Env): Promise<Response> {
     // clinician licence. A child's practice record never reaches this route.
     if (url.pathname.startsWith("/api/unlock")) {
       return handleUnlock(request, env);
+    }
+
+    // Lesson Studio (lesson_studio_monthly). Checkout stays closed. getCredits
+    // receipts never grant a month. There is no hub current-period reader
+    // here, and a process-wide snapshot is not a grant. currentSession names
+    // an email only; it is not a parent role or a month. A pending lesson is
+    // not playable. An approved lesson stays playable for that parent.
+    if (url.pathname.startsWith("/api/studio")) {
+      return handleStudio(request, env);
     }
 
     // Clinician licence: the chart-ready practice record at /clinician

@@ -115,6 +115,10 @@
 </head>
 <body>
 <div class="wrap">
+  <section id="madeEmpty" class="child-step hidden">
+    <div class="instruction"><h1>Ask a grown-up.</h1></div>
+    <p class="tap-cue">Nothing is ready to play yet.</p>
+  </section>
   <!-- 1 · who -->
   <section id="stepWho" class="child-step">
     <div class="instruction"><h1>Pick a friend.</h1><button class="hear-btn" id="hearWho" aria-label="Hear what to do">🔊</button></div>
@@ -145,7 +149,7 @@
 
   <details class="grownup-zone" id="grownupZone">
     <summary>⚙️ Grown-ups</summary>
-    <div class="grownup-links"><a href="/play">Pip's garden</a><a href="/parent/">Practice record</a></div>
+    <div class="grownup-links"><a href="/play">Pip's garden</a><a href="/play/made/">Made for you</a><a href="/parent/">Practice record</a></div>
     <div class="voice-row" id="voiceRow">
       <button class="link-btn" id="btnVoice">Let Pip listen too</button>
       <p class="quiet" id="voiceStatus"></p>
@@ -155,6 +159,7 @@
 
 <script type="module">
 import { LessonEngine } from '../engine/engine.js';
+import { attachScript, nextScriptBeat, scriptFromLesson } from '../studio/engine-play.js';
 import { Scene } from '../scene/scene.js';
 import { actorList, getActor, ASLEEP, portraitSvg } from '../scene/actors.js';
 import { namesFor, nameAsTarget, nameIsScoreable } from '../scene/naming.js';
@@ -169,7 +174,7 @@ const $ = (id) => document.getElementById(id);
 const BEATS_PER_DAY = 12;
 
 let actor = null, chosenName = null, scene = null, engine = null, offer = null, ended = false;
-let vocab = null;
+let vocab = null, madeLesson = null;
 let currentVoiceLines = [Speech.CHROME.whoFirst];
 window.__kideWords = () => ({ actor, chosenName, engine, ended, beats: engine?.learner.beat });
 
@@ -410,8 +415,34 @@ async function resolveAttempt(pcm){
   nextOffer();
 }
 
+async function presentStudioBeat(beat){
+  const art = await scene.loadArt(beat.affordance);
+  scene.render({ affordance: beat.affordance, state: 'WAIT', art });
+  const n = (engine.studioIndex || 0) + 1;
+  const total = engine.studioScript.length;
+  scene.setTimeOfDay(n / total);
+  $('dayDot').style.width = `${Math.round((n / total) * 100)}%`;
+  $('dayDot').parentElement.setAttribute('aria-valuenow', String(n));
+  $('dayDot').parentElement.setAttribute('aria-valuemax', String(total));
+  scene.pose('STUCK').say(actor.stall(engine.companionName));
+  const invite = await Speech.askVoice(beat.affordance, beat.word.w, engine.companionName);
+  await said(850);
+  scene.pose('ASK').say(beat.invitation, invite);
+  showSay(beat.word.w);
+}
+
 async function nextOffer(){
   if (ended) return;
+  if (madeLesson) {
+    if (!engine.studioScript) {
+      const script = scriptFromLesson(madeLesson, { companionName: engine.companionName });
+      attachScript(engine, script);
+      return presentStudioBeat(engine.current);
+    }
+    const next = nextScriptBeat(engine);
+    if (next.done) return goodnight();
+    return presentStudioBeat(next.beat);
+  }
   if (engine.learner.beat >= BEATS_PER_DAY) return goodnight();
 
   offer = engine.offerBeat({ count: 3 });
@@ -534,6 +565,24 @@ $('hearPlay')?.addEventListener('click', async () => { await Speech.unlock(); Sp
 
 (async () => {
   renderVoiceRow();
+  const madeId = new URLSearchParams(location.search).get('made');
+  if (madeId) {
+    try {
+      const res = await fetch(`/api/studio/play?id=${encodeURIComponent(madeId)}`, { credentials: 'same-origin' });
+      const data = await res.json().catch(() => ({}));
+      if (data && data.ok && data.lesson) {
+        madeLesson = data.lesson;
+      }
+    } catch { /* the empty state below is the honest answer */ }
+    if (!madeLesson) {
+      $('stepWho').classList.add('hidden');
+      $('stepName').classList.add('hidden');
+      $('stepPlay').classList.add('hidden');
+      $('madeEmpty').classList.remove('hidden');
+      return;
+    }
+  }
+
 
   // Consent already given on a previous visit (possibly in the quiz game --
   // it is one shared record). Start loading straight away; play is not blocked.
