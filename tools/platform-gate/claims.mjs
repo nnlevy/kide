@@ -131,8 +131,10 @@ export function mergeClaimsJson(claims, json) {
 
 /** Full evaluation over blocks. */
 export async function auditBlocks(blocks, cfg, opts = {}) {
+  if (!Array.isArray(blocks)) throw new TypeError(`auditBlocks: expected an array of blocks, got ${blocks === null ? "null" : typeof blocks}`);
   const claims = [];
   for (const b of blocks) {
+    if (!b || typeof b.text !== "string") continue; // a hole/null entry has no text, so no claim
     if ((cfg.allowPages || []).some((p) => b.pagePath === p || (p.endsWith("*") && b.pagePath?.startsWith(p.slice(0, -1))))) continue;
     if (b.demo) continue;
     const meta = citationOf(b, cfg);
