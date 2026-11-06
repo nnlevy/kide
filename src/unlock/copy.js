@@ -9,6 +9,7 @@ export const COPY = {
   stillOnTheWay: "The receipt is still on its way.",
   keepPlaying: "This email can keep playing with Pip.",
   referralLocked: "Your share link opens once family play is on this device.",
+  noCharge: "No charge was made. Family play is here whenever you're ready.",
 };
 
 const BANNED = [

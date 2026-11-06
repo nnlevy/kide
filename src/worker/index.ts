@@ -50,7 +50,14 @@ type PortfolioBillingServiceBinding = {
     exists: boolean;
     email: string;
     creditsBalance: number;
-    summaries?: { domain: string; creditsPurchased: number | null }[];
+    summaries?: { domain: string; creditsPurchased: number | null; offeringId?: string }[];
+    // Hub #174. Family play reads this list; it does not infer a grant from creditsBalance.
+    purchases?: {
+      domain?: string;
+      offeringId?: string;
+      priceId?: string;
+      status?: string;
+    }[];
   }>;
 };
 

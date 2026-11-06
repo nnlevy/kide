@@ -17,7 +17,9 @@ import {
 } from './src/unlock/config.js';
 import { checkoutInput, httpsUrl } from './src/unlock/checkout.js';
 import { COPY, readable } from './src/unlock/copy.js';
-import { purchaseGrantsUnlock } from './src/unlock/entitlement.js';
+import { isAllowlistedOffering, purchaseGrantsUnlock, UNLOCK_OFFERING_IDS } from './src/unlock/entitlement.js';
+import { parentIdFor } from './src/account/parent-id.js';
+import { setUnlock } from './src/account/store.js';
 import { advance, overLimit } from './src/unlock/minutes.js';
 import { answerMatches, makeHold, nextPoll, ENTITLEMENT_WAIT_MS as WAIT } from './public/unlock/gate.js';
 import { isMeasured } from './public/engine/measure.js';
@@ -103,7 +105,7 @@ await t('checkout input reuses the hub fields and returns to play on cancel', ()
   assert.equal(input.offeringId, 'family_unlock');
   assert.equal(input.priceId, STRIPE_PRICE_ID);
   assert.equal(input.sourceDomain, 'kide.us');
-  assert.equal(input.cancelUrl, 'https://kide.us/play/');
+  assert.equal(input.cancelUrl, 'https://kide.us/play/?checkout=cancel');
   assert.equal(input.successUrl, 'https://kide.us/unlock/?checkout=success&email=parent%40example.com');
   assert(!/data=/.test(input.successUrl + input.cancelUrl));
   assert.equal(httpsUrl('https://checkout.stripe.com/c/pay/cs_test_fake'), 'https://checkout.stripe.com/c/pay/cs_test_fake');
@@ -111,10 +113,53 @@ await t('checkout input reuses the hub fields and returns to play on cancel', ()
   assert.equal(httpsUrl('javascript:alert(1)'), null);
 });
 
-await t('purchase history must name the family offering', () => {
+function memoryDb() {
+  const entitlements = [];
+  function prepare(sql) {
+    const text = sql.replace(/\s+/g, ' ').trim();
+    const stmt = {
+      args: [],
+      bind(...args) { this.args = args; return this; },
+      async run() {
+        const a = this.args;
+        if (text.startsWith('CREATE TABLE')) return { success: true };
+        if (text.startsWith('INSERT INTO kide_entitlements')) {
+          const [parent_id, kind, source_ref, status, updated_at] = a;
+          const row = { parent_id, kind, source_ref, status, updated_at };
+          const i = entitlements.findIndex((e) => e.parent_id === parent_id && e.kind === kind);
+          if (i >= 0) entitlements[i] = row;
+          else entitlements.push(row);
+          return { success: true };
+        }
+        throw new Error(`unhandled run: ${text}`);
+      },
+      async first() {
+        const a = this.args;
+        if (text.includes('FROM kide_entitlements')) {
+          return entitlements.find((e) => e.parent_id === a[0] && e.kind === a[1]) || null;
+        }
+        return null;
+      },
+    };
+    return stmt;
+  }
+  return {
+    prepare,
+    batch(stmts) { return Promise.all(stmts.map((s) => s.run())); },
+    entitlements,
+  };
+}
+
+await t('purchase history must name an allowlisted family offering', () => {
   const cfg = { offeringId: 'family_unlock', priceId: STRIPE_PRICE_ID, domain: 'kide.us' };
+  assert.deepEqual([...UNLOCK_OFFERING_IDS], ['family_unlock']);
+  assert.equal(isAllowlistedOffering('family_unlock'), true);
+  assert.equal(isAllowlistedOffering(OFFERING_ID), true);
+  assert.equal(isAllowlistedOffering('clinician_report'), false);
+  assert.equal(isAllowlistedOffering('family_unlock_extra'), false);
   assert.deepEqual(purchaseGrantsUnlock(null, cfg), { known: false, unlocked: false });
   assert.deepEqual(purchaseGrantsUnlock({ ok: false }, cfg), { known: false, unlocked: false });
+  assert.equal(purchaseGrantsUnlock({ ok: true }, { offeringId: 'clinician_report', priceId: STRIPE_PRICE_ID, domain: 'kide.us' }).unlocked, false);
   assert.equal(purchaseGrantsUnlock({
     ok: true,
     summaries: [{ domain: 'kide.us', creditsPurchased: 9 }],
@@ -129,7 +174,30 @@ await t('purchase history must name the family offering', () => {
   }, cfg).unlocked, true);
   assert.equal(purchaseGrantsUnlock({
     ok: true,
+    purchases: [{ domain: 'kide.us', sku: 'family_unlock', status: 'paid' }],
+  }, cfg).unlocked, true);
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
     purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', status: 'refunded' }],
+  }, cfg).unlocked, false);
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
+    purchases: [
+      { domain: 'kide.us', offeringId: 'family_unlock', status: 'refunded' },
+      { domain: 'kide.us', offeringId: 'family_unlock', status: 'paid' },
+    ],
+  }, cfg).unlocked, true);
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
+    purchases: [{ domain: 'kide.us', offeringId: 'clinician_report', priceId: STRIPE_PRICE_ID, status: 'paid' }],
+  }, cfg).unlocked, false, 'a licence row does not become family play by carrying the family price');
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
+    purchases: [{ domain: 'kide.us', offeringId: 'family_unlock_extra', status: 'paid' }],
+  }, cfg).unlocked, false);
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
+    purchases: [{ domain: 'kide.us', offeringId: 'clinician_report', sku: 'family_unlock', status: 'paid' }],
   }, cfg).unlocked, false);
   assert.equal(purchaseGrantsUnlock({
     ok: true,
@@ -304,6 +372,66 @@ await t('a purchase records the parent unlock flag and a refund clears it', asyn
   assert.equal(rows.at(-1)[3], 'inactive');
 });
 
+await t('a signed-in parent with an allowlisted purchase skips the gate', async () => {
+  const db = memoryDb();
+  const env = {
+    KIDE_LEADS: memoryKv(),
+    DB: db,
+    PORTFOLIO_MESSAGING_SERVICE: {
+      async currentSession() { return { ok: true, email: 'parent@example.com' }; },
+    },
+    PORTFOLIO_BILLING_SERVICE: billing(paid),
+  };
+  const res = await handleUnlock(req('/api/unlock/status', { cookie: SESSION }), env, { now: 1 });
+  const data = await res.json();
+  assert.equal(data.unlocked, true);
+  assert.equal(data.gated, false);
+  const row = db.entitlements.at(-1);
+  assert.equal(row.parent_id, await parentIdFor('email', 'parent@example.com'));
+  assert.equal(row.kind, 'unlock');
+  assert.equal(row.source_ref, 'family_unlock');
+  assert.equal(row.status, 'active');
+
+  const licence = {
+    ok: true,
+    purchases: [{ domain: 'kide.us', offeringId: 'clinician_report', priceId: STRIPE_PRICE_ID, status: 'paid' }],
+  };
+  const other = memoryDb();
+  const denied = await handleUnlock(req('/api/unlock/status', { cookie: SESSION }), {
+    KIDE_LEADS: memoryKv(),
+    DB: other,
+    PORTFOLIO_MESSAGING_SERVICE: {
+      async currentSession() { return { ok: true, email: 'clinician@example.com' }; },
+    },
+    PORTFOLIO_BILLING_SERVICE: billing(licence),
+  }, { now: 2 });
+  const no = await denied.json();
+  assert.equal(no.unlocked, false);
+  assert.equal(other.entitlements.at(-1).status, 'inactive');
+  assert.ok(!other.entitlements.some((e) => e.status === 'active'));
+});
+
+await t('a paid account keeps play when purchase history does not answer', async () => {
+  const db = memoryDb();
+  const id = await parentIdFor('email', 'parent@example.com');
+  assert.equal(await setUnlock({ DB: db }, id, 'family_unlock'), true);
+  const env = {
+    DB: db,
+    KIDE_LEADS: memoryKv(),
+    PORTFOLIO_MESSAGING_SERVICE: {
+      async currentSession() { return { ok: true, email: 'parent@example.com' }; },
+    },
+    PORTFOLIO_BILLING_SERVICE: {
+      async getCredits() { throw new Error('hub down'); },
+    },
+  };
+  const res = await handleUnlock(req('/api/unlock/status', { cookie: SESSION }), env, { now: 5_000_000 });
+  const data = await res.json();
+  assert.equal(data.unlocked, true);
+  assert.equal(data.gated, false);
+  assert.equal(db.entitlements.at(-1).status, 'active');
+});
+
 await t('a hub miss does not take a paid unlock away', async () => {
   const kv = memoryKv();
   let mode = 'paid';
@@ -343,7 +471,7 @@ await t('checkout goes through the billing binding and ignores a swapped offerin
     assert.equal(hub.calls.length, 1);
     assert.equal(hub.calls[0].offeringId, 'family_unlock');
     assert.equal(hub.calls[0].priceId, STRIPE_PRICE_ID);
-    assert.equal(hub.calls[0].cancelUrl, 'https://kide.us/play/');
+    assert.equal(hub.calls[0].cancelUrl, 'https://kide.us/play/?checkout=cancel');
     assert(!('record' in hub.calls[0]));
     assert.equal(fetches, 0);
   } finally {
@@ -413,6 +541,11 @@ await t('visitor sentences and the new pages avoid gate words', () => {
   assert(!/data\.error|data\.message|fulfillment_not_ready/.test(parent));
   assert(/Pip needs a grown-up/.test(timer));
   assert(/\/unlock\//.test(timer));
+  assert.equal(COPY.noCharge, "No charge was made. Family play is here whenever you're ready.");
+  assert(timer.includes(COPY.noCharge), 'play does not tell a parent who backed out that no charge was made');
+  assert(/get\("checkout"\) !== "cancel"/.test(timer), 'play does not read a cancelled checkout');
+  assert(/checkout=cancel/.test(readFileSync('src/unlock/checkout.js', 'utf8')));
+  assert(!/checkout=back/.test(readFileSync('src/unlock/checkout.js', 'utf8')));
   const play = readFileSync('public/play/index.html', 'utf8');
   assert(/<script src="\/unlock\/timer\.js"><\/script>/.test(play));
   const worker = readFileSync('src/worker/index.ts', 'utf8');
