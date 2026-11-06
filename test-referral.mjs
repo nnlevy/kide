@@ -13,6 +13,7 @@ import { STRIPE_PRICE_ID } from './src/unlock/config.js';
 import { readable } from './src/unlock/copy.js';
 import {
   CASH_CLOSED,
+  CLAIM_SAVED,
   SHARE_REWARD,
   approvedProgram,
   closedCash,
@@ -22,6 +23,7 @@ import {
   shareStatus,
 } from './src/referral/apply.js';
 import { EARNINGS_COPY, handleEarnings, handleRefLanding, handleReferralHttp } from './src/referral/http.js';
+import { handleRefClaim } from './src/referral/invite.js';
 
 let pass = 0;
 let fail = 0;
@@ -361,12 +363,22 @@ await t('/parent/earnings uses the session email and stays closed on hub $5', as
   assert.equal(phoneView.message, EARNINGS_COPY.needAccount);
   const html = readFileSync('public/parent/earnings/index.html', 'utf8');
   assert.match(html, />Pending</);
-  assert.match(html, />Available</);
+  assert.match(html, />Closed</);
   assert.match(html, />Paid</);
+  assert.match(html, /Cash is not open yet/);
   assert.match(html, /We do not send it yet/);
+  assert.match(html, /data-own-price>\$6</);
+  assert.match(html, /data-own-price>\$50</);
+  assert.doesNotMatch(html, />Available</);
+  assert.doesNotMatch(html, /Ready, not sent|Only after we pay it/);
   assert.doesNotMatch(html, /waits 14 days|Waiting 14 days/);
   assert.doesNotMatch(html, /we send it|Already sent|ready to send/i);
   assert.doesNotMatch(html, /stripe|ledger|webhook|operator|queue|connect/i);
+  const home = readFileSync('index.html', 'utf8');
+  assert.doesNotMatch(home, /Payouts go to|You're all set|so your payouts reach you/);
+  assert.match(home, /Your email for this share link/);
+  assert.match(home, /We do not send it yet/);
+  assert.equal(readable(CLAIM_SAVED), true);
   const js = readFileSync('public/parent/earnings/earnings.js', 'utf8');
   assert.doesNotMatch(js, /stripe|ledger|webhook|operator/i);
   const apply = readFileSync('src/referral/apply.js', 'utf8');
@@ -505,6 +517,9 @@ async function workerAndMobile() {
     });
     assert.equal(seen.pending, '$0');
     assert.match(seen.text, /Cash is not open yet/);
+    assert.match(seen.text, /\$6/);
+    assert.match(seen.text, /\$50/);
+    assert.doesNotMatch(seen.text, /Available|Ready, not sent|Only after we pay it|Payouts go to/i);
     assert.match(seen.url, /https:\/\/kide\.us\/\?ref=AB3DEFGH/);
     assert.equal(seen.share, true);
     assert.equal(seen.overflow, 0, 'horizontal overflow ' + seen.overflow);
@@ -520,6 +535,141 @@ async function workerAndMobile() {
 }
 
 await t('authenticated local Worker covers earnings and share', workerAndMobile);
+
+async function claimPageJourney() {
+  const claim = 'a'.repeat(24);
+  const home = readFileSync('index.html', 'utf8')
+    .replace('id="claimBar" hidden', `id="claimBar" data-code="AB3DEFGH" data-claim="${claim}"`)
+    .replace('id="claimReward"></span>', `id="claimReward">${SHARE_REWARD}</span>`)
+    .replace('id="claimName">Welcome', 'id="claimName">Welcome Austin');
+  assert.match(home, /id="claimBar" data-code="AB3DEFGH"/);
+  assert.doesNotMatch(home, /id="claimBar" hidden/);
+  let claimOk = true;
+  const env = {
+    PORTFOLIO_BILLING_SERVICE: {
+      async claimCashReferrer(input) {
+        if (!claimOk) return { ok: false, reason: 'not_claimable' };
+        return { ok: true, rewardLabel: '$5 for you when a family you shared with buys family play', link: `https://kide.us/?ref=${input.code}` };
+      },
+    },
+  };
+  const css = readFileSync('public/mobile.css', 'utf8');
+  const server = createServer(async (incoming, outgoing) => {
+    const url = new URL(incoming.url, 'http://127.0.0.1');
+    const headers = {};
+    for (const [key, value] of Object.entries(incoming.headers)) {
+      if (typeof value === 'string') headers[key] = value;
+    }
+    let raw = '';
+    if (incoming.method !== 'GET' && incoming.method !== 'HEAD') {
+      raw = await new Promise((resolve) => {
+        const chunks = [];
+        incoming.on('data', (c) => chunks.push(c));
+        incoming.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+      });
+    }
+    const request = new Request(url, { method: incoming.method, headers, body: raw || undefined });
+    let response;
+    if (url.pathname === '/api/ref/claim') response = await handleRefClaim(request, env);
+    else if (url.pathname === '/' || url.pathname === '/index.html') {
+      response = new Response(home, { headers: { 'content-type': 'text/html; charset=utf-8' } });
+    } else if (url.pathname === '/mobile.css') {
+      response = new Response(css, { headers: { 'content-type': 'text/css' } });
+    } else {
+      response = new Response('not found', { status: 404 });
+    }
+    const outHeaders = {};
+    response.headers.forEach((value, key) => { outHeaders[key] = value; });
+    outgoing.writeHead(response.status, outHeaders);
+    outgoing.end(Buffer.from(await response.arrayBuffer()));
+  });
+  const port = await new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server.address().port)));
+  const base = `http://127.0.0.1:${port}`;
+  let chromium;
+  try {
+    ({ chromium } = await import('playwright'));
+  } catch {
+    server.close();
+    console.log('  SKIP claim page: playwright is not installed');
+    return;
+  }
+  let browser;
+  try {
+    browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
+  } catch (e) {
+    server.close();
+    console.log('  SKIP claim page: ' + String(e.message || e).split('\n')[0]);
+    return;
+  }
+  const page = await browser.newPage({ viewport: { width: 320, height: 700 }, isMobile: true, hasTouch: true });
+  try {
+    await page.goto(`${base}/?ref=AB3DEFGH&claim=${claim}`, { waitUntil: 'networkidle' });
+    const before = await page.evaluate(() => ({
+      bar: document.getElementById('claimBar').hidden,
+      reward: document.getElementById('claimReward').innerText,
+      rewardH: document.getElementById('claimReward').getBoundingClientRect().height,
+      done: document.getElementById('claimDone').hidden,
+      text: document.getElementById('claimBar').innerText,
+    }));
+    assert.equal(before.bar, false);
+    assert.equal(before.done, true);
+    assert.ok(before.rewardH > 0, 'terms must be on screen before claim');
+    assert.match(before.reward, /\$6/);
+    assert.match(before.reward, /\$50/);
+    assert.match(before.reward, /We do not send it yet/);
+    await page.click('#claimOpen');
+    await page.fill('#claimEmail', 'austin@example.com');
+    await page.click('#claimForm button[type="submit"]');
+    await page.waitForFunction(() => document.getElementById('claimDone').hidden === false);
+    const after = await page.evaluate(() => {
+      const reward = document.getElementById('claimReward');
+      const r = reward.getBoundingClientRect();
+      return {
+        start: document.getElementById('claimStart').hidden,
+        done: document.getElementById('claimDone').hidden,
+        doneText: document.getElementById('claimDoneText').innerText,
+        reward: reward.innerText,
+        rewardVisible: r.height > 0 && r.width > 0,
+        bar: document.getElementById('claimBar').innerText,
+      };
+    });
+    assert.equal(after.start, true);
+    assert.equal(after.done, false);
+    assert.equal(after.rewardVisible, true, 'claim success must keep the $6/$50 terms on screen');
+    assert.match(after.reward, /\$6/);
+    assert.match(after.reward, /\$50/);
+    assert.match(after.reward, /We do not send it yet/);
+    assert.match(after.doneText, /austin@example\.com/);
+    assert.match(after.doneText, /We do not send it yet/);
+    assert.doesNotMatch(after.bar, /Payouts go to|You're all set|Ready, not sent/i);
+    assert.doesNotMatch(after.doneText, /Payouts go to|You're all set/);
+
+    claimOk = false;
+    await page.goto(`${base}/?ref=AB3DEFGH&claim=${claim}`, { waitUntil: 'networkidle' });
+    await page.click('#claimOpen');
+    await page.fill('#claimEmail', 'austin@example.com');
+    await page.click('#claimForm button[type="submit"]');
+    await page.waitForFunction(() => document.getElementById('claimMsg').textContent.length > 0);
+    const failed = await page.evaluate(() => ({
+      done: document.getElementById('claimDone').hidden,
+      start: document.getElementById('claimStart').hidden,
+      reward: document.getElementById('claimReward').innerText,
+      rewardH: document.getElementById('claimReward').getBoundingClientRect().height,
+      msg: document.getElementById('claimMsg').innerText,
+    }));
+    assert.equal(failed.done, true, 'a refused claim must not show success');
+    assert.equal(failed.start, false);
+    assert.ok(failed.rewardH > 0);
+    assert.match(failed.reward, /\$6/);
+    assert.match(failed.reward, /\$50/);
+    assert.match(failed.msg, /already claimed|didn't save/i);
+  } finally {
+    await browser.close().catch(() => {});
+    server.close();
+  }
+}
+
+await t('claim success keeps $6/$50 terms and does not promise a payout', claimPageJourney);
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

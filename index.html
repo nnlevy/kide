@@ -228,18 +228,18 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
   <section class="claim-bar" id="claimBar" hidden aria-label="Your kide link">
     <h2 id="claimName">Welcome</h2>
     <button class="claim-x" id="claimX" type="button" aria-label="Close">&times;</button>
+    <p><span id="claimReward"></span> Parents see the page below.</p>
     <div id="claimStart">
-      <p><span id="claimReward"></span> Parents see the page below.</p>
       <button class="claim-btn" id="claimOpen" type="button">Claim your link</button>
       <form class="claim-form" id="claimForm" hidden novalidate>
-        <label for="claimEmail">Your email, so your payouts reach you</label>
+        <label for="claimEmail">Your email for this share link</label>
         <input id="claimEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" required>
         <button class="claim-btn" type="submit">Save</button>
         <p class="claim-msg" id="claimMsg" role="status"></p>
       </form>
     </div>
     <div id="claimDone" hidden>
-      <p id="claimDoneText">You're all set.</p>
+      <p id="claimDoneText">Your share link is saved. We do not send it yet.</p>
       <button class="claim-btn" id="claimShare" type="button">Share your link</button>
     </div>
   </section>
@@ -253,7 +253,7 @@ btn.disabled=true;m.textContent="";
 fetch("/api/ref/claim",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:c,claim:b.getAttribute("data-claim"),email:em})}).then(function(r){return r.json();}).then(function(d){btn.disabled=false;
 if(!d||!d.ok){m.textContent=(d&&d.error)||"That didn't save. Try again?";return;}
 if(d.link)link=d.link;document.getElementById("claimStart").hidden=true;document.getElementById("claimDone").hidden=false;
-document.getElementById("claimDoneText").textContent="You're all set. Payouts go to "+em+". Share your link with parents you know:";
+document.getElementById("claimDoneText").textContent="We saved "+em+" on this link. We do not send it yet.";
 try{history.replaceState(null,"","/?ref="+c);}catch(e){}}).catch(function(){btn.disabled=false;m.textContent="That didn't save. Try again?";});};
 document.getElementById("claimShare").onclick=function(){var t=this;var data={title:"Kide",text:"I think your kiddo would love Pip.",url:link};
 if(navigator.share){navigator.share(data).catch(function(){});return;}

@@ -609,8 +609,9 @@ await t('share links reach the Worker, so the referral cookie is actually set', 
 });
 
 // A share link names who sent it (first name only); the claim link is the
-// referrer's own and is the only place the payout shows.
-await t('share links name the sender and a claim link can add a payout email', async () => {
+// referrer's own. Claiming saves an email on the share link. It does not
+// open cash or send a payout.
+await t('share links name the sender and a claim link can add an email', async () => {
   assert.equal(claimFromUrl('https://kide.us/?ref=AB3DEFGH&claim=4e0f345409350d2ccad17e5b'), '4e0f345409350d2ccad17e5b');
   assert.equal(claimFromUrl('https://kide.us/?ref=AB3DEFGH&claim=<x>'), null);
   assert.equal(inviteCopy('Austin').headline, 'Austin thought your kiddo should meet Pip.');

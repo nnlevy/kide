@@ -45,6 +45,9 @@ export const SHARE_REWARD =
 export const CASH_CLOSED =
   "Your link is yours to share. Cash is not open yet. We do not send it yet.";
 
+export const CLAIM_SAVED =
+  "We saved this email on this link. We do not send it yet.";
+
 const ACTIVITY_STEPS = new Set(["link_open", "checkout_open"]);
 const HUB_TIMEOUT_MS = 1500;
 
