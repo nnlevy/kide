@@ -16,8 +16,11 @@
 //   signInPasskey({ domain, credential, ip })
 //       → { ok, message, email, sessionToken, cookie } on success
 //         (riskfreetrial #173, same shape as verifyCode)
-//   currentSession({ domain, session }) → { ok: true, email } | { ok: false }
-//   endSession({ domain, session }) → { ok: true } | { ok: false }
+//   currentSession({ domain, session })
+//       → { ok: true, email }
+//       | { ok: false }
+//       | { ok: false, error: "storage_error", message }
+//   endSession({ domain, session }) → { ok: true } | { ok: false } | { ok: false, error: "storage_error" }
 //
 // The hub already does the rules: 6-digit codes, 10-minute expiry, lock after
 // 5 tries, passkeys. SMS starts sending only when that worker's SMS_LIVE_SENDS
@@ -28,6 +31,7 @@
 // and the hub named the email. A passkey the hub accepts without a session
 // is not a sign-in. The session token never appears in JSON.
 
+import { readEmailSession } from "../account/session.js";
 import { deviceIdFromCookie, dropDeviceUnlock } from "../unlock/entitlement.js";
 
 const DOMAIN = "kide.us";
@@ -295,7 +299,18 @@ export async function handleAccount(request, env) {
     if (!messaging || typeof messaging.endSession !== "function") {
       return withCookie(json({ ok: false, signedIn: false, message: UNAVAILABLE }, 503), clearCookie());
     }
-    await callHub(messaging, "endSession", { domain: DOMAIN, session });
+    let ended = { ok: false, error: "storage_error" };
+    try {
+      const result = await messaging.endSession({ domain: DOMAIN, session });
+      ended = result && typeof result === "object" ? result : { ok: false };
+    } catch {
+      ended = { ok: false, error: "storage_error" };
+    }
+    // storage_error means the hub row may still be there. The browser cookie
+    // is cleared either way. Do not report that as a finished sign-out.
+    if (ended.error === "storage_error") {
+      return withCookie(json({ ok: false, signedIn: false, message: UNAVAILABLE }, 503), clearCookie());
+    }
     return withCookie(json({ ok: true, signedIn: false, message: SIGNED_OUT }), clearCookie());
   }
 
@@ -304,26 +319,22 @@ export async function handleAccount(request, env) {
   const session = request.headers.get("cookie") || "";
 
   if (path === "/api/account/me") {
-    // No reader on the binding means we cannot know who the cookie is.
-    // Fail closed: not signed in, and no address for the page to display.
-    if (!messaging || typeof messaging.currentSession !== "function") {
-      return json({ ok: false, signedIn: false, message: NEED_SIGNIN }, 503);
+    // Identity is { ok: true, email } from currentSession. storage_error and a
+    // thrown call are an outage, not a signed-out page. { ok: false } is
+    // logged out. The hub message is not copied into this response.
+    const who = await readEmailSession(request, env);
+    if (who.state === "outage") {
+      return json({ ok: false, signedIn: false, message: UNAVAILABLE }, 503);
     }
-    const result = await callHub(messaging, "currentSession", { domain: DOMAIN, session });
-    const email = normalizeEmail(result.email);
-    if (result.ok === true && email) {
-      return respond({
-        ok: true,
-        signedIn: true,
-        email,
-        message: visitorSentence(scrubText(result.message, result), "You are signed in."),
-      }, 200, result, null);
+    if (who.state !== "email") {
+      return json({ ok: false, signedIn: false, message: NEED_SIGNIN }, 200);
     }
-    return respond({
-      ok: false,
-      signedIn: false,
-      message: visitorSentence(scrubText(result.message, result), NEED_SIGNIN),
-    }, 200, result, null);
+    return json({
+      ok: true,
+      signedIn: true,
+      email: who.email,
+      message: "You are signed in.",
+    }, 200);
   }
 
   if (!messaging) return json({ ok: false, message: UNAVAILABLE }, 503);

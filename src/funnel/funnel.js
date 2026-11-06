@@ -2,8 +2,13 @@
 // They do not store an email, a device id, an IP address, or a user-agent string.
 // play_day and gate_day are written by the server while handling the play
 // tick the game already sends. This module does not call notifyReferralActivity
-// and does not send email. Cash attribution stays on the hub webhook, which
-// reads Stripe metadata custom_ref from createCheckout.
+// (that RPC sends email) and does not send email. It does not call
+// recordCashReferralFromCheckout or syncCashReferralPayouts; those are internal
+// hub exports, not PortfolioBillingService methods. Cash attribution stays on
+// the hub webhook, which reads Stripe session metadata custom_ref. That key is
+// not part of writeVerifiedPurchase receiptMetadata. paid_at on kide_funnel_paid
+// is when this worker saw the receipt, not the buyer's payment time and not
+// the cash ledger paid_at.
 
 import { normalizeRef, refFromRequest } from "../referral/ref.js";
 import { checkoutSessionId } from "../unlock/entitlement.js";

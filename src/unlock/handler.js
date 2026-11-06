@@ -1,8 +1,15 @@
 // Money path: visit → tool use (Pip play) → signup → paid step → Stripe.
 //
 // Family play reuses PORTFOLIO_BILLING_SERVICE createCheckout and getCredits.
-// Paid identity is the email PortfolioMessagingService.currentSession returns
-// for this browser's session cookie. The request body is not that identity.
+// The buyer email is the one currentSession returns for this browser's
+// Cookie header ({ ok: true, email }). The request body is not that identity.
+// That result is an email session, not a parent role and not a payment.
+// A payment is a later getCredits receipt. storage_error is an outage:
+// checkout stays closed and the stored unlock is left in place.
+// This leaf does not write the hub purchases table. writeVerifiedPurchase
+// inserts status paid and is idempotent on the Stripe session id. Its
+// receiptMetadata is eventId, offeringId, offeringKind, mode, and
+// subscriptionId. custom_ref is not in that object.
 // A Checkout session id from purchases[].sourceRef is what setUnlock stores.
 // This file does not talk to Stripe and does not send email.
 
@@ -24,6 +31,7 @@ import {
 } from "./entitlement.js";
 import { normalizeEmail } from "./email.js";
 import { advance, capSeconds, dayStamp, mergePeak, overLimit, playKey } from "./minutes.js";
+import { readEmailSession } from "../account/session.js";
 import { parentIdFor } from "../account/parent-id.js";
 import { readUnlocked, setUnlock } from "../account/store.js";
 import { refFromRequest } from "../referral/ref.js";
@@ -93,20 +101,6 @@ async function kvPut(kv, key, value) {
 async function kvDel(kv, key) {
   if (!kv || typeof kv.delete !== "function") return;
   await kv.delete(key);
-}
-
-async function sessionEmail(request, env) {
-  const messaging = env && env.PORTFOLIO_MESSAGING_SERVICE;
-  if (!messaging || typeof messaging.currentSession !== "function") return null;
-  const session = request.headers.get("cookie") || "";
-  if (!session.includes("__Host-rft_session=")) return null;
-  try {
-    const result = await messaging.currentSession({ domain: DOMAIN, session });
-    if (!result || result.ok !== true) return null;
-    return normalizeEmail(result.email);
-  } catch {
-    return null;
-  }
 }
 
 function grantConfig() {
@@ -233,13 +227,15 @@ export async function handleUnlock(request, env, opts = {}) {
   const existing = deviceIdFromCookie(request);
   const deviceId = existing || newDeviceId();
   const cookie = existing ? null : deviceCookie(deviceId);
-  const email = await sessionEmail(request, env);
+  const who = await readEmailSession(request, env);
+  const email = who.state === "email" ? who.email : null;
   const billing = env && env.PORTFOLIO_BILLING_SERVICE;
 
   if (path === "/api/unlock/checkout") {
     const body = await readJson(request);
     if (body.error) return json({ ok: false, message: COPY.needSignIn }, 400, cookie);
     if (qaCheckout(url, body)) return json({ ok: false, message: COPY.needSignIn }, 400, cookie);
+    if (who.state === "outage") return json({ ok: false, message: COPY.retry }, 503, cookie);
     if (!email) return json({ ok: false, message: COPY.needSignIn }, 401, cookie);
     if (!billing || typeof billing.createCheckout !== "function") {
       return json({ ok: false, message: COPY.retry }, 503, cookie);
@@ -264,6 +260,9 @@ export async function handleUnlock(request, env, opts = {}) {
   if (path === "/api/unlock/confirm") {
     const body = await readJson(request);
     if (body.error) return json({ ok: false, message: COPY.needSignIn }, 400, cookie);
+    if (who.state === "outage") {
+      return json({ ok: false, unlocked: false, pending: true, message: COPY.retry }, 503, cookie);
+    }
     if (!email) {
       return json({ ok: false, unlocked: false, pending: true, message: COPY.needSignIn }, 401, cookie);
     }
@@ -293,6 +292,7 @@ export async function handleUnlock(request, env, opts = {}) {
   if (path === "/api/unlock/referral") {
     const body = await readJson(request);
     if (body.error) return json({ ok: false, message: COPY.needSignIn }, 400, cookie);
+    if (who.state === "outage") return json({ ok: false, message: COPY.retry }, 503, cookie);
     const posted = normalizeEmail(body.email);
     if (posted && posted !== email) return json({ ok: false, message: COPY.referralLocked }, 403, cookie);
     if (!email || !unlock.unlocked || unlock.email !== email) {
@@ -302,12 +302,16 @@ export async function handleUnlock(request, env, opts = {}) {
       return json({ ok: false, message: COPY.retry }, 503, cookie);
     }
     try {
+      // issueCashReferralCode is a PortfolioBillingService method. It checks the
+      // email string only. The session check above is the leaf's. This does not
+      // call recordCashReferralFromCheckout or syncCashReferralPayouts.
       const issued = await billing.issueCashReferralCode({ domain: DOMAIN, email });
       if (!issued || issued.ok !== true || typeof issued.link !== "string") {
         return json({ ok: false, message: COPY.retry }, 502, cookie);
       }
       let stats = null;
       if (typeof billing.getCashReferralStatus === "function") {
+        // Stored totals only. This does not read Stripe and does not void a row.
         try { stats = await billing.getCashReferralStatus({ domain: DOMAIN, email }); } catch { stats = null; }
       }
       return json({
@@ -334,16 +338,16 @@ export async function handleUnlock(request, env, opts = {}) {
   if (unlock.unlocked) {
     return json(view({ unlocked: true, seconds: 0 }), 200, cookie);
   }
-  const who = unlock.email || email;
-  const loaded = await loadSeconds(kv, day, deviceId, who);
+  const player = unlock.email || email;
+  const loaded = await loadSeconds(kv, day, deviceId, player);
   const share = refFromRequest(request);
   if (!loaded.device) {
     await recordStep(env, { step: "play_day", ref: share, now, slot: `play_day:${day}:${share || ""}` });
   }
   const deviceNext = advance(loaded.device, now, MAX_TICK_SECONDS);
-  const accountNext = who ? advance(loaded.account, now, MAX_TICK_SECONDS) : null;
+  const accountNext = player ? advance(loaded.account, now, MAX_TICK_SECONDS) : null;
   const merged = mergePeak(deviceNext, accountNext);
-  const seconds = kv ? await savePlay(kv, day, deviceId, who, merged) : merged.device.seconds;
+  const seconds = kv ? await savePlay(kv, day, deviceId, player, merged) : merged.device.seconds;
   if (!overLimit(loaded.seconds, FREE_PLAY_MINUTES) && overLimit(seconds, FREE_PLAY_MINUTES)) {
     await recordStep(env, { step: "gate_day", ref: share, now, slot: `gate_day:${day}:${share || ""}` });
   }

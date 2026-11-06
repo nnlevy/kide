@@ -17,7 +17,7 @@ import {
 } from './src/unlock/config.js';
 import { checkoutInput, httpsUrl } from './src/unlock/checkout.js';
 import { COPY, readable } from './src/unlock/copy.js';
-import { purchaseGrantsUnlock } from './src/unlock/entitlement.js';
+import { purchaseGrantsUnlock, unlockKey } from './src/unlock/entitlement.js';
 import { advance, overLimit } from './src/unlock/minutes.js';
 import { answerMatches, makeHold, nextPoll, ENTITLEMENT_WAIT_MS as WAIT } from './public/unlock/gate.js';
 import { isMeasured } from './public/engine/measure.js';
@@ -618,6 +618,18 @@ T(("127.0.0.1", ${port}), H).serve_forever()
     assert.equal(notified, null);
     await page.unroute('**/api/account/me');
     await page.route('**/api/account/me', (route) => route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: false, signedIn: false, message: 'Sign-in is not available right now.' }),
+    }));
+    await page.click('#payGo');
+    await page.waitForFunction(() => /try again/i.test(document.getElementById('payMsg').textContent));
+    const outageMsg = await page.locator('#payMsg').innerText();
+    assert.match(outageMsg, /Try again in a moment/);
+    assert.doesNotMatch(outageMsg, /sign in/i);
+    assert.equal(checkouts, 0, 'an outage does not open checkout');
+    await page.unroute('**/api/account/me');
+    await page.route('**/api/account/me', (route) => route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ ok: true, signedIn: true, email: 'parent@example.com' }),
@@ -752,6 +764,75 @@ await t('the pay step shows the risk-free promise and success links the riskfree
   assert.match(html, /id="refundNote" hidden/);
   assert.match(js, /\/\^cs_\(live\|test\)_\[A-Za-z0-9\]\{10,200\}\$\//);
   assert.match(js, /"https:\/\/riskfreetrial\.org\/thanks\?sid=" \+ encodeURIComponent\(sid\)/);
+});
+
+await t('currentSession wire shapes: outage is not logged out, and a stub is not live auth', async () => {
+  // These returns match passkey.ts currentSession. The stub does not prove
+  // the live messaging worker, its pepper, or its D1.
+  const kv = memoryKv();
+  const email = 'parent@example.com';
+  await kv.put(unlockKey(email), JSON.stringify({ unlocked: true, sourceRef: SID }));
+  const calls = [];
+  const checkouts = [];
+  let result = { ok: false };
+  const env = {
+    KIDE_LEADS: kv,
+    PORTFOLIO_MESSAGING_SERVICE: {
+      async currentSession(input) {
+        calls.push(input);
+        if (result instanceof Error) throw result;
+        return result;
+      },
+    },
+    PORTFOLIO_BILLING_SERVICE: {
+      async createCheckout(input) { checkouts.push(input); return { ok: true, url: 'https://checkout.stripe.com/c/pay/cs_test_fake' }; },
+      async getCredits() { throw new Error('should not read credits during an outage'); },
+      async issueCashReferralCode() { throw new Error('should not mint'); },
+      async recordCashReferralFromCheckout() { throw new Error('internal export'); },
+      async syncCashReferralPayouts() { throw new Error('internal export'); },
+      async notifyReferralActivity() { throw new Error('email'); },
+    },
+  };
+  const cookie = `kide=1; ${SESSION}`;
+  const post = (path) => handleUnlock(req(path, {
+    method: 'POST', cookie, body: { email: 'other@example.com' },
+  }), env, { now: 1 });
+
+  for (const name of ['invalid', 'expired', 'wrong-domain', 'revoked']) {
+    result = { ok: false };
+    const res = await post('/api/unlock/checkout');
+    assert.equal(res.status, 401, name);
+    assert.equal((await res.json()).message, COPY.needSignIn, name);
+  }
+  assert.equal(checkouts.length, 0);
+  assert.deepEqual(calls[0], { domain: 'kide.us', session: cookie });
+  assert.equal(await kv.get(unlockKey(email)), JSON.stringify({ unlocked: true, sourceRef: SID }));
+
+  result = { ok: false, error: 'storage_error', message: 'd1 down' };
+  const outage = await post('/api/unlock/checkout');
+  assert.equal(outage.status, 503);
+  assert.equal((await outage.json()).message, COPY.retry);
+  const confirm = await post('/api/unlock/confirm');
+  assert.equal(confirm.status, 503);
+  const referral = await post('/api/unlock/referral');
+  assert.equal(referral.status, 503);
+  assert.equal(checkouts.length, 0);
+  assert.equal(await kv.get(unlockKey(email)), JSON.stringify({ unlocked: true, sourceRef: SID }));
+
+  result = new Error('binding threw');
+  const thrown = await post('/api/unlock/checkout');
+  assert.equal(thrown.status, 503);
+  assert.equal(await kv.get(unlockKey(email)), JSON.stringify({ unlocked: true, sourceRef: SID }));
+
+  const bare = { KIDE_LEADS: kv };
+  const loggedOut = await handleUnlock(req('/api/unlock/checkout', {
+    method: 'POST', body: { email: 'other@example.com' },
+  }), bare, { now: 1 });
+  assert.equal(loggedOut.status, 401);
+  const noReader = await handleUnlock(req('/api/unlock/checkout', {
+    method: 'POST', cookie: SESSION, body: {},
+  }), bare, { now: 1 });
+  assert.equal(noReader.status, 503);
 });
 
 await browserCheck();

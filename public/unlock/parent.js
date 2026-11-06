@@ -9,6 +9,7 @@ const COPY = {
   mismatch: "That does not match. Try another answer.",
   needEmail: "Enter the email you want on the receipt.",
   needSignIn: "Sign in on the parent account, then come back to checkout.",
+  retry: "Pip could not open checkout. Try again in a moment.",
   soon: "Family play is opening soon. We'll email you.",
   checking: "Checking the receipt.",
   keep: "This email can keep playing with Pip.",
@@ -66,28 +67,37 @@ function revealPay() {
   prefill();
 }
 
-async function signedInEmail() {
+async function accountMe() {
   try {
     const res = await fetch("/api/account/me", { credentials: "same-origin", cache: "no-store" });
-    const data = await res.json();
-    if (data && data.signedIn === true && typeof data.email === "string") return data.email;
+    const data = await res.json().catch(() => null);
+    if (res.status === 503) return { state: "outage" };
+    if (data && data.signedIn === true && typeof data.email === "string") {
+      return { state: "email", email: data.email };
+    }
   } catch { /* no session */ }
-  return "";
+  return { state: "anonymous" };
+}
+
+async function signedInEmail() {
+  const who = await accountMe();
+  return who.state === "email" ? who.email : "";
 }
 
 async function prefill() {
-  const address = await signedInEmail();
+  const who = await accountMe();
   const email = $("email");
   const form = $("payForm");
-  if (!address) {
+  if (who.state !== "email") {
     if (form) form.hidden = false;
     if (email) {
       email.value = "";
       email.disabled = true;
     }
-    say("payMsg", COPY.needSignIn);
+    say("payMsg", who.state === "outage" ? COPY.retry : COPY.needSignIn);
     return "";
   }
+  const address = who.email;
   if (form) form.hidden = false;
   if (email) {
     email.disabled = false;
@@ -128,11 +138,16 @@ async function rememberParent(address) {
 
 async function startCheckout(event) {
   event.preventDefault();
-  const address = await signedInEmail();
-  if (!address) {
+  const who = await accountMe();
+  if (who.state === "outage") {
+    say("payMsg", COPY.retry);
+    return;
+  }
+  if (who.state !== "email") {
     say("payMsg", COPY.needSignIn);
     return;
   }
+  const address = who.email;
   const button = $("payGo");
   if (button) button.disabled = true;
   say("payMsg", "");
@@ -173,6 +188,10 @@ async function confirmLoop() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
+      if (res.status === 503) {
+        say("waitMsg", COPY.retry);
+        return;
+      }
       result = await res.json();
     } catch {
       result = null;

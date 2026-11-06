@@ -167,19 +167,19 @@ await t('setUnlock is what turns the flag on, and a refund turns it off', async 
     DB: db,
     PORTFOLIO_MESSAGING_SERVICE: hubSession({ ok: true, email: 'parent@example.com' }),
   };
-  const before = await currentParent(req('/api/account/session'), env);
+  const before = await currentParent(req('/api/account/session', { cookie: COOKIE }), env);
   assert.equal(before.unlocked, false);
   assert.equal(await setUnlock(env, 'not-an-id', 'cs_test'), false);
   assert.equal(await setUnlock({}, before.parentId, 'cs_test'), false);
   assert.equal(await setUnlock(env, before.parentId, 'cs_test_123'), true);
-  const paid = await currentParent(req('/api/account/session'), env);
+  const paid = await currentParent(req('/api/account/session', { cookie: COOKIE }), env);
   assert.equal(paid.parentId, before.parentId);
   assert.equal(paid.unlocked, true);
   assert.equal(db.entitlements[0].kind, 'unlock');
   assert.equal(db.entitlements[0].status, 'active');
   assert.equal(db.entitlements[0].source_ref, 'cs_test_123');
   assert.equal(await setUnlock(env, before.parentId, 're_123', 'inactive'), true);
-  const refunded = await currentParent(req('/api/account/session'), env);
+  const refunded = await currentParent(req('/api/account/session', { cookie: COOKIE }), env);
   assert.equal(refunded.unlocked, false);
   assert.equal(db.entitlements.length, 1);
 });
@@ -190,7 +190,7 @@ await t('a parent row that already exists keeps its id', async () => {
   const existing = 'p_' + 'c'.repeat(32);
   db.parents.push({ id: existing, email, phone_e164: null, created_at: '2026-01-01T00:00:00.000Z' });
   const env = { DB: db, PORTFOLIO_MESSAGING_SERVICE: hubSession({ ok: true, email }) };
-  const view = await currentParent(req('/api/account/session'), env);
+  const view = await currentParent(req('/api/account/session', { cookie: COOKIE }), env);
   assert.equal(view.parentId, existing);
   assert.notEqual(view.parentId, await parentIdFor('email', email));
   assert.equal(db.parents.length, 1);
@@ -198,17 +198,30 @@ await t('a parent row that already exists keeps its id', async () => {
 
 await t('a missing database still names the parent and stays locked', async () => {
   const env = { PORTFOLIO_MESSAGING_SERVICE: hubSession({ ok: true, email: 'parent@example.com' }) };
-  const view = await currentParent(req('/api/account/session'), env);
+  const view = await currentParent(req('/api/account/session', { cookie: COOKIE }), env);
   assert.equal(view.parentId, await parentIdFor('email', 'parent@example.com'));
   assert.equal(view.unlocked, false);
   assert.equal(await setUnlock(env, view.parentId, 'cs_test'), false);
 });
 
-await t('a phone the hub names is a parent id of its own', async () => {
+await t('a phone on the session result is not an email session', async () => {
   const env = { PORTFOLIO_MESSAGING_SERVICE: hubSession({ ok: true, phone: '+1 (555) 555-0100' }) };
-  const view = await currentParent(req('/api/account/session'), env);
-  assert.equal(view.parentId, await parentIdFor('phone', '+15555550100'));
-  assert.equal(view.unlocked, false);
+  const view = await currentParent(req('/api/account/session', { cookie: COOKIE }), env);
+  assert.deepEqual(view, { parentId: null, unlocked: false });
+});
+
+await t('an outage hides the parent id and leaves the unlock row', async () => {
+  const db = memoryDb();
+  const email = 'parent@example.com';
+  const parentId = await parentIdFor('email', email);
+  db.parents.push({ id: parentId, email, phone_e164: null, created_at: '2026-01-01T00:00:00.000Z' });
+  db.entitlements.push({ parent_id: parentId, kind: 'unlock', source_ref: 'cs_test_123', status: 'active' });
+  const env = { DB: db, PORTFOLIO_MESSAGING_SERVICE: hubSession({ ok: false, error: 'storage_error', message: 'd1 down' }) };
+  const view = await currentParent(req('/api/account/session', { cookie: COOKIE }), env);
+  assert.deepEqual(view, { parentId: null, unlocked: false });
+  assert.equal(db.entitlements[0].status, 'active');
+  const res = await read(await handleParentSession(req('/api/account/session', { cookie: COOKIE }), env));
+  assert.deepEqual(Object.keys(res.data).sort(), ['parentId', 'unlocked']);
 });
 
 console.log('\nsession route');
