@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Parent account — Kide</title>
-<meta name="description" content="Sign in on kide.us with a code we email you. Then you can save a passkey on this device. Your child's game stays on the device.">
+<meta name="description" content="Sign in on kide.us with a code we email you. Then you can save a passkey on this device. Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in.">
 <meta name="robots" content="index, follow">
 <meta name="theme-color" content="#56C6E6">
 <link rel="canonical" href="https://kide.us/account">
@@ -15,14 +15,14 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Kide">
 <meta property="og:title" content="Parent account — Kide">
-<meta property="og:description" content="Sign in with a code we email you. Your child's game stays on the device.">
+<meta property="og:description" content="Sign in with a code we email you. Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in.">
 <meta property="og:url" content="https://kide.us/account">
 <meta property="og:image" content="https://kide.us/og-card.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Parent account — Kide">
-<meta name="twitter:description" content="Sign in with a code we email you. Your child's game stays on the device.">
+<meta name="twitter:description" content="Sign in with a code we email you. Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in.">
 <meta name="twitter:image" content="https://kide.us/og-card.png">
 <style>
 :root{
@@ -70,7 +70,30 @@ footer a{color:var(--ink-soft);text-decoration:underline;}
 .pip-cheek.l{left:14%;}.pip-cheek.r{right:14%;}
 .pip-eye{position:absolute;width:19%;height:22%;background:#fff;border-radius:50%;top:32%;}
 .pip-eye.l{left:22%;}.pip-eye.r{right:22%;}
-.pip-pupil{position:absolute;width:52%;height:52%;background:var(--ink);border-radius:50%;top:26%;left:26%;}
+.pip-pupil{position:absolute;width:52%;height:52%;background:var(--ink);border-radius:50%;top:26%;left:26%;animation:blink 5.5s ease-in-out infinite;}
+.pip-bob{width:100%;height:100%;transform-origin:bottom center;animation:bob 3.2s ease-in-out infinite;}
+@keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}
+@keyframes blink{0%,92%,100%{transform:scaleY(1);}94%{transform:scaleY(.15);}96%{transform:scaleY(1);}}
+.card{animation:rise .4s ease both;}
+@keyframes rise{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+.promise{color:var(--ink);font-size:16px;font-weight:700;text-align:center;margin:12px 0 0;line-height:1.4;}
+a.next{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:999px;padding:14px 22px;font-size:16px;font-weight:800;text-decoration:none;background:linear-gradient(180deg,var(--sand),var(--sand-deep));color:#fff;box-shadow:0 4px 0 rgba(0,0,0,.08);width:100%;box-sizing:border-box;}
+a.next:active,button:active{transform:translateY(2px);}
+@media (max-height:700px){
+  nav{padding:4px 0;}
+  .card{display:flex;flex-direction:column;padding:12px 14px 14px;}
+  .hero-pip{order:1;width:56px;height:56px;margin:0 auto 2px;}
+  h1{order:2;font-size:24px;line-height:1.15;margin:2px 0 0;}
+  .promise{order:3;margin-top:6px;}
+  form{order:4;margin-top:8px;}
+  .lead{order:5;margin-top:8px;}
+  #msg{order:6;min-height:0;margin-top:8px;}
+  label{margin-top:0;margin-bottom:4px;}
+}
+@media (prefers-reduced-motion: reduce){
+  .pip-bob,.pip-pupil,.card{animation:none;}
+  a.next:active,button:active{transform:none;}
+}
 .pip-mouth{position:absolute;left:32%;right:32%;top:60%;height:16%;}
 .pip-sprout{position:absolute;top:-6%;left:50%;transform:translateX(-50%);width:34%;height:26%;}
 .pip-stem{position:absolute;bottom:0;left:50%;width:6%;height:70%;background:var(--grass-dark);transform:translateX(-50%);border-radius:3px;}
@@ -93,7 +116,7 @@ footer a{color:var(--ink-soft);text-decoration:underline;}
 
   <div class="card">
     <div class="hero-pip" aria-hidden="true">
-      <div class="pip">
+      <div class="pip"><div class="pip-bob">
         <div class="pip-sprout"><div class="pip-stem"></div><div class="pip-leaf n1"></div><div class="pip-leaf n2"></div></div>
         <div class="pip-body">
           <div class="pip-cheek l"></div><div class="pip-cheek r"></div>
@@ -101,11 +124,11 @@ footer a{color:var(--ink-soft);text-decoration:underline;}
           <div class="pip-eye r"><div class="pip-pupil"></div></div>
           <div class="pip-mouth"><svg viewBox="0 0 40 20" width="100%" height="100%"><path d="M4,4 Q20,20 36,4" stroke="#2E3A3F" stroke-width="4" fill="none" stroke-linecap="round"/></svg></div>
         </div>
-      </div>
+      </div></div>
     </div>
     <h1>Your parent account</h1>
+    <p class="promise">Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in.</p>
     <p class="lead">Sign in with your email. We send a 6-digit code that lasts 10 minutes. After that, you can save a passkey on this device so next time is a tap.</p>
-    <p class="lead">Your child's game still lives on the device. We never see what they play, and nothing they say leaves the phone or tablet.</p>
 
     <p class="msg" id="msg" role="status"></p>
 
@@ -114,6 +137,7 @@ footer a{color:var(--ink-soft);text-decoration:underline;}
       <input id="email" name="email" type="email" autocomplete="email" inputmode="email" required placeholder="you@email.com">
       <div class="actions">
         <button class="primary" id="sendCode" type="submit">Email me a code</button>
+        <a class="next" href="/unlock/">Family play</a>
         <button class="sand" id="passkeyIn" type="button" hidden>Sign in with a passkey</button>
       </div>
     </form>
@@ -131,6 +155,7 @@ footer a{color:var(--ink-soft);text-decoration:underline;}
       <p class="who" id="who"></p>
       <div class="actions">
         <button class="primary" id="savePasskey" type="button">Save a passkey on this device</button>
+        <a class="next" href="/unlock/">Family play</a>
         <button class="quiet" id="signOut" type="button">Sign out</button>
       </div>
     </div>

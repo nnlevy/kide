@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Make a card · Kide</title>
-<meta name="description" content="Build a card for a child you know. Choose who is on it, what they look like, and what it says — then send the link. Nothing is stored and nothing leaves your device.">
+<meta name="description" content="Build a card for a child you know. Choose who is on it, what they look like, and what it says — then send the link. The name lives in the link. Opening it shows the card. We do not keep a copy here.">
 <link rel="canonical" href="https://kide.us/make">
 <meta name="theme-color" content="#56C6E6">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Make a card · Kide">
-<meta property="og:description" content="Build a card for a child you know, one choice at a time. Nothing is stored and nothing leaves your device.">
+<meta property="og:description" content="Build a card for a child you know, one choice at a time. The name lives in the link. Opening it shows the card. We do not keep a copy here.">
 <meta property="og:url" content="https://kide.us/make">
 <meta property="og:image" content="https://kide.us/og-card.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -701,7 +701,7 @@ function render() {
   renderStage();
   renderNav();
   $('fine').innerHTML = s.id === 'who'
-    ? 'Nothing here is stored, and nothing leaves your device. '
+    ? 'The name lives in the link. Opening it shows the card. We do not keep a copy here. '
       + '<a href="/privacy">How that works</a>'
     : '';
   speak(s);

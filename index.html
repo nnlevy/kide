@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kide — The Screen Time That Ends Without a Meltdown</title>
-<meta name="description" content="Pip the Sprout gets sleepy and asks to be tucked in, so screen time ends on Pip's terms instead of yours. Teaches colors, counting and shapes out loud, plus pretend-play potty and handwashing routines that are never scored. A parent account is optional. No ads, and nothing a child says ever leaves the device.">
+<meta name="description" content="Pip the Sprout gets sleepy and asks to be tucked in, so screen time ends on Pip's terms instead of yours. Teaches colors, counting and shapes out loud, plus pretend-play potty and handwashing routines that are never scored. Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in. No ads.">
 <meta name="robots" content="index, follow">
 <meta name="theme-color" content="#56C6E6">
 <link rel="canonical" href="https://kide.us/">
@@ -15,7 +15,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Kide">
 <meta property="og:title" content="Kide — The screen time that ends without a meltdown">
-<meta property="og:description" content="Pip the Sprout gets sleepy and asks to be tucked in, so screen time ends on Pip's terms instead of yours. Reads every question aloud, for children too little to read. A parent account is optional. No ads, and nothing a child says ever leaves the device.">
+<meta property="og:description" content="Pip the Sprout gets sleepy and asks to be tucked in, so screen time ends on Pip's terms instead of yours. Reads every question aloud, for children too little to read. Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in. No ads.">
 <meta property="og:url" content="https://kide.us/">
 <meta property="og:image" content="https://kide.us/og-card.png">
 <meta property="og:image:width" content="1200">
@@ -23,7 +23,7 @@
 <meta property="og:image:alt" content="A sleepy Pip the Sprout beside the words: the screen time that ends without a meltdown.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Kide — The screen time that ends without a meltdown">
-<meta name="twitter:description" content="Pip the Sprout gets sleepy and asks to be tucked in, so screen time ends on Pip's terms instead of yours. Reads every question aloud, for children too little to read. A parent account is optional. No ads, and nothing a child says ever leaves the device.">
+<meta name="twitter:description" content="Pip the Sprout gets sleepy and asks to be tucked in, so screen time ends on Pip's terms instead of yours. Reads every question aloud, for children too little to read. Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in. No ads.">
 <meta name="twitter:image" content="https://kide.us/og-card.png">
 
 <link rel="sitemap" href="/sitemap.xml">
@@ -102,17 +102,27 @@ nav .row{display:flex;align-items:center;justify-content:space-between;}
 .claim-form input{flex:1 1 200px;min-width:0;font-size:16px;padding:12px 14px;border:2px solid var(--ink-faint);border-radius:var(--radius-sm);font-family:inherit;}
 .claim-form .claim-btn{margin-top:0;}
 .claim-msg{width:100%;font-size:14px !important;color:var(--coral-deep) !important;min-height:0;}
+.promise{color:var(--ink);font-size:15px;font-weight:700;text-align:center;max-width:440px;margin:14px auto 0;line-height:1.35;}
 @media (max-width:520px){
-  nav{padding:14px 0;}
-  .wordmark{font-size:22px;}
-  .nav-play{font-size:13px;padding:6px 11px;margin-right:4px !important;}
-  .hero{padding:26px 20px 26px;}
-  .hero-pip{width:104px;height:104px;margin-bottom:4px;}
-  .hero h1{font-size:28px;}
-  .hero p{font-size:15px;margin-top:10px;}
-  .hero .cta{margin-top:18px;}
+  nav{padding:8px 0 4px;}
+  nav .row{gap:6px;align-items:center;}
+  nav .row > div{display:flex;flex-wrap:nowrap;gap:4px;}
+  .wordmark{font-size:20px;}
+  .nav-play{font-size:13px;padding:0 8px;margin-right:0 !important;}
+  .hero{padding:12px 16px 14px;margin-top:0;}
+  .hero-pip{width:72px;height:72px;margin-bottom:0;}
+  .hero h1{font-size:26px;line-height:1.12;margin-top:2px;}
+  .hero p{font-size:15px;margin-top:8px;line-height:1.35;}
+  .hero .cta{display:flex;width:100%;box-sizing:border-box;justify-content:center;margin-top:12px;padding:14px 16px;font-size:17px;}
+  .promise{margin-top:10px;font-size:14px;}
+  .trust{margin-top:12px;}
 }
-.cta{display:inline-block;margin-top:24px;border:none;border-radius:999px;padding:17px 34px;font-size:18px;font-weight:800;color:var(--ink);text-decoration:none;background:linear-gradient(180deg,var(--coral),var(--coral-deep));box-shadow:0 5px 0 rgba(0,0,0,.14);}
+@media (prefers-reduced-motion: reduce){
+  .pip-bob,.pip-pupil{animation:none;}
+  .cta:active{transform:none;}
+}
+.cta{display:inline-block;margin-top:24px;border:none;border-radius:999px;padding:17px 34px;font-size:18px;font-weight:800;color:var(--ink);text-decoration:none;background:linear-gradient(180deg,var(--coral),var(--coral-deep));box-shadow:0 5px 0 rgba(0,0,0,.14);cursor:pointer;transition:transform .08s ease;}
+.cta:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.14);}
 /* BRAND.md: coral is "the one CTA color — if everything is a CTA, nothing is",
    and there is one main action per screen. The page now has exactly one coral
    action, "Let's Play", stated twice — once in the hero and once at the end for
@@ -276,16 +286,17 @@ try{navigator.clipboard.writeText(link).then(function(){t.textContent="Link copi
          door. The four trust promises moved to the chips below, and the
          second CTA moved into the page where it is not competing with the
          primary one. -->
-    <p id="heroLine">Pip gets sleepy, asks to be tucked in, and hands the moment back to you — so ending playtime is Pip's idea, not yours. Every question is read out loud, so a child too little to read can play on their own.</p>
+    <p id="heroLine">Pip gets sleepy and asks to be tucked in, so ending play is Pip's idea. Questions are read out loud, so a child who can't read yet can play.</p>
     <a class="cta" id="heroCta" href="/play">Let's Play &mdash; it's free</a>
-    <p class="invite-deal" id="inviteDeal" hidden>No sign-up to play. Family play is one payment, never a subscription, and refundable for 30 days.</p>
+    <p class="promise">Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in.</p>
+    <p class="invite-deal" id="inviteDeal" hidden>Family play is one payment, never a subscription, and refundable for 30 days.</p>
   </div>
 
   <div class="trust">
     <span>Free</span>
     <a href="/account">Parent account</a>
     <span>No ads</span>
-    <span>Nothing leaves the device</span>
+    <span>Kids never sign in</span>
     <span>Ages 2&ndash;7</span>
   </div>
 

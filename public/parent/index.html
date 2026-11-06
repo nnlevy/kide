@@ -40,7 +40,7 @@
   button,a.btn{font:inherit;font-size:16px;font-weight:700;padding:13px 20px;min-height:48px;min-width:48px;
     border-radius:999px;border:2px solid #EFE9DA;background:#fff;color:var(--ink);cursor:pointer;
     display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
-  button.primary{background:var(--sunstone);color:var(--ink);border-color:var(--sunstone)}
+  button.primary,a.btn.primary{background:var(--sunstone);color:var(--ink);border-color:var(--sunstone)}
   button.danger{border-color:#E4D5CE;color:var(--sunstone-ink)}
   .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
   .stat{background:#FAF7F0;border-radius:16px;padding:14px 10px;text-align:center}
@@ -78,6 +78,12 @@
     letter-spacing:.04em}
   .link{word-break:break-all;font-size:12px;color:var(--ink-faint);margin-top:10px}
   .muted a{display:inline-flex;align-items:center;min-height:44px;padding:6px 2px}
+  .promise{font-size:16px;font-weight:700;margin:0 0 14px;line-height:1.4;}
+  .journey{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px;animation:rise .4s ease both;}
+  @keyframes rise{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+  .journey a.btn{flex:1 1 140px;}
+  @media (prefers-reduced-motion: reduce){.journey{animation:none;}}
+  @media (max-width:700px){.journey a.btn{flex:1 1 auto;min-width:44%;}}
 </style>
 <link rel="stylesheet" href="../mobile.css">
 </head>
@@ -86,6 +92,12 @@
   <h1>Your child's week</h1>
   <p class="sub">Movement over many tries — never a score, and never a verdict.
      Your child never sees any of this.</p>
+  <p class="promise">Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in.</p>
+  <div class="journey">
+    <a class="btn" href="/play/">Try Pip free</a>
+    <a class="btn" href="/account/">Parent account</a>
+    <a class="btn primary" href="/unlock/">Family play</a>
+  </div>
 
   <div class="card">
     <h2>This week</h2>
@@ -128,16 +140,14 @@
       <input id="visitAge" type="number" inputmode="numeric" min="1" max="9" step="1"
              placeholder="4" autocomplete="off">
     </label>
-    <p class="muted" style="margin-top:4px;font-size:12.5px">Years. Stays on this device,
-      like everything else here — it is used to compare against the research.</p>
+    <p class="muted" style="margin-top:4px;font-size:13px">Years. Used on this page to compare against the research.</p>
     <div id="visitOut" style="margin-top:14px"></div>
   </div>
 
   <div class="card">
     <h2>Share with a speech therapist</h2>
-    <p class="muted">Creates a link containing the practice record. It opens on
-      their device straight from the link. The link is the whole handoff, and it is not
-      sent to us or stored anywhere.</p>
+    <p class="muted">Creates a link that carries the practice record. Anyone with
+      the link can open it. We do not keep a copy of that record here.</p>
     <!-- Parents had no idea why a therapist would want this, so most never
          offered it. "Did they practice, and on what?" is a question a home
          programme has never been able to answer, and the parent is the only
@@ -177,9 +187,12 @@
     <h2>Your child's data</h2>
     <p class="muted" id="storageNote">—</p>
     <div class="note">
-      <b>Nothing here is audio.</b> No recording, no voiceprint, nothing that could
-      identify your child by their voice — which word was practiced and whether
-      it was heard. It is kept on this device and nowhere else.
+      <b>Nothing here is audio.</b> No recording and no voiceprint. The words
+      practiced stay in this browser until you share a link. Delete everything
+      on this page clears the on-device practice record, game progress, companion,
+      age, and listening permission. It does not wipe today's free-play minutes.
+      Parent accounts only.
+      Kids never sign in. We keep the parent email, and practice timing when they are signed in.
     </div>
     <div class="row" style="margin-top:12px">
       <button class="danger" id="btnClear">Delete everything</button>
@@ -198,8 +211,8 @@
          understands in one line what they are about to get. -->
     <h2>Make a card for a child you know</h2>
     <p class="muted">Builds a small page where Pip says hello to them by name, with a preview
-      card that shows up properly when you text it. Nothing you type here is stored anywhere — it
-      travels in the link itself and we never see it.</p>
+      card that shows up properly when you text it. The name lives in the link.
+      Anyone who opens it sees that name on the page. We do not keep a copy of it here.</p>
     <div class="grid2" style="margin-top:12px">
       <label class="field">For<input id="giftTo" placeholder="Elie" maxlength="44" autocomplete="off"></label>
       <label class="field">From<input id="giftFrom" placeholder="Kaleigh &amp; Nir" maxlength="44" autocomplete="off"></label>
@@ -272,6 +285,7 @@
 <script type="module">
 import * as Journal from '../engine/journal.js';
 import * as Consent from '../engine/consent.js';
+import * as Profile from '../engine/profile.js';
 import * as Speech from '../engine/speech.js';
 import { buildRecord, narrativeFor, MIN_ATTEMPTS_PER_TARGET } from '../engine/clinical.js';
 import { LEX, keyOf } from '../engine/lexicon.js';
@@ -313,8 +327,7 @@ function giftRefresh() {
   const headline = to ? `A little gift for ${to}` : 'A little gift';
   $('giftPrevTitle').textContent = from ? `${headline}, from ${from}` : headline;
   $('giftPrevDesc').textContent = note
-    || `${to || 'Someone little'} can play this on any phone or tablet. It's free, there are no `
-     + 'accounts and no ads, and nothing a child says ever leaves the device.';
+    || `${to || 'Someone little'} can play this on any phone or tablet. It's free. Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in.`;
   $('giftPreview').hidden = false;
   $('btnGiftOpen').href = giftUrl();
 }
@@ -370,7 +383,6 @@ $('notifyForm').addEventListener('submit', async (e) => {
         email,
         matchedDomain: 'kide',
         matchedTitle: 'Kide — parent corner signup',
-        need: 'Email me when a new pack lands',
         pageUrl: location.origin + location.pathname,
       }),
     });
@@ -571,12 +583,21 @@ $('btnShare').addEventListener('click', async () => {
 
 $('btnClear').addEventListener('click', () => {
   // A parent deleting their child's record is an obligation, not a feature --
-  // but it is irreversible, so it is confirmed once.
-  if (!confirm('Delete all practice history on this device? This cannot be undone.')) return;
+  // but it is irreversible, so it is confirmed once. The confirm names the
+  // on-device stores this button actually clears. Today's free-play minutes
+  // stay so Pip's grown-up check still works.
+  if (!confirm('Delete the practice record, game progress, companion, age, and listening permission on this phone? Today\'s free minutes stay so Pip\'s timer still works. This cannot be undone.')) return;
   Journal.clear();
+  Profile.clear();
+  Consent.revoke();
+  try { localStorage.removeItem('pip_ttf_progress_v1'); } catch { /* gone */ }
+  try { localStorage.removeItem('kide_voice_prefs_v1'); } catch { /* gone */ }
+  try { localStorage.removeItem(VISIT_AGE_KEY); } catch { /* gone */ }
+  if ($('visitAge')) $('visitAge').value = '';
   $('linkOut').textContent = '';
   $('btnOpen').style.display = 'none';
   render();
+  renderMic();
 });
 
 // Say out loud which of the three voice routes is actually in use. A parent

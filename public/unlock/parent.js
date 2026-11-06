@@ -89,7 +89,6 @@ async function rememberParent(address) {
         email: address,
         matchedDomain: "kide",
         matchedTitle: "Kide — family play",
-        need: "Email me when family play opens",
         pageUrl: location.origin + location.pathname,
       }),
     });

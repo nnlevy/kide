@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pip the Sprout — Grow &amp; Learn | Kide</title>
-<meta name="description" content="A joyful, adaptive learning game for toddlers. Pip the Sprout reads every question out loud — and can listen for spoken answers — so little ones learn colors, counting, shapes, letters and feelings before they can read. A parent account is optional. No ads, no voice recordings, nothing a child says ever leaves the device.">
+<meta name="description" content="A joyful, adaptive learning game for toddlers. Pip the Sprout reads every question out loud — and can listen for spoken answers — so little ones learn colors, counting, shapes, letters and feelings before they can read. Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in. No ads, no voice recordings.">
 <meta name="robots" content="index, follow">
 <meta name="theme-color" content="#56C6E6">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -20,7 +20,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Kide">
 <meta property="og:title" content="Pip the Sprout — a game that ends without a meltdown | Kide">
-<meta property="og:description" content="Pip reads every question aloud so a child too little to read can play alone — then gets sleepy and asks to be tucked in. Colors, counting and shapes. Free, no ads, nothing leaves the device.">
+<meta property="og:description" content="Pip reads every question aloud so a child too little to read can play alone — then gets sleepy and asks to be tucked in. Colors, counting and shapes. Free, no ads. Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in.">
 <meta property="og:url" content="https://kide.us/play">
 <meta property="og:image" content="https://kide.us/og-card.png">
 <meta property="og:image:width" content="1200">
@@ -28,7 +28,7 @@
 <meta property="og:image:alt" content="A sleepy Pip the Sprout beside the words: the screen time that ends without a meltdown.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Pip the Sprout — a game that ends without a meltdown | Kide">
-<meta name="twitter:description" content="Pip reads every question aloud so a child too little to read can play alone — then gets sleepy and asks to be tucked in. Colors, counting and shapes. Free, no ads, nothing leaves the device.">
+<meta name="twitter:description" content="Pip reads every question aloud so a child too little to read can play alone — then gets sleepy and asks to be tucked in. Colors, counting and shapes. Free, no ads. Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in.">
 <meta name="twitter:image" content="https://kide.us/og-card.png">
 
 <script type="application/ld+json">
@@ -164,6 +164,12 @@ p.lead{font-size:19px;color:var(--ink-soft);text-align:center;margin:0 0 18px;ma
 
 /* HOME */
 .home-pip{width:min(56vw,260px);height:min(56vw,260px);margin:4px auto 6px;}
+@media (max-height:640px){
+  .home-pip{width:min(34vw,120px);height:min(34vw,120px);margin:0 auto 2px;}
+  h1{font-size:26px;margin:2px 0;}
+  p.lead{font-size:16px;margin-bottom:8px;}
+  .btn.big{font-size:22px;padding:14px 28px;}
+}
 .home-actions{display:flex;flex-direction:column;gap:14px;align-items:center;margin-top:6px;width:100%;}
 
 /* GARDEN / LEVEL SELECT */
@@ -276,7 +282,8 @@ p.lead{font-size:19px;color:var(--ink-soft);text-align:center;margin:0 0 18px;ma
 .recap-stars{letter-spacing:2px;}
 
 /* parent gate */
-.gate-card{background:var(--card);border-radius:var(--radius-lg);padding:26px 24px;max-width:360px;width:100%;text-align:center;box-shadow:0 6px 0 rgba(0,0,0,.08);}
+.gate-card{background:var(--card);border-radius:var(--radius-lg);padding:26px 24px;max-width:360px;width:100%;text-align:center;box-shadow:0 6px 0 rgba(0,0,0,.08);animation:gateRise .35s ease both;}
+@keyframes gateRise{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:none;}}
 .gate-q{font-size:26px;font-weight:800;margin:8px 0 18px;}
 .gate-opts{display:flex;gap:12px;justify-content:center;}
 .gate-opt{border:none;background:var(--sky-bottom);border-radius:16px;padding:14px 0;width:70px;font-size:22px;font-weight:800;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.08);}
@@ -316,8 +323,12 @@ select.field,select#ageBand{box-sizing:border-box;display:block;width:100%;min-h
 .handoff-actions{display:flex;flex-direction:column;gap:10px;}
 .hello-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;width:100%;}
 .hello-wrap h1{margin:6px 0 4px;}
-.tiny-link{background:none;border:0;color:var(--ink-soft);font:700 14px/1 inherit;text-decoration:underline;
-  padding:8px;cursor:pointer;}
+.tiny-link{background:none;border:0;color:var(--ink-soft);font:700 16px/1.2 inherit;text-decoration:underline;
+  text-underline-offset:3px;padding:12px 8px;min-height:48px;width:100%;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;}
+.journey{display:flex;flex-direction:column;gap:10px;margin-top:12px;}
+.journey a.btn{display:flex;align-items:center;justify-content:center;width:100%;box-sizing:border-box;
+  text-decoration:none;font-size:16px;padding:12px 18px;min-height:48px;text-align:center;}
 .toggle-row{display:flex;align-items:center;gap:12px;margin-top:12px;}
 .toggle-row .tl{flex:1;font-size:15px;font-weight:700;}
 .switch{position:relative;width:72px;height:44px;border-radius:999px;border:0;background:#DCE3DE;
@@ -334,7 +345,7 @@ select.field,select#ageBand{box-sizing:border-box;display:block;width:100%;min-h
 .replay:focus-visible{outline:4px solid var(--sun);outline-offset:3px;}
 .voice-pill{position:absolute;top:calc(12px + var(--safe-t));left:12px;z-index:40;border:0;background:rgba(255,255,255,.85);
   border-radius:999px;width:40px;height:40px;font-size:17px;box-shadow:0 3px 10px rgba(0,0,0,.1);cursor:pointer;}
-@media (prefers-reduced-motion:reduce){.handoff-card,.consent-card{transition:none;}}
+@media (prefers-reduced-motion:reduce){.handoff-card,.consent-card,.gate-card{animation:none;transition:none;}}
 
 /* ============================ PIP'S TURN =============================
    Pretend-play rehearsal. Deliberately shares nothing with the quiz
@@ -387,6 +398,7 @@ select.field,select#ageBand{box-sizing:border-box;display:block;width:100%;min-h
   .bub{animation:none;opacity:.9;}
   .scene .sc-pip{transition:none;}
   .motion-bar i{transition:none;}
+  .gate-card{animation:none;}
   .hud-leaf i{transition:none;}
   .mode-shift,.mode-shift *{animation:none;}
   .timer-ring-value{transition:none;}
@@ -405,9 +417,11 @@ select.field,select#ageBand{box-sizing:border-box;display:block;width:100%;min-h
 
 /* ---------------------------------------------------------------------
    PIP THE SPROUT — Kide
-   Single-file, offline-first, zero-data-collection toddler learning game.
-   No frameworks, no external requests, no analytics, no third-party
-   scripts of any kind. Everything below is the entire application.
+   Single-file toddler learning game. Kids never sign in.
+   A signed-in parent account can store the grown-up's email and practice timing.
+   No frameworks, no third-party scripts or analytics. Signed-in play can
+   POST practice timing to this site. That is not a claim that games send
+   nothing else.
 ------------------------------------------------------------------------ */
 
 const STORE_KEY = "pip_ttf_progress_v1";
@@ -961,8 +975,9 @@ function say(id){
    play and still counts as practice, but only a spoken answer is ever counted
    as evidence about articulation (see public/engine/clinical.js).
 
-   Nothing leaves the device. No audio is retained -- only which word, which
-   sound, and whether it was heard.
+   Practice words stay in this browser. No audio is retained -- which word,
+   which sound, and whether it was heard. A signed-in parent can also store
+   practice timing (skill, how long, whether it was right) with their email.
 --------------------------------------------------------------------------- */
 var PLAY_TARGETS = null;
 fetch("/data/play-targets.json").then(function(r){ return r.ok ? r.json() : null; })
@@ -1763,7 +1778,7 @@ function screenHandoff(){
       '<div class="chips">'+
         '<div class="chip '+(speaking?"on":"off")+'"><span class="ci">🔊</span>Pip speaks each question<span class="cs">'+(speaking?"ON":"OFF")+'</span></div>'+
         micChip+
-        '<div class="chip on"><span class="ci">🔒</span>Nothing leaves this device<span class="cs">ALWAYS</span></div>'+
+        '<div class="chip on"><span class="ci">🔒</span>Kids never sign in<span class="cs">PARENTS ONLY</span></div>'+
       '</div>'+
       '<div class="handoff-actions">'+
         '<button class="btn btn-primary big" data-act="handover">Hand it over</button>'+
@@ -1930,6 +1945,14 @@ function screenSettings(){
   c.innerHTML =
     '<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Back">🏠</button><div class="spacer"></div></div>'+
     '<h2>Parent Corner</h2>'+
+    '<div class="settings-card">'+
+      '<h3>Your parent account</h3>'+
+      '<p>Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in. No ads shown to your child. If you turn listening on, speech is recognised on this device and no audio is saved.</p>'+
+      '<div class="journey">'+
+        '<a class="btn btn-secondary" href="/account/">Join with your email</a>'+
+        '<a class="btn btn-ghost" href="/unlock/">Family play</a>'+
+      '</div>'+
+    '</div>'+
     handoffCardHTML()+
     '<div class="settings-card">'+
       '<h3>Playtime length</h3>'+
@@ -1980,10 +2003,6 @@ function screenSettings(){
           '<div class="toggle-row"><span class="tl">Pip listens for answers</span>'+
             '<button class="switch" id="listenSwitch" role="switch" aria-checked="'+(listenOn()?"true":"false")+'" aria-label="Pip listens"></button>'+
           '</div>')+
-    '</div>'+
-    '<div class="settings-card">'+
-      '<h3>Your family\'s privacy</h3>'+
-      '<p>A parent account is optional, on <a href="/account">its own page</a>. No ads shown to your child. No analytics and no tracking scripts. A small security script our host adds keeps bots out, and it profiles nobody. Progress is stored in this browser, on this device — we never see it. If you switch on Pip\'s listening, that stays true: the microphone is used where speech can be understood on the device itself.</p>'+
     '</div>'+
     '<div class="settings-card">'+
       '<h3>New concept packs</h3>'+
@@ -2716,8 +2735,6 @@ function submitLead(){
     method:"POST", headers:{"Content-Type":"application/json"},
     body: JSON.stringify({
       email: email,
-      name: "Kide parent",
-      need: "Notify me about new Pip the Sprout concept packs",
       matchedDomain: "kide",
       matchedTitle: "Kide — Pip the Sprout",
       pageUrl: location.href
