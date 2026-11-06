@@ -77,4 +77,31 @@ function extractBlocks(cfg) {
   }
   return out;
 }
-if (typeof module !== "undefined") module.exports = { extractBlocks };
+// Page-safe transport (claims-fix): Playwright serializes evaluate() results with the PAGE's Array.isArray /
+// toJSON / Object.keys, so a site that patches them (polyfills, old libs) turned the block array into a plain
+// object and gate.mjs failed with "blocks is not iterable". Serialize in-page to a JSON string by hand instead;
+// only primitive-string escaping goes through JSON.stringify (which never calls toJSON on primitives).
+function serializeBlocks(v) {
+  const isArr = (x) => Object.prototype.toString.call(x) === "[object Array]";
+  const enc = (x) => {
+    if (x === null || x === undefined) return "null";
+    if (typeof x === "string") return JSON.stringify(x);
+    if (typeof x === "number") return isFinite(x) ? String(x) : "null";
+    if (typeof x === "boolean") return x ? "true" : "false";
+    if (isArr(x)) { let o = "["; for (let i = 0; i < x.length; i++) o += (i ? "," : "") + enc(x[i]); return o + "]"; }
+    let o = "{", first = true;
+    for (const k in x) if (Object.prototype.hasOwnProperty.call(x, k) && x[k] !== undefined && typeof x[k] !== "function") { o += (first ? "" : ",") + JSON.stringify(k) + ":" + enc(x[k]); first = false; }
+    return o + "}";
+  };
+  return enc(v);
+}
+/** Node side: parse the in-page JSON and refuse (loudly) anything that is not a block array. */
+function parseBlocks(raw) {
+  let v = raw;
+  if (typeof raw === "string") { try { v = JSON.parse(raw); } catch (e) { throw new Error(`claims: extractBlocks returned unparseable JSON (${e.message})`); } }
+  if (!Array.isArray(v)) throw new Error(`claims: extractBlocks returned ${v === null ? "null" : typeof v}, expected an array of blocks (page may override Array.isArray/JSON)`);
+  return v;
+}
+/** Expression for page.evaluate: runs extractBlocks and returns a JSON string immune to page prototype patches. */
+const extractBlocksExpr = (cfg) => `(${serializeBlocks})((${extractBlocks})(${JSON.stringify(cfg)}))`;
+if (typeof module !== "undefined") module.exports = { extractBlocks, serializeBlocks, parseBlocks, extractBlocksExpr };

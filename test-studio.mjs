@@ -1,12 +1,14 @@
 // Money path: signup → paid step (lesson_studio_monthly) → Stripe.
 // Checkout stays closed. getCredits history never grants monthly access.
 //
-// Labeled: MOCKED = in-process stand-ins (AI, getCredits, D1, session, STUDIO_MONTHLY_SNAPSHOT).
+// Labeled: MOCKED = in-process stand-ins (AI, getCredits, session, STUDIO_MONTHLY_FIXTURE).
 // ACTUAL = currentMonthlySubscription, screenChat/validateLesson, LessonEngine.submitAttempt,
-// beginGenerate/deleteLessons, handleStudio routing. No live AI, Stripe, or hub.
+// beginGenerate/commitGenerate on node:sqlite, handleStudio routing. No live AI, Stripe, or hub.
+// STUDIO_MONTHLY_FIXTURE is test-only. It is not a hub reader.
 
 import { readFileSync } from "node:fs";
 import assert from "node:assert";
+import { DatabaseSync } from "node:sqlite";
 import { handleStudio } from "./src/studio/handler.js";
 import {
   CHILD_ASK_GROWNUP,
@@ -20,7 +22,7 @@ import {
 import { buildModelInput, screenChat, validateLesson } from "./public/studio/schema.js";
 import { LessonEngine, STATE } from "./public/engine/engine.js";
 import { attachScript, nextScriptBeat, scriptFromLesson } from "./public/studio/engine-play.js";
-import { beginGenerate, finishGenerate, STUDIO_HOUR_CAP, STUDIO_INFLIGHT } from "./src/studio/store.js";
+import { beginGenerate, commitGenerate, releaseGenerate, STUDIO_ATTEMPT_CAP, STUDIO_HOUR_CAP, STUDIO_INFLIGHT } from "./src/studio/store.js";
 
 let pass = 0, fail = 0;
 const t = (name, fn) => {
@@ -43,98 +45,46 @@ const SAFE_NOTE = "keep this one short and sunny";
 const FUTURE = () => new Date(Date.now() + 14 * 864e5).toISOString();
 const PAST = () => new Date(Date.now() - 14 * 864e5).toISOString();
 
-function memoryDb() {
-  const parents = [];
-  const lessons = [];
-  const quota = [];
-  function prepare(sql) {
-    const text = sql.replace(/\s+/g, " ").trim();
-    const stmt = {
-      args: [],
-      bind(...args) { this.args = args; return this; },
-      async run() {
-        const a = this.args;
-        if (text.startsWith("CREATE TABLE")) return { success: true };
-        if (text.includes("INSERT INTO kide_parents") && text.includes("ON CONFLICT(email)")) {
-          const [id, email, phone, created_at] = a;
-          if (!parents.some((p) => p.email === email)) parents.push({ id, email, phone_e164: phone, created_at });
-          return { success: true };
-        }
-        if (text.includes("INSERT INTO kide_lessons")) {
-          const [id, parent_id, status, age_band, skill_gaps, title, lesson_json, created_at, approved_at] = a;
-          lessons.push({ id, parent_id, status, age_band, skill_gaps, title, lesson_json, created_at, approved_at });
-          return { success: true };
-        }
-        if (text.startsWith("UPDATE kide_lessons")) {
-          const [approved_at, id, parent_id] = a;
-          const row = lessons.find((l) => l.id === id && l.parent_id === parent_id && l.status === "pending");
-          if (row) {
-            row.status = "approved";
-            row.approved_at = approved_at;
-          }
-          return { success: true };
-        }
-        if (text.includes("INSERT INTO kide_studio_quota")) {
-          const [parent_id, window_start, generated, inflight] = a;
-          const existing = quota.find((q) => q.parent_id === parent_id);
-          if (existing) {
-            existing.window_start = window_start;
-            existing.generated = generated;
-            existing.inflight = inflight;
-          } else {
-            quota.push({ parent_id, window_start, generated, inflight });
-          }
-          return { success: true };
-        }
-        if (text.startsWith("UPDATE kide_studio_quota SET inflight")) {
-          const [inflight, parent_id] = a;
-          const row = quota.find((q) => q.parent_id === parent_id);
-          if (row) row.inflight = inflight;
-          return { success: true };
-        }
-        if (text.startsWith("DELETE FROM kide_lessons")) {
-          for (let i = lessons.length - 1; i >= 0; i -= 1) {
-            if (lessons[i].parent_id === a[0]) lessons.splice(i, 1);
-          }
-          return { success: true };
-        }
-        if (text.startsWith("DELETE FROM kide_studio_quota")) {
-          for (let i = quota.length - 1; i >= 0; i -= 1) {
-            if (quota[i].parent_id === a[0]) quota.splice(i, 1);
-          }
-          return { success: true };
-        }
-        throw new Error(`unhandled run: ${text}`);
-      },
-      async first() {
-        const a = this.args;
-        if (text.includes("FROM kide_parents WHERE email")) return parents.find((p) => p.email === a[0]) || null;
-        if (text.includes("FROM kide_lessons WHERE id")) {
-          return lessons.find((l) => l.id === a[0] && l.parent_id === a[1]) || null;
-        }
-        if (text.includes("FROM kide_studio_quota WHERE parent_id")) {
-          return quota.find((q) => q.parent_id === a[0]) || null;
-        }
-        throw new Error(`unhandled first: ${text}`);
-      },
-      async all() {
-        const a = this.args;
-        let rows = lessons.filter((l) => l.parent_id === a[0]);
-        if (text.includes("status = 'approved'")) rows = rows.filter((l) => l.status === "approved");
-        const key = text.includes("ORDER BY approved_at") ? "approved_at" : "created_at";
-        rows = rows.slice().sort((x, y) => String(y[key] || "").localeCompare(String(x[key] || "")));
-        return { results: rows };
-      },
-    };
-    return stmt;
-  }
+function d1() {
+  const sqlite = new DatabaseSync(":memory:");
   return {
-    prepare,
+    prepare(sql) {
+      const stmt = sqlite.prepare(sql);
+      const bound = {
+        args: [],
+        bind(...args) { this.args = args; return this; },
+        async run() {
+          const info = stmt.run(...this.args);
+          return { success: true, meta: { changes: info.changes, last_row_id: info.lastInsertRowId } };
+        },
+        async first() {
+          return stmt.get(...this.args) || null;
+        },
+        async all() {
+          return { results: stmt.all(...this.args) };
+        },
+      };
+      return bound;
+    },
     batch(stmts) { return Promise.all(stmts.map((s) => s.run())); },
-    parents,
-    lessons,
-    quota,
   };
+}
+
+async function lessonsOf(db) {
+  const out = await db.prepare(`SELECT id, parent_id, status, age_band, lesson_json FROM kide_lessons`).all();
+  return out.results || [];
+}
+
+async function parentsOf(db) {
+  const out = await db.prepare(`SELECT id, email FROM kide_parents`).all();
+  return out.results || [];
+}
+
+async function quotaOf(db) {
+  const out = await db.prepare(
+    `SELECT parent_id, generated, attempts, inflight, lease_token, lease_until FROM kide_studio_quota`,
+  ).all();
+  return out.results || [];
 }
 
 function liveSnapshot(overrides = {}) {
@@ -174,7 +124,7 @@ function aiOf(content) {
   return ai;
 }
 
-function envFor({ snapshot, credits, ai, db = memoryDb() } = {}) {
+function envFor({ fixture, credits, ai, db = d1() } = {}) {
   const billing = {
     emails: [],
     async getCredits(email) {
@@ -195,20 +145,29 @@ function envFor({ snapshot, credits, ai, db = memoryDb() } = {}) {
     PORTFOLIO_BILLING_SERVICE: billing,
     PORTFOLIO_AI_SERVICE: ai || aiOf(modelLesson()),
   };
-  if (snapshot) env.STUDIO_MONTHLY_SNAPSHOT = snapshot;
+  if (fixture) env.STUDIO_MONTHLY_FIXTURE = fixture;
   return { db, env, billing };
 }
 
 function entitled(opts = {}) {
-  return envFor({ snapshot: liveSnapshot(), ...opts });
+  const records = {
+    [PARENT_A]: liveSnapshot({ email: PARENT_A }),
+    [PARENT_B]: liveSnapshot({ email: PARENT_B }),
+  };
+  if (opts.snapshot) {
+    const email = opts.snapshot.email || PARENT_A;
+    records[email] = { email, ...opts.snapshot };
+  }
+  const { snapshot: _snapshot, ...rest } = opts;
+  return envFor({ fixture: { testOnly: true, records }, ...rest });
 }
 
-function req(path, { method = "GET", body, cookie } = {}) {
-  const headers = {};
-  if (cookie) headers.cookie = `__Host-rft_session=${cookie}`;
+function req(path, { method = "GET", body, cookie, headers = {} } = {}) {
+  const all = { ...headers };
+  if (cookie) all.cookie = `__Host-rft_session=${cookie}`;
   return new Request(`https://kide.us${path}`, {
     method,
-    headers,
+    headers: all,
     body: body == null ? undefined : JSON.stringify(body),
   });
 }
@@ -242,7 +201,8 @@ const parentHtml = readFileSync("public/parent/index.html", "utf8");
 const privacyHtml = readFileSync("public/privacy/index.html", "utf8");
 
 console.log("\nlesson studio");
-console.log("  (MOCKED: getCredits, STUDIO_MONTHLY_SNAPSHOT, PORTFOLIO_AI_SERVICE, memory D1, session)");
+console.log("  (MOCKED: getCredits, STUDIO_MONTHLY_FIXTURE test-only, PORTFOLIO_AI_SERVICE, session)");
+console.log("  (ACTUAL D1 SQL: node:sqlite)");
 console.log("  (ACTUAL: currentMonthlySubscription, LessonEngine.submitAttempt, screenChat, store quota/delete)");
 
 await t("ACTUAL currentMonthlySubscription denies history-shaped and dead periods", () => {
@@ -251,24 +211,35 @@ await t("ACTUAL currentMonthlySubscription denies history-shaped and dead period
   assert.equal(currentMonthlySubscription({
     ok: true, purchases: [{ offeringId: OFFERING_ID, status: "active" }],
   }).enabled, false);
+  const asA = { email: PARENT_A };
   for (const status of ["canceled", "cancelled", "expired", "incomplete", "incomplete_expired", "past_due", "unpaid", "failed", "refunded", "reversed", "paused", ""]) {
-    assert.equal(currentMonthlySubscription(liveSnapshot({ status })).enabled, false, status);
+    assert.equal(currentMonthlySubscription(liveSnapshot({ email: PARENT_A, status }), asA).enabled, false, status);
   }
-  assert.equal(currentMonthlySubscription(liveSnapshot({ currentPeriodEnd: PAST() })).enabled, false);
-  assert.equal(currentMonthlySubscription(liveSnapshot({ currentPeriodEnd: null })).enabled, false);
-  assert.equal(currentMonthlySubscription(liveSnapshot({ offeringId: "family_unlock" })).enabled, false);
+  assert.equal(currentMonthlySubscription(liveSnapshot({ email: PARENT_A, currentPeriodEnd: PAST() }), asA).enabled, false);
+  assert.equal(currentMonthlySubscription(liveSnapshot({ email: PARENT_A, currentPeriodEnd: null }), asA).enabled, false);
+  assert.equal(currentMonthlySubscription(liveSnapshot({ email: PARENT_A, offeringId: "family_unlock" }), asA).enabled, false);
+  assert.equal(currentMonthlySubscription(liveSnapshot({ email: PARENT_A, domain: "other.example" }), asA).enabled, false);
+  const missingDomain = liveSnapshot({ email: PARENT_A });
+  delete missingDomain.domain;
+  assert.equal(currentMonthlySubscription(missingDomain, asA).enabled, false);
+  const missingOwner = liveSnapshot();
+  assert.equal(currentMonthlySubscription(missingOwner, asA).enabled, false);
+  assert.equal(currentMonthlySubscription(liveSnapshot({ email: PARENT_B }), asA).enabled, false);
+  assert.equal(currentMonthlySubscription(liveSnapshot({ email: PARENT_A })).enabled, false);
   assert.equal(currentMonthlySubscription(liveSnapshot({
+    email: PARENT_A,
     status: "active",
     cancelAtPeriodEnd: true,
     currentPeriodEnd: FUTURE(),
-  })).enabled, true);
+  }), asA).enabled, true);
   assert.equal(currentMonthlySubscription(liveSnapshot({
+    email: PARENT_A,
     status: "active",
     cancelAtPeriodEnd: true,
     currentPeriodEnd: PAST(),
-  })).enabled, false);
-  assert.equal(currentMonthlySubscription(liveSnapshot({ status: "trialing" })).enabled, true);
-  assert.equal(currentMonthlySubscription(liveSnapshot()).enabled, true);
+  }), asA).enabled, false);
+  assert.equal(currentMonthlySubscription(liveSnapshot({ email: PARENT_A, status: "trialing" }), asA).enabled, true);
+  assert.equal(currentMonthlySubscription(liveSnapshot({ email: PARENT_A }), asA).enabled, true);
 });
 
 await t("visitor and signed-in parent see a closed lane, with no checkout", async () => {
@@ -326,13 +297,41 @@ await t("a hub that does not answer is unknown, not a no", async () => {
   assert.doesNotMatch(playlist.text, /subscription|checkout|unknown|503/i);
 });
 
-await t("denied snapshot statuses stay closed", async () => {
+await t("denied fixture statuses stay closed", async () => {
   for (const status of ["canceled", "expired", "incomplete", "past_due"]) {
-    const { env } = envFor({ snapshot: liveSnapshot({ status }) });
+    const { env } = entitled({ snapshot: liveSnapshot({ email: PARENT_A, status }) });
     const res = await read(await handleStudio(req("/api/studio/status", { cookie: "parent-a" }), env));
     assert.equal(res.data.enabled, false, status);
     assert.equal(res.data.state, "closed", status);
   }
+});
+
+await t("a process-wide snapshot and a foreign or undomained record do not grant", async () => {
+  const wide = envFor();
+  wide.env.STUDIO_MONTHLY_SNAPSHOT = liveSnapshot({ email: PARENT_A });
+  const status = await read(await handleStudio(req("/api/studio/status", { cookie: "parent-a" }), wide.env));
+  assert.equal(status.data.enabled, false);
+  assert.equal(status.data.state, "closed");
+  const foreign = envFor({
+    fixture: { testOnly: true, records: { [PARENT_B]: liveSnapshot({ email: PARENT_B }) } },
+  });
+  const other = await read(await handleStudio(req("/api/studio/status", { cookie: "parent-a" }), foreign.env));
+  assert.equal(other.data.enabled, false);
+  const bare = liveSnapshot({ email: PARENT_A });
+  delete bare.domain;
+  const missingDomain = envFor({
+    fixture: { testOnly: true, records: { [PARENT_A]: bare } },
+  });
+  const noDomain = await read(await handleStudio(req("/api/studio/status", { cookie: "parent-a" }), missingDomain.env));
+  assert.equal(noDomain.data.enabled, false);
+  const cross = await read(await handleStudio(req("/api/studio/clear", {
+    method: "POST",
+    cookie: "parent-a",
+    headers: { origin: "https://evil.example" },
+    body: {},
+  }), wide.env));
+  assert.equal(cross.status, 403);
+  assert.equal(cross.data.error, "forbidden");
 });
 
 await t("TEST-ONLY snapshot enables studio (MOCKED contract, not hub)", async () => {
@@ -379,20 +378,21 @@ await t("ACTUAL LessonEngine walks an approved lesson (not a tap-list)", async (
   }), env));
   const storedPlay = await playApproved(chat.data.lesson);
   assert.equal(storedPlay.done, true);
-  assert.equal(db.lessons.length, 1);
-  assert.equal(db.lessons[0].status, "pending");
-  assert.match(db.lessons[0].lesson_json, /ageBand/);
-  assert.match(JSON.stringify(db.lessons[0]), /age_band/);
+  const storedLessons = await lessonsOf(db);
+  assert.equal(storedLessons.length, 1);
+  assert.equal(storedLessons[0].status, "pending");
+  assert.match(storedLessons[0].lesson_json, /ageBand/);
+  assert.match(JSON.stringify(storedLessons[0]), /age_band/);
 
   const bad = aiOf({ beats: [{ word: "elephant", affordance: "GAP" }] });
-  const denied = entitled({ ai: bad, db: memoryDb() });
+  const denied = entitled({ ai: bad, db: d1() });
   const rejected = await read(await handleStudio(req("/api/studio/chat", {
     method: "POST",
     cookie: "parent-a",
     body: { ageBand: "4-5", skillGaps: ["r_initial"] },
   }), denied.env));
   assert.equal(rejected.status, 422);
-  assert.equal(denied.db.lessons.length, 0);
+  assert.equal((await lessonsOf(denied.db)).length, 0);
 });
 
 await t("unapproved lessons stay off the child playlist; families stay isolated", async () => {
@@ -421,7 +421,7 @@ await t("unapproved lessons stay off the child playlist; families stay isolated"
     body: { id },
   }), env));
   assert.equal(approved.status, 200);
-  assert.equal(db.lessons[0].status, "approved");
+  assert.equal((await lessonsOf(db))[0].status, "approved");
 
   const shown = await read(await handleStudio(req("/api/studio/playlist", { cookie: "parent-a" }), env));
   assert.equal(shown.data.lessons.length, 1);
@@ -440,13 +440,18 @@ await t("unapproved lessons stay off the child playlist; families stay isolated"
   assert.equal(run.done, true);
 
   const closed = envFor({ db, ai: env.PORTFOLIO_AI_SERVICE });
-  const gone = await read(await handleStudio(req("/api/studio/playlist", { cookie: "parent-a" }), closed.env));
-  assert.deepEqual(gone.data, { ok: true, lessons: [] });
-  assert.ok(!gone.text.includes(id));
+  const kept = await read(await handleStudio(req("/api/studio/playlist", { cookie: "parent-a" }), closed.env));
+  assert.equal(kept.data.lessons.length, 1);
+  assert.equal(kept.data.lessons[0].id, id);
+  assert.doesNotMatch(kept.text, /checkout|subscription|offering/i);
+  const still = await read(await handleStudio(req(`/api/studio/play?id=${id}`, { cookie: "parent-a" }), closed.env));
+  assert.equal(still.status, 200);
+  const stranger = await read(await handleStudio(req(`/api/studio/play?id=${id}`, { cookie: "parent-b" }), closed.env));
+  assert.equal(stranger.status, 404);
 });
 
 await t("parent delete removes that family's lessons and quota only", async () => {
-  const db = memoryDb();
+  const db = d1();
   const { env } = entitled({ db });
   await handleStudio(req("/api/studio/chat", {
     method: "POST",
@@ -458,40 +463,80 @@ await t("parent delete removes that family's lessons and quota only", async () =
     cookie: "parent-b",
     body: { ageBand: "4-5", skillGaps: ["r_initial", "s_initial"] },
   }), env);
-  assert.equal(db.lessons.length, 2);
+  assert.equal((await lessonsOf(db)).length, 2);
   const cleared = await read(await handleStudio(req("/api/studio/clear", { method: "POST", cookie: "parent-a", body: {} }), env));
   assert.equal(cleared.status, 200);
   assert.deepEqual(cleared.data.lessons, []);
-  assert.equal(db.lessons.length, 1);
-  assert.equal(db.lessons[0].parent_id, db.parents.find((p) => p.email === PARENT_B).id);
-  assert.ok(!db.quota.some((q) => q.parent_id === db.parents.find((p) => p.email === PARENT_A).id));
+  const left = await lessonsOf(db);
+  assert.equal(left.length, 1);
+  const parents = await parentsOf(db);
+  const parentA = parents.find((p) => p.email === PARENT_A).id;
+  assert.equal(left[0].parent_id, parents.find((p) => p.email === PARENT_B).id);
+  assert.ok(!(await quotaOf(db)).some((q) => q.parent_id === parentA));
   assert.match(parentHtml, /\/api\/studio\/clear/);
+  assert.match(parentHtml, /still there/);
+  assert.match(parentHtml, /identity_unavailable/);
+  assert.match(parentHtml, /could not be deleted just now/);
   assert.match(privacyHtml, /age band/);
   assert.match(privacyHtml, /until (?:that parent deletes|the parent deletes|you delete)/i);
   assert.doesNotMatch(privacyHtml, /\b\d+\s+days?\b/);
   assert.doesNotMatch(studioHtml, /\b\d+\s+days?\b/);
 });
 
-await t("persisted per-parent generate limits (MOCKED D1, ACTUAL beginGenerate)", async () => {
-  const db = memoryDb();
+await t("persisted per-parent generate limits (ACTUAL sqlite beginGenerate)", async () => {
+  const db = d1();
   const parentId = "p_limit";
   for (let i = 0; i < STUDIO_HOUR_CAP; i += 1) {
     const slot = await beginGenerate(db, parentId);
     assert.equal(slot.ok, true, `slot ${i}`);
-    await finishGenerate(db, parentId);
+    assert.equal(await commitGenerate(db, parentId, slot.token), true);
   }
   const limited = await beginGenerate(db, parentId);
   assert.equal(limited.ok, false);
-  assert.equal(limited.error, "limited");
+  assert.equal(limited.error, "lesson_cap");
 
-  const other = await beginGenerate(db, "p_other");
-  assert.equal(other.ok, true);
-  const blocked = await beginGenerate(db, "p_other");
-  assert.equal(blocked.ok, false);
+  const failed = d1();
+  const miss = await beginGenerate(failed, parentId);
+  await releaseGenerate(failed, parentId, miss.token);
+  const afterFail = await failed.prepare(
+    `SELECT generated, attempts, inflight FROM kide_studio_quota WHERE parent_id = ?`,
+  ).bind(parentId).first();
+  assert.equal(afterFail.generated, 0);
+  assert.equal(afterFail.attempts, 1);
+  assert.equal(afterFail.inflight, 0);
+
+  const attempts = d1();
+  for (let i = 0; i < STUDIO_ATTEMPT_CAP; i += 1) {
+    const slot = await beginGenerate(attempts, parentId);
+    assert.equal(slot.ok, true, `attempt ${i}`);
+    await releaseGenerate(attempts, parentId, slot.token);
+  }
+  const tooMany = await beginGenerate(attempts, parentId);
+  assert.equal(tooMany.error, "attempt_cap");
+  const untouched = await attempts.prepare(
+    `SELECT generated FROM kide_studio_quota WHERE parent_id = ?`,
+  ).bind(parentId).first();
+  assert.equal(untouched.generated, 0);
+
+  const overlap = d1();
+  const [first, second] = await Promise.all([
+    beginGenerate(overlap, parentId),
+    beginGenerate(overlap, parentId),
+  ]);
+  assert.equal([first, second].filter((slot) => slot.ok).length, 1);
+  const loser = [first, second].find((slot) => !slot.ok);
+  assert.equal(loser.error, "in_flight");
   assert.equal(STUDIO_INFLIGHT, 1);
-  await finishGenerate(db, "p_other");
 
-  const { env } = entitled({ db: memoryDb() });
+  const stale = d1();
+  const old = await beginGenerate(stale, parentId);
+  await stale.prepare(`UPDATE kide_studio_quota SET lease_until = ? WHERE parent_id = ?`).bind(Date.now() - 1000, parentId).run();
+  const again = await beginGenerate(stale, parentId);
+  assert.equal(again.ok, true);
+  assert.equal(await commitGenerate(stale, parentId, old.token), false);
+  assert.equal(await commitGenerate(stale, parentId, again.token), true);
+
+  const { env } = entitled({ db: d1() });
   for (let i = 0; i < STUDIO_HOUR_CAP; i += 1) {
     const res = await read(await handleStudio(req("/api/studio/chat", {
       method: "POST",
@@ -506,7 +551,8 @@ await t("persisted per-parent generate limits (MOCKED D1, ACTUAL beginGenerate)"
     body: { ageBand: "4-5", skillGaps: ["r_initial", "s_initial"] },
   }), env));
   assert.equal(ninth.status, 429);
-  assert.equal(ninth.data.error, "limited");
+  assert.equal(ninth.data.error, "lesson_cap");
+  assert.match(ninth.data.message, /8 lessons are enough/);
   assert.doesNotMatch(ninth.data.message || "", /quota|credits|\$|subscription/i);
 });
 
@@ -538,7 +584,9 @@ await t("allow-listed notes are screened; extra keys are refused; note never goe
   assert.equal(extra.status, 400);
   assert.equal(extra.data.error, "refused");
   assert.equal(ai.calls.length, 0);
-  assert.equal(db.lessons.length, 0);
+  let stored = [];
+  try { stored = await lessonsOf(db); } catch { stored = []; }
+  assert.equal(stored.length, 0);
 });
 
 await t("child surfaces stay warm and words owns the play journey", () => {
@@ -570,7 +618,7 @@ await t("studio sources do not name a stripe price or spend credits", () => {
   const worker = readFileSync("src/worker/index.ts", "utf8");
   assert.match(worker, /handleStudio/);
   assert.match(worker, /lesson_studio_monthly/);
-  assert.match(worker, /getCredits[\s\S]{0,80}history never grants/);
+  assert.match(worker, /getCredits[\s\S]{0,120}receipts never grant/);
 });
 
 if (fail) {

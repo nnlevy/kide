@@ -582,15 +582,32 @@ $('btnClear').addEventListener('click', async () => {
   // the signed-in account, so this same control asks that store to forget them.
   if (!confirm('Delete the practice record on this device, and Lesson Studio lessons on this account? This cannot be undone.')) return;
   Journal.clear();
+  let accountCleared = false;
+  let signedIn = false;
+  let reached = false;
+  let identityDown = false;
   try {
-    await fetch('/api/studio/clear', {
+    const res = await fetch('/api/studio/clear', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: '{}',
     });
-  } catch { /* signed-out visitors still cleared the on-device record */ }
-  $('linkOut').textContent = '';
+    reached = true;
+    const data = await res.json().catch(() => ({}));
+    signedIn = data.signedIn === true;
+    accountCleared = res.ok && data.ok === true;
+    identityDown = data.error === 'identity_unavailable';
+  } catch { /* the device record is already cleared; say so below */ }
+  if (accountCleared) {
+    $('linkOut').textContent = '';
+  } else if (signedIn) {
+    $('linkOut').textContent = 'The practice record on this device is gone. The Lesson Studio lessons on this account are still there.';
+  } else if (identityDown || !reached) {
+    $('linkOut').textContent = 'The practice record on this device is gone. Lesson Studio lessons on the account could not be deleted just now.';
+  } else {
+    $('linkOut').textContent = 'The practice record on this device is gone. Sign in before Lesson Studio lessons on the account can be deleted.';
+  }
   $('btnOpen').style.display = 'none';
   render();
 });

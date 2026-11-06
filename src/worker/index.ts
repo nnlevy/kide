@@ -226,9 +226,10 @@ async function route(request: Request, env: Env): Promise<Response> {
     }
 
     // Lesson Studio (lesson_studio_monthly). Checkout stays closed. getCredits
-    // history never grants monthly access. A current-period hub snapshot is
-    // the only grant, and that seam is still closed here. A pending lesson is
-    // not playable.
+    // receipts never grant a month. There is no hub current-period reader
+    // here, and a process-wide snapshot is not a grant. currentSession names
+    // an email only; it is not a parent role or a month. A pending lesson is
+    // not playable. An approved lesson stays playable for that parent.
     if (url.pathname.startsWith("/api/studio")) {
       return handleStudio(request, env);
     }
