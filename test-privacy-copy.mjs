@@ -15,9 +15,11 @@
 //   A leaf helper named verifiedParentEmail is not itself a defect; the wire
 //   result is {ok:true,email}. 10409 owns shared-auth correction.);
 //   signed-in /api/play/events rows (item, skill, latency, correct, mode);
-//   family-unlock device cookie kide_device; share-link cookie kide_ref (GET/HEAD);
-//   on-device journal / visitAge / companion / listening consent;
-//   gift names in the URL only; compete handle if opted in; notify email (+ optional name/need).
+//   device cookie kide_device on free-play tick (and after unlock); share-link
+//   cookie kide_ref for 30 days (GET/HEAD); on-device journal / visitAge /
+//   companion / listening consent / game progress; gift names in the URL
+//   (rendered when opened, not saved as a KV copy); compete handle if opted in;
+//   notify email (name/need only if typed — current forms send email only).
 //   Play tickSession is local sleepy UI only. Client does not POST /api/funnel.
 // Not live on this head (PR16 review facts; 20+16 owner):
 //   server play_day / gate_day on the play tick carrying kide_ref;
@@ -61,6 +63,12 @@ const FORBIDDEN = [
   /games send none/i,
   /counts are not shared/i,
   /never collect a child's name/i,
+  /share link can set a short cookie/i,
+  /ordinary play or the grown-up challenge/i,
+  /name: "Kide parent"/,
+  /Notify me about new Pip the Sprout concept packs/,
+  /need: ['"]Email me when a new pack lands['"]/,
+  /need: ['"]Email me when family play opens['"]/,
 ];
 
 function walk(dir, out = [], ext = ['.html', '.js', '.ts', '.mjs']) {
@@ -142,14 +150,24 @@ t('privacy names the actual stores without inventing deletion days or Studio', (
   assert.match(page, /not a promise that every old sign-in row is wiped/);
   assert.equal(/automatic(?:ally)? (?:purge|delete) (?:all |every )?expired/i.test(page), false);
   assert.match(page, /device cookie/);
-  assert.match(page, /share link can set a short cookie/);
+  assert.match(page, /before family play is paid/);
+  assert.match(page, /today's play minutes/);
+  assert.match(page, /cookie for 30 days/);
   assert.match(page, /practice timing/);
   assert.match(page, /which item, which skill, how long/);
+  assert.match(page, /ordinary play/);
+  assert.match(page, /grown-up challenge keeps its own weekly score/);
+  assert.match(page, /does not add those taps to those rows/);
   assert.match(page, /practice record/);
   assert.match(page, /child's age in years/);
   assert.match(page, /gift card can put a name in the link/);
+  assert.match(page, /Opening the link shows that name on the page/);
+  assert.match(page, /notify forms send the email they typed/);
+  assert.match(page, /do not send a name or a reason unless someone types those in/);
   assert.match(page, /weekly board/);
   assert.match(page, /Delete everything on the parent page/);
+  assert.match(page, /game progress, companion, age, and listening permission/);
+  assert.match(page, /does not wipe today's free-play minutes/);
   assert.match(page, /does not claim to wipe every server row/);
   assert.match(page, /We do not ask for a child's name on the parent account/);
   assert.match(page, /not a promise that no name can ever be typed/);
@@ -183,6 +201,16 @@ t('the parent next step stays the existing account and family-unlock journey', (
   assert.match(parent, /href="\/account\/"/);
   assert.match(parent, /href="\/unlock\/"/);
   assert.match(parent, /href="\/play\/"/);
+  assert.match(parent, /Anyone with\s+the link can open it/);
+  assert.match(parent, /Anyone who opens it sees that name on the page/);
+  assert.equal(/not sent to us or stored anywhere/i.test(parent), false);
+  assert.equal(/we never see it/i.test(parent), false);
+  assert.match(parent, /Profile\.clear\(\)/);
+  assert.match(parent, /Consent\.revoke\(\)/);
+  assert.match(parent, /pip_ttf_progress_v1/);
+  assert.match(parent, /kide_voice_prefs_v1/);
+  assert.match(parent, /Today\\'s free minutes stay so Pip\\'s timer still works/);
+  assert.match(unlock, /already keeps today's free minutes/);
   assert.match(account, /href="\/unlock\/"/);
   assert.match(unlock, /href="\/account\/"/);
   assert.match(unlock, /One payment of <a id="family-price" href="\/unlock\/#family-price">\$15<\/a>/);
@@ -196,6 +224,20 @@ t('parental controls on the parent page still cover listening, the on-device rec
   assert.match(parent, /id="visitAge"/);
   assert.match(parent, /Delete everything/);
   assert.match(parent, /Listening/);
+  assert.match(parent, /does not wipe today's free-play minutes/);
+});
+
+t('notify forms send the typed email and do not invent a name or reason', () => {
+  const play = readFileSync('public/play/index.html', 'utf8');
+  const parent = readFileSync('public/parent/index.html', 'utf8');
+  const unlock = readFileSync('public/unlock/parent.js', 'utf8');
+  assert.equal(/name:\s*"Kide parent"/.test(play), false);
+  assert.equal(/Notify me about new Pip/.test(play), false);
+  assert.equal(/Email me when a new pack lands/.test(parent), false);
+  assert.equal(/Email me when family play opens/.test(unlock), false);
+  assert.match(play, /email:\s*email/);
+  assert.match(parent, /email,/);
+  assert.match(unlock, /email: address/);
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

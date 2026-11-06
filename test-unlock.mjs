@@ -551,6 +551,8 @@ T(("127.0.0.1", ${port}), H).serve_forever()
     assert.doesNotMatch(visible, /fulfillment_not_ready|Checkout failed/);
     assert.equal(notified && notified.email, 'parent@example.com');
     assert.equal(notified.matchedDomain, 'kide');
+    assert.equal(notified.name, undefined);
+    assert.equal(notified.need, undefined);
     console.log('  ok   unlock page at 320px');
     pass++;
   } catch (e) {

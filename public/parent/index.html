@@ -146,9 +146,8 @@
 
   <div class="card">
     <h2>Share with a speech therapist</h2>
-    <p class="muted">Creates a link containing the practice record. It opens on
-      their device straight from the link. The link is the whole handoff, and it is not
-      sent to us or stored anywhere.</p>
+    <p class="muted">Creates a link that carries the practice record. Anyone with
+      the link can open it. We do not keep a copy of that record here.</p>
     <!-- Parents had no idea why a therapist would want this, so most never
          offered it. "Did they practice, and on what?" is a question a home
          programme has never been able to answer, and the parent is the only
@@ -190,7 +189,9 @@
     <div class="note">
       <b>Nothing here is audio.</b> No recording and no voiceprint. The words
       practiced stay in this browser until you share a link. Delete everything
-      on this page clears that on-device record. Parent accounts only.
+      on this page clears the on-device practice record, game progress, companion,
+      age, and listening permission. It does not wipe today's free-play minutes.
+      Parent accounts only.
       Kids never sign in. We keep the parent email, and practice timing when they are signed in.
     </div>
     <div class="row" style="margin-top:12px">
@@ -210,8 +211,8 @@
          understands in one line what they are about to get. -->
     <h2>Make a card for a child you know</h2>
     <p class="muted">Builds a small page where Pip says hello to them by name, with a preview
-      card that shows up properly when you text it. Nothing you type here is stored anywhere — it
-      travels in the link itself and we never see it.</p>
+      card that shows up properly when you text it. The name lives in the link.
+      Anyone who opens it sees that name on the page. We do not keep a copy of it here.</p>
     <div class="grid2" style="margin-top:12px">
       <label class="field">For<input id="giftTo" placeholder="Elie" maxlength="44" autocomplete="off"></label>
       <label class="field">From<input id="giftFrom" placeholder="Kaleigh &amp; Nir" maxlength="44" autocomplete="off"></label>
@@ -284,6 +285,7 @@
 <script type="module">
 import * as Journal from '../engine/journal.js';
 import * as Consent from '../engine/consent.js';
+import * as Profile from '../engine/profile.js';
 import * as Speech from '../engine/speech.js';
 import { buildRecord, narrativeFor, MIN_ATTEMPTS_PER_TARGET } from '../engine/clinical.js';
 import { LEX, keyOf } from '../engine/lexicon.js';
@@ -381,7 +383,6 @@ $('notifyForm').addEventListener('submit', async (e) => {
         email,
         matchedDomain: 'kide',
         matchedTitle: 'Kide — parent corner signup',
-        need: 'Email me when a new pack lands',
         pageUrl: location.origin + location.pathname,
       }),
     });
@@ -582,9 +583,17 @@ $('btnShare').addEventListener('click', async () => {
 
 $('btnClear').addEventListener('click', () => {
   // A parent deleting their child's record is an obligation, not a feature --
-  // but it is irreversible, so it is confirmed once.
-  if (!confirm('Delete all practice history on this device? This cannot be undone.')) return;
+  // but it is irreversible, so it is confirmed once. The confirm names the
+  // on-device stores this button actually clears. Today's free-play minutes
+  // stay so Pip's grown-up check still works.
+  if (!confirm('Delete the practice record, game progress, companion, age, and listening permission on this phone? Today\'s free minutes stay so Pip\'s timer still works. This cannot be undone.')) return;
   Journal.clear();
+  Profile.clear();
+  Consent.revoke();
+  try { localStorage.removeItem('pip_ttf_progress_v1'); } catch { /* gone */ }
+  try { localStorage.removeItem('kide_voice_prefs_v1'); } catch { /* gone */ }
+  try { localStorage.removeItem(VISIT_AGE_KEY); } catch { /* gone */ }
+  if ($('visitAge')) $('visitAge').value = '';
   $('linkOut').textContent = '';
   $('btnOpen').style.display = 'none';
   render();
