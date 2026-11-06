@@ -614,7 +614,7 @@ function renderGift(url: URL): Response {
     : castNames.length > 1
       ? `${castNames.slice(0, -1).join(", ")} and ${castNames[castNames.length - 1]} are waiting inside.`
       : "";
-  const familyPromise = "Parent accounts only. Kids never sign in. We store only answer timing.";
+  const familyPromise = "Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in.";
   const description = note
     || (castLine && `${castLine} It's free. ${familyPromise}`)
     || `${to || "Someone little"} can play this on any phone or tablet. It's free. ${familyPromise}`;
@@ -776,7 +776,7 @@ function renderGift(url: URL): Response {
       play on their own — and Pip gets sleepy at the end and asks to be tucked in, so screen time
       finishes without a fight.</p>
     <ul>
-      <li>Free to play. Parent accounts only. Kids never sign in. We store only answer timing.</li>
+      <li>Free to play. Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in.</li>
       <li>No ads, and no voice recordings</li>
       <li>Nothing is scored, and there is no way to lose</li>
     </ul>

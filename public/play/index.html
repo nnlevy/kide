@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pip the Sprout — Grow &amp; Learn | Kide</title>
-<meta name="description" content="A joyful, adaptive learning game for toddlers. Pip the Sprout reads every question out loud — and can listen for spoken answers — so little ones learn colors, counting, shapes, letters and feelings before they can read. Parent accounts only. Kids never sign in. We store only answer timing. No ads, no voice recordings.">
+<meta name="description" content="A joyful, adaptive learning game for toddlers. Pip the Sprout reads every question out loud — and can listen for spoken answers — so little ones learn colors, counting, shapes, letters and feelings before they can read. Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in. No ads, no voice recordings.">
 <meta name="robots" content="index, follow">
 <meta name="theme-color" content="#56C6E6">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -20,7 +20,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Kide">
 <meta property="og:title" content="Pip the Sprout — a game that ends without a meltdown | Kide">
-<meta property="og:description" content="Pip reads every question aloud so a child too little to read can play alone — then gets sleepy and asks to be tucked in. Colors, counting and shapes. Free, no ads. Parent accounts only. Kids never sign in. We store only answer timing.">
+<meta property="og:description" content="Pip reads every question aloud so a child too little to read can play alone — then gets sleepy and asks to be tucked in. Colors, counting and shapes. Free, no ads. Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in.">
 <meta property="og:url" content="https://kide.us/play">
 <meta property="og:image" content="https://kide.us/og-card.png">
 <meta property="og:image:width" content="1200">
@@ -28,7 +28,7 @@
 <meta property="og:image:alt" content="A sleepy Pip the Sprout beside the words: the screen time that ends without a meltdown.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Pip the Sprout — a game that ends without a meltdown | Kide">
-<meta name="twitter:description" content="Pip reads every question aloud so a child too little to read can play alone — then gets sleepy and asks to be tucked in. Colors, counting and shapes. Free, no ads. Parent accounts only. Kids never sign in. We store only answer timing.">
+<meta name="twitter:description" content="Pip reads every question aloud so a child too little to read can play alone — then gets sleepy and asks to be tucked in. Colors, counting and shapes. Free, no ads. Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in.">
 <meta name="twitter:image" content="https://kide.us/og-card.png">
 
 <script type="application/ld+json">
@@ -418,7 +418,7 @@ select.field,select#ageBand{box-sizing:border-box;display:block;width:100%;min-h
 /* ---------------------------------------------------------------------
    PIP THE SPROUT — Kide
    Single-file toddler learning game. Kids never sign in.
-   A signed-in parent account stores answer timing only.
+   A signed-in parent account can store the grown-up's email and practice timing.
    No frameworks, no external requests, no analytics, no third-party
    scripts of any kind. Everything below is the entire application.
 ------------------------------------------------------------------------ */
@@ -974,8 +974,9 @@ function say(id){
    play and still counts as practice, but only a spoken answer is ever counted
    as evidence about articulation (see public/engine/clinical.js).
 
-   Practice words stay in this browser. No audio is retained -- only which word,
-   which sound, and whether it was heard. A signed-in parent stores answer timing.
+   Practice words stay in this browser. No audio is retained -- which word,
+   which sound, and whether it was heard. A signed-in parent can also store
+   practice timing (skill, how long, whether it was right) with their email.
 --------------------------------------------------------------------------- */
 var PLAY_TARGETS = null;
 fetch("/data/play-targets.json").then(function(r){ return r.ok ? r.json() : null; })
@@ -1945,7 +1946,7 @@ function screenSettings(){
     '<h2>Parent Corner</h2>'+
     '<div class="settings-card">'+
       '<h3>Your parent account</h3>'+
-      '<p>Parent accounts only. Kids never sign in. We store only answer timing. No ads shown to your child. If you turn listening on, speech is recognised on this device and no audio is saved.</p>'+
+      '<p>Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in. No ads shown to your child. If you turn listening on, speech is recognised on this device and no audio is saved.</p>'+
       '<div class="journey">'+
         '<a class="btn btn-secondary" href="/account/">Join with your email</a>'+
         '<a class="btn btn-ghost" href="/unlock/">Family play</a>'+

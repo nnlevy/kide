@@ -339,7 +339,7 @@ console.log('--- the pages a visitor actually sees ---');
   ok('the timer uses the motion bar', play.includes('class="motion-bar"'));
   ok('reduced motion snaps the bar', /prefers-reduced-motion:\s*reduce[\s\S]*\.motion-bar i\{transition:none/.test(play));
   ok('the grown-up nickname warning is on the page', /not your child/i.test(play));
-  ok('parent account copy names who signs in and what is stored', play.includes('Parent accounts only. Kids never sign in. We store only answer timing.'));
+  ok('parent account copy names who signs in and what is stored', play.includes('Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in.'));
   ok('parent corner continues to the account and family play', play.includes('href="/account/"') && play.includes('href="/unlock/"'));
   ok('visitor copy does not name the machinery', !/anti-cheat|anti cheat|phase P|P1 accounts|wrangler|KIDE_LEADS/i.test(play));
   const served = readFileSync('./public/engine/challenge.js', 'utf8');

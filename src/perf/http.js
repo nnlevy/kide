@@ -1,7 +1,7 @@
 // Practice timing sync.
 //
 // Anonymous play does not write here. When a parent is signed in, each
-// sample is stored as latency only: item, skill, whether it was correct.
+// sample stores item, skill, latency, whether it was correct, and mode.
 // The id is currentParent(request, env).parentId. A value sent in the body
 // is ignored. These rows are not points and never feed the weekly board.
 //

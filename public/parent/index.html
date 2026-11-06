@@ -92,7 +92,7 @@
   <h1>Your child's week</h1>
   <p class="sub">Movement over many tries — never a score, and never a verdict.
      Your child never sees any of this.</p>
-  <p class="promise">Parent accounts only. Kids never sign in. We store only answer timing.</p>
+  <p class="promise">Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in.</p>
   <div class="journey">
     <a class="btn" href="/play/">Try Pip free</a>
     <a class="btn" href="/account/">Parent account</a>
@@ -190,7 +190,7 @@
     <div class="note">
       <b>Nothing here is audio.</b> No recording and no voiceprint. The words
       practiced stay in this browser until you share a link. Parent accounts only.
-      Kids never sign in. We store only answer timing.
+      Kids never sign in. We keep the parent email, and practice timing when they are signed in.
     </div>
     <div class="row" style="margin-top:12px">
       <button class="danger" id="btnClear">Delete everything</button>
@@ -324,7 +324,7 @@ function giftRefresh() {
   const headline = to ? `A little gift for ${to}` : 'A little gift';
   $('giftPrevTitle').textContent = from ? `${headline}, from ${from}` : headline;
   $('giftPrevDesc').textContent = note
-    || `${to || 'Someone little'} can play this on any phone or tablet. It's free. Parent accounts only. Kids never sign in. We store only answer timing.`;
+    || `${to || 'Someone little'} can play this on any phone or tablet. It's free. Parent accounts only. Kids never sign in. We keep the parent email, and practice timing when they are signed in.`;
   $('giftPreview').hidden = false;
   $('btnGiftOpen').href = giftUrl();
 }
