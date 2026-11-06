@@ -16,6 +16,7 @@ import {
   STRIPE_PRICE_ID,
 } from "./config.js";
 import { checkoutInput, httpsUrl } from "./checkout.js";
+import { alertOwner, recordStep } from "../funnel/funnel.js";
 import { COPY } from "./copy.js";
 import { deviceUnlockKey, purchaseGrantsUnlock, unlockKey } from "./entitlement.js";
 import { normalizeEmail } from "./email.js";
@@ -209,6 +210,23 @@ async function savePlay(kv, day, deviceId, email, merged) {
   return device.seconds;
 }
 
+// One "paid" row per purchase, though the success page asks several times.
+// The KV marker is keyed by a hash of the receipt email and expires in two
+// days. The funnel row itself carries no email.
+async function countPaidOnce(env, kv, request, email, qa, now) {
+  try {
+    const bytes = new TextEncoder().encode(`kide-funnel-paid:${email}`);
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    const hex = [...new Uint8Array(digest)].slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
+    const key = `kide:funnel-paid:v1:${hex}`;
+    if (kv && (await kvGet(kv, key))) return;
+    if (kv) await kv.put(key, JSON.stringify({ at: now }), { expirationTtl: 2 * 86400 });
+    await recordStep(env, { step: "paid", ref: refFromRequest(request), qa, now });
+  } catch {
+    // Counting never blocks the unlock.
+  }
+}
+
 export async function handleUnlock(request, env, opts = {}) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, "") || "/";
@@ -234,13 +252,24 @@ export async function handleUnlock(request, env, opts = {}) {
       return json({ ok: false, message: COPY.retry }, 503, cookie);
     }
     const ref = refFromRequest(request);
+    const qa = body.qa === true;
     const input = checkoutInput({ origin: url.origin, email: payEmail, ref });
     try {
       const out = await billing.createCheckout(input);
       const payUrl = httpsUrl(out && out.url);
-      if (payUrl) return json({ ok: true, url: payUrl }, 200, cookie);
+      if (payUrl) {
+        const rowId = await recordStep(env, { step: "checkout_open", ref, qa, now });
+        if (ref && !qa && rowId && opts.alert !== false) {
+          const work = alertOwner(env, { rowId, step: "checkout_open", ref, now });
+          if (opts.ctx && typeof opts.ctx.waitUntil === "function") opts.ctx.waitUntil(work);
+          else await work;
+        }
+        return json({ ok: true, url: payUrl }, 200, cookie);
+      }
+      await recordStep(env, { step: "checkout_fail", ref, qa, now });
       return json({ ok: false, message: COPY.retry }, 502, cookie);
     } catch {
+      await recordStep(env, { step: "checkout_fail", ref, qa, now });
       return json({ ok: false, message: COPY.retry }, 503, cookie);
     }
   }
@@ -267,6 +296,7 @@ export async function handleUnlock(request, env, opts = {}) {
         return json({ ok: true, unlocked, pending: !unlocked }, 200, cookie);
       }
       if (verdict.unlocked) {
+        await countPaidOnce(env, kv, request, payEmail, body.qa === true, now);
         await rememberUnlock(env, kv, deviceId, payEmail, now);
         return json({ ok: true, unlocked: true, pending: false }, 200, cookie);
       }
@@ -329,9 +359,15 @@ export async function handleUnlock(request, env, opts = {}) {
   }
   const who = unlock.email || email;
   const loaded = await loadSeconds(kv, day, deviceId, who);
+  // Funnel: a device's first free-play tick today, and the tick that uses the
+  // day up. Counts only, from the meter that already runs. See src/funnel.
+  if (!loaded.device) await recordStep(env, { step: "play_day", ref: refFromRequest(request), now });
   const deviceNext = advance(loaded.device, now, MAX_TICK_SECONDS);
   const accountNext = who ? advance(loaded.account, now, MAX_TICK_SECONDS) : null;
   const merged = mergePeak(deviceNext, accountNext);
   const seconds = kv ? await savePlay(kv, day, deviceId, who, merged) : merged.device.seconds;
+  if (!overLimit(loaded.seconds, FREE_PLAY_MINUTES) && overLimit(seconds, FREE_PLAY_MINUTES)) {
+    await recordStep(env, { step: "gate_day", ref: refFromRequest(request), now });
+  }
   return json(view({ unlocked: false, seconds }), 200, cookie);
 }

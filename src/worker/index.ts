@@ -8,6 +8,7 @@ import { handlePlayEvents } from "../perf/http.js";
 import { handleCompete } from "../compete/http.js";
 import { handleUnlock } from "../unlock/handler.js";
 import { withRefCookie } from "../referral/ref.js";
+import { handleFunnel, recordLinkOpen } from "../funnel/funnel.js";
 import { handleRefClaim, inviteResponse } from "../referral/invite.js";
 
 // kide.us is a leaf on the Quizbiz portfolio billing hub (riskfreetrial) and
@@ -87,12 +88,12 @@ export interface Env {
 const NOT_FOUND_HTML = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Page not found · Kide</title><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#56C6E6,#BDEBFF);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;text-align:center;color:#fff;}h1{font-size:22px;}a{color:#fff;font-weight:800;}</style></head><body><div><div style="font-size:64px">🌱</div><h1>Pip couldn't find that page</h1><p><a href="/">Back to Kide</a></p></div></body></html>`;
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    return withRefCookie(request, await route(request, env));
+  async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
+    return withRefCookie(request, await route(request, env, ctx));
   },
 };
 
-async function route(request: Request, env: Env): Promise<Response> {
+async function route(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
   {
     const url = new URL(request.url);
 
@@ -186,6 +187,12 @@ async function route(request: Request, env: Env): Promise<Response> {
       );
     }
 
+    // Family-play funnel steps from the parent-facing pages (/ and /unlock).
+    // No identifier of any kind. See src/funnel/funnel.js.
+    if (url.pathname === "/api/funnel") {
+      return handleFunnel(request, env);
+    }
+
     if (url.pathname === "/api/notify" && request.method === "POST") {
       return handleNotify(request, env);
     }
@@ -221,7 +228,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     // Family play: minute count and the $15 unlock. Same billing RPC as the
     // clinician licence. A child's practice record never reaches this route.
     if (url.pathname.startsWith("/api/unlock")) {
-      return handleUnlock(request, env);
+      return handleUnlock(request, env, { ctx });
     }
 
     // Clinician licence: the chart-ready practice record at /clinician
@@ -290,7 +297,12 @@ async function route(request: Request, env: Env): Promise<Response> {
       //      the 404 below, honestly.
       const asset = await env.ASSETS.fetch(request);
       // A share link (?ref=CODE) names who sent it, in the page and its link preview.
-      if (asset.status !== 404) return url.pathname === "/" ? await inviteResponse(request, env, asset) : asset;
+      if (asset.status !== 404) {
+        if (url.pathname !== "/") return asset;
+        // A tap on a share link is counted, and Nir hears about it. No visitor id.
+        await recordLinkOpen(request, env, ctx);
+        return await inviteResponse(request, env, asset);
+      }
     } catch {
       // static asset lookup failed — fall through to the 404 below
     }
