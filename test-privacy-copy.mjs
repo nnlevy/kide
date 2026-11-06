@@ -6,7 +6,14 @@
 // collection here.
 //
 // Live on this head:
-//   parent email + passkey public (kide_parents); session cookie __Host-rft_session;
+//   parent email + passkey public (kide_parents); session cookie __Host-rft_session
+//   (hub currentSession → {ok:true,email} from a domain-scoped hashed token;
+//   cookie Max-Age 15 minutes; expire-on-read / logout / reissue can delete
+//   that row. Not a parent-role, adulthood, family, or payment proof. Not
+//   automatic purge of every expired login_session row. Source equality of
+//   a686eaa messaging/passkey snapshots is not live deployment/auth proof.
+//   A leaf helper named verifiedParentEmail is not itself a defect; the wire
+//   result is {ok:true,email}. 10409 owns shared-auth correction.);
 //   signed-in /api/play/events rows (item, skill, latency, correct, mode);
 //   family-unlock device cookie kide_device; share-link cookie kide_ref (GET/HEAD);
 //   on-device journal / visitAge / companion / listening consent;
@@ -130,6 +137,10 @@ t('privacy names the actual stores without inventing deletion days or Studio', (
   assert.match(page, /email address/);
   assert.match(page, /public part of the passkey/);
   assert.match(page, /sign-in cookie/);
+  assert.match(page, /It lasts 15 minutes and belongs to the email that signed in/);
+  assert.match(page, /not, by itself, proof of a payment/);
+  assert.match(page, /not a promise that every old sign-in row is wiped/);
+  assert.equal(/automatic(?:ally)? (?:purge|delete) (?:all |every )?expired/i.test(page), false);
   assert.match(page, /device cookie/);
   assert.match(page, /share link can set a short cookie/);
   assert.match(page, /practice timing/);
