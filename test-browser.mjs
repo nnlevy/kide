@@ -26,7 +26,7 @@ export async function browserOrSkip(name) {
   if (!chromium) {
     console.log(`\n(SKIPPED ${name}: playwright is not installed)`);
     console.log('  npm i -D playwright && npx playwright install --with-deps chromium\n');
-    process.exit(0);
+    process.exit(process.env.CI ? 1 : 0);
   }
 
   try {
@@ -59,7 +59,8 @@ export async function browserOrSkip(name) {
     } else {
       console.log('    npx playwright install chromium\n');
     }
-    process.exit(0);
+    if (process.env.CI) console.log('  CI requires this browser to launch. A skip is a failed check.\n');
+    process.exit(process.env.CI ? 1 : 0);
   }
 
   cached = chromium;

@@ -1,27 +1,19 @@
 name: CI
 
-# Money path: no visitor copy and no price change. This file only fills the
-# check rollup so paid-path PRs can merge (pricing → /clinician/ $39 licence;
-# family play → /unlock/ family_unlock $15, price_1UWqYjIzTeKgjbPrOtu7jVAG).
+# Money path: no visitor copy and no price change. This check is what lets a
+# paid-path PR merge (pricing → /clinician/ $39 licence; family play → /unlock/
+# family_unlock $15, price_1UWqYjIzTeKgjbPrOtu7jVAG).
 #
-# A repo with zero workflows reports an empty statusCheckRollup. Portfolio
-# merge policy fails closed on that emptiness. pull_request and push to main
-# must produce a real check run.
+# pull_request and push to main must produce a real check run. kide is public,
+# so this file does not call a private reusable workflow.
 #
-# Sibling private repos call
-# nnlevy/portfolio-ci/.github/workflows/reusable-ci.yml@23a5e46e4b079d7827fb50c1bfe7d8cf196a9227 # v1
-# kide is public, and GitHub only lets a public caller use a public reusable
-# workflow. That file is not publicly readable. An unresolved uses: finishes
-# with zero jobs and leaves the rollup empty again, so this workflow runs the
-# same kind of check locally.
-#
-# What runs: npm ci, wrangler types for the Worker (src/worker/index.ts) plus
-# static assets (./dist), then npm test. Browser suites skip when Playwright
-# Chromium is not installed; billing, unlock, account, parent, seo, and engine
-# still run.
+# What runs: npm ci, a hard browser launch (Chromium and WebKit), wrangler
+# types, npm test, then the vendored canonical preflight (full discovery, all
+# 15 profiles, no path or device narrowing). The unfiltered gate JSON is
+# uploaded. A missing gate file, a browser that will not launch, or a gate
+# finding fails the job.
 # What does not run: wrangler deploy (including deploy --dry-run), Stripe,
-# DNS, Cloudflare secrets, and the platform-gate 480-wide mobile matrix.
-# Canonical gate stays in agents/preflight.
+# DNS, Cloudflare secrets, and any live checkout.
 
 on:
   pull_request:
@@ -31,6 +23,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -40,7 +33,7 @@ jobs:
   test:
     name: test
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
 
@@ -52,10 +45,120 @@ jobs:
       - name: Install
         run: npm ci
 
-      # Worker + static dist. Types are generated off the checkout so CI does
-      # not need a committed worker-configuration.d.ts. No Cloudflare login.
+      - name: Require the vendored gate
+        run: |
+          test -s tools/platform-gate/gate.mjs
+          test -s tools/platform-gate/preflight.mjs
+          test -s tools/platform-gate/VERSION
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+            if (pkg.scripts["gate:preflight"] !== "node tools/platform-gate/preflight.mjs") {
+              console.error("gate:preflight script is missing or replaced");
+              process.exit(1);
+            }
+            if (pkg.gateDomain !== "kide.us") {
+              console.error("gateDomain is not kide.us");
+              process.exit(1);
+            }
+          '
+
+      - name: Install browsers
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Browsers must launch
+        run: |
+          node --input-type=module -e '
+            import { chromium, webkit } from "playwright";
+            for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
+              const browser = await engine.launch();
+              await browser.close();
+              console.log(name + " launch ok");
+            }
+          '
+
       - name: wrangler types
         run: npx wrangler types "${RUNNER_TEMP}/worker-configuration.d.ts"
 
       - name: npm test
         run: npm test
+
+      - name: Canonical platform gate
+        run: npm run gate:preflight
+
+      - name: Gate receipt is complete
+        run: |
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const gate = JSON.parse(readFileSync("gate-preflight-out/gate.json", "utf8"));
+            const rows = JSON.parse(readFileSync("gate-preflight-out/mobile/report.json", "utf8"));
+            const devices = new Set(rows.map((r) => r.device));
+            const urls = new Set(rows.map((r) => r.url));
+            const need = ["/", "/account", "/parent", "/clinician", "/unlock"];
+            const paths = new Set((gate.urls || []).map((u) => new URL(u).pathname.replace(/\/$/, "") || "/"));
+            const problems = [];
+            if (gate.summary?.failing !== 0) problems.push("failing " + gate.summary?.failing);
+            if (!gate.mobile || gate.mobile.pass !== gate.mobile.total) problems.push("mobile pass mismatch");
+            if (gate.mobile?.failing?.length) problems.push("mobile failing " + gate.mobile.failing.length);
+            if (devices.size !== 15) problems.push("devices " + devices.size);
+            if (rows.length !== devices.size * urls.size) problems.push("matrix " + rows.length);
+            if ((gate.urls || []).length !== urls.size) problems.push("url count");
+            for (const p of need) if (!paths.has(p)) problems.push("missing " + p);
+            if (problems.length) {
+              console.error(problems.join("\n"));
+              process.exit(1);
+            }
+            console.log(gate.summary);
+          '
+
+      - name: Upload gate JSON
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-preflight
+          path: |
+            gate-preflight-out/gate.json
+            gate-preflight-out/mobile/report.json
+          if-no-files-found: error
+
+      # Local worker only. Not wrangler deploy and not a dry-run deploy.
+      # Static preflight answers /sw.js with text/plain 404; the worker must
+      # answer the asset probes with non-HTML bodies.
+      - name: Local worker asset probes
+        run: |
+          set -euo pipefail
+          npx wrangler dev --local --ip 127.0.0.1 --port 8788 --inspector-port 9230 --persist-to "${RUNNER_TEMP}/wrangler-state" --show-interactive-dev-session=false > "${RUNNER_TEMP}/wrangler.log" 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for _ in $(seq 1 90); do
+            if grep -q 'Ready on' "${RUNNER_TEMP}/wrangler.log"; then ready=1; break; fi
+            if ! kill -0 "$pid" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if [ "$ready" != 1 ]; then
+            cat "${RUNNER_TEMP}/wrangler.log"
+            exit 1
+          fi
+          node --input-type=module << 'EOF'
+          const html = (ct) => /^\s*text\/html\b/i.test(ct || "");
+          const get = async (path) => {
+            const r = await fetch("http://127.0.0.1:8788" + path, { redirect: "manual" });
+            return { path, status: r.status, ct: r.headers.get("content-type") || "" };
+          };
+          const assets = ["/sw.js", "/manifest.json", "/manifest.webmanifest", "/site.webmanifest"];
+          const pages = ["/account/", "/parent/", "/unlock/", "/clinician/"];
+          const rows = [];
+          for (const path of [...assets, ...pages, "/does-not-exist-gate"]) rows.push(await get(path));
+          const problems = [];
+          for (const row of rows) {
+            if (assets.includes(row.path) && (row.status !== 200 || html(row.ct))) problems.push(JSON.stringify(row));
+            if (pages.includes(row.path) && (row.status !== 200 || !html(row.ct))) problems.push(JSON.stringify(row));
+          }
+          const missing = rows.find((row) => row.path === "/does-not-exist-gate");
+          if (!missing || missing.status !== 404 || !html(missing.ct)) problems.push("missing-path " + JSON.stringify(missing));
+          console.log(JSON.stringify(rows, null, 1));
+          if (problems.length) {
+            console.error(problems.join("\n"));
+            process.exit(1);
+          }
+          EOF
