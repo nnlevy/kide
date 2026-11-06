@@ -40,11 +40,11 @@ const MIN_TAP = 44, MIN_FORM_FONT = 16;
 // module imports is not enough: the package installs fine on a machine whose
 // system libraries are missing, and the launch is what actually fails.
 import { browserOrSkip } from './test-browser.mjs';
-const chromium = await browserOrSkip('test-mobile');
 if (!existsSync('dist/index.html')) {
   console.log('\n(skipped: run `npm run build` first)\n');
-  process.exit(0);
+  process.exit(process.env.CI ? 1 : 0);
 }
+const chromium = await browserOrSkip('test-mobile');
 
 const srv = spawn('python3', ['-c', `
 import http.server, socketserver, os

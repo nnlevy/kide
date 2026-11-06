@@ -150,6 +150,7 @@ console.log('--- calibrated against the voice pack that actually ships ---');
 
   if (!durations.length) {
     console.log('    (ffprobe unavailable; clip-length calibration skipped)');
+    if (process.env.CI) ok('ffprobe clip-length calibration runs in CI', false, 'ffprobe did not return clip durations');
   } else {
     const praise = durations.filter((x) => /^(affirm|answer|retry)-/.test(x.id));
     const longest = praise.reduce((a, b) => (b.d > a.d ? b : a), praise[0]);

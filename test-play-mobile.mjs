@@ -29,7 +29,8 @@ try {
   console.log('\n(SKIPPED test-play-mobile: Playwright Chromium will not launch)');
   console.log('  ' + String(e.message || e).split('\n')[0]);
   console.log('  npx playwright install chromium\n');
-  process.exit(0);
+  if (process.env.CI) console.log('  CI requires this browser to launch. A skip is a failed check.\n');
+  process.exit(process.env.CI ? 1 : 0);
 }
 
 const srv = spawn('python3', ['-c', `

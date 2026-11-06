@@ -40,7 +40,7 @@
 		"test:studio": "node --experimental-sqlite test-studio.mjs",
 		"test:studio-worker": "node --experimental-strip-types --experimental-sqlite test-studio-worker.mjs",
 		"test:studio-mobile": "node test-studio-mobile.mjs",
-		"gate:preflight": "node -e \"const fs=require('fs'); if(!fs.existsSync('tools/platform-gate/gate.mjs')||!fs.existsSync('tools/platform-gate/preflight.mjs')){console.error(JSON.stringify({ok:false,domain:'kide.us',error:'missing_canonical_gate'})); process.exit(2)}\" && node tools/platform-gate/preflight.mjs",
+		"gate:preflight": "node tools/platform-gate/preflight.mjs",
 		"test:packs": "node test-packs.mjs",
 		"test:gift": "npm run seo:sitemap --silent && node test-gift.mjs",
 		"test:slps": "npm run seo:slps --silent && node test-slps.mjs",
@@ -50,7 +50,7 @@
 		"lexicon:build": "python3 tools/lexicon/build_lexicon.py && python3 tools/lexicon/build_play_targets.py",
 		"calibrate": "python3 tools/calibrate/calibrate.py",
 		"share:render": "node tools/share/card.js",
-		"test": "npm run test:engine && npm run test:challenge && npm run test:perf && npm run test:compete && npm run test:scene && npm run test:clinical && npm run test:speech && npm run test:journal && npm run test:words-voice && npm run test:words-browser && npm run test:voice-pack && npm run test:voice-game && npm run test:seo && npm run test:billing && npm run test:unlock && npm run test:account && npm run test:parent && npm run test:studio && npm run test:studio-worker && npm run test:studio-mobile && npm run test:packs && npm run test:gift && npm run test:slps && npm run test:mobile && npm run test:play-mobile && npm run test:voice && node test-routines.js",
+		"test": "node test-ci-required.mjs && npm run test:engine && npm run test:challenge && npm run test:perf && npm run test:compete && npm run test:scene && npm run test:clinical && npm run test:speech && npm run test:journal && npm run test:words-voice && npm run test:words-browser && npm run test:voice-pack && npm run test:voice-game && npm run test:seo && npm run test:billing && npm run test:unlock && npm run test:account && npm run test:parent && npm run test:studio && npm run test:studio-worker && npm run test:studio-mobile && npm run test:packs && npm run test:gift && npm run test:slps && npm run test:mobile && npm run test:play-mobile && npm run test:voice && node test-routines.js",
 		"demo:render": "npm run build && node tools/share/demo.js"
 	},
 	"devDependencies": {
