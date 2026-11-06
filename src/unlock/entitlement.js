@@ -120,9 +120,10 @@ export function purchaseGrantsUnlock(credits, cfg) {
 }
 
 /**
- * Trusted family-purchase rows for the cash ledger.
- * A row can unlock play and still be omitted here: missing id, paid time,
- * or custom_ref means the hub has not given enough to credit $6.
+ * Unlock receipts are not cash proof. getCredits returns sourceRef + status
+ * only. Missing paid time or checkout-time attribution means no $6 here.
+ * Platform cash attribution is recordCashReferralFromCheckout on the hub,
+ * not this poll. Do not invent getCredits fields to feed the leaf ledger.
  */
 export function familyPurchaseFacts(credits, cfg) {
   if (!credits || credits.ok !== true) return [];

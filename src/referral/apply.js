@@ -1,20 +1,29 @@
-// Money path: a cleared $15 family_unlock credits the sharer $6 in the cash
-// ledger only when the hub row carries a stable purchase id, checkout-time
-// attribution, and paid time. The browser kide_ref cookie is not proof.
+// Money path: $15 family_unlock checkout can unlock play on this leaf.
+// Cash attribution is a hub concern, not a getCredits poll on this worker.
 //
-// Pinned hub source (reported, not live, not deployed): riskfreetrial
-// a686eaa getCredits(email) returns purchases shaped
-// { domain, offeringId, sourceRef, status } where sourceRef is the Checkout
-// session id and status is paid | fulfilled | refunded. That source has NO
-// paidAt and NO custom_ref. Live hub remains 1a75001 and publication HELD.
-// A refunded status alone is not webhook freshness.
+// Authoritative hub interface (packet a686eaa / 1a75001 source, not live proof):
+//   createCheckout({ domain, offeringId, email, customMetadata: { ref } })
+//     → Stripe metadata[custom_ref] plus hub-set metadata.domain, offering_id, email
+//   recordCashReferralFromCheckout(session) — INTERNAL webhook helper, not an RPC.
+//     Idempotent on session.id. Reads metadata.custom_ref. Not on the binding.
+//   syncCashReferralPayouts() — INTERNAL cron. Voids held rows when
+//     purchases.status becomes refunded. Opens owner_decisions cards. Not an RPC.
+//   Leaf RPCs already on PortfolioBillingService:
+//     issueCashReferralCode({ domain, email }) → { ok, code, link, rewardLabel }
+//     getCashReferralStatus({ domain, email }) → { ok, code, link, families,
+//       earnedCents, paidCents, rewardLabel }
+//     notifyReferralActivity({ domain, code, step: link_open|checkout_open })
+//   getCredits(email) purchases[] = { domain, offeringId, sourceRef, status }
+//     for unlock only. No paidAt. No custom_ref. Refunded status is not a webhook.
 //
-// $6 stays 0 until a family row also has:
-//   paidAt | createdAt (ISO or epoch ms) — hold starts here
-//   metadata.custom_ref | customRef | metadata.ref — the 8-char code from
-//     createCheckout customMetadata.ref
-// optional amountCents = 1500 usd; a present wrong amount blocks the credit
-// No new hub method. No invented fields. No Connect. No webhook here.
+// Adaptation gap (HOLD, no new hub contract, no leaf-ledger expansion):
+//   This worker still has a local cash ledger from PR18. It must not grow, and
+//   it must not invent getCredits fields to feed itself. Real hub shape credits
+//   $0 here. Hub program source says $5 / 30-day hold / owner queue; visitor
+//   copy on this leaf still says $6 / 14 days / $50 and does not send cash.
+//   /api/unlock/referral already calls issueCashReferralCode when env.DB is
+//   missing. Earnings with a local DB do not read getCashReferralStatus.
+// Live hub remains 1a75001, publication HELD. No Connect. No payouts.
 
 import { parentIdFor } from "../account/parent-id.js";
 import { DOMAIN, OFFERING_ID, STRIPE_PRICE_ID } from "../unlock/config.js";
