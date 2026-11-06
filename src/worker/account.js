@@ -28,6 +28,8 @@
 // and the hub named the email. A passkey the hub accepts without a session
 // is not a sign-in. The session token never appears in JSON.
 
+import { deviceIdFromCookie, dropDeviceUnlock } from "../unlock/entitlement.js";
+
 const DOMAIN = "kide.us";
 const MAX_BODY = 20000;
 // Matches PortfolioMessagingService SESSION_MAX_AGE_SEC (15 minutes). Used
@@ -288,6 +290,8 @@ export async function handleAccount(request, env) {
   if (path === "/api/account/signout") {
     const messaging = messagingOf(env);
     const session = request.headers.get("cookie") || "";
+    // A device key is not a paid identity. Drop it even when the hub is down.
+    await dropDeviceUnlock(env && env.KIDE_LEADS, deviceIdFromCookie(request));
     if (!messaging || typeof messaging.endSession !== "function") {
       return withCookie(json({ ok: false, signedIn: false, message: UNAVAILABLE }, 503), clearCookie());
     }

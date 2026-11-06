@@ -8,6 +8,7 @@ const $ = (id) => document.getElementById(id);
 const COPY = {
   mismatch: "That does not match. Try another answer.",
   needEmail: "Enter the email you want on the receipt.",
+  needSignIn: "Sign in on the parent account, then come back to checkout.",
   soon: "Family play is opening soon. We'll email you.",
   checking: "Checking the receipt.",
   keep: "This email can keep playing with Pip.",
@@ -15,6 +16,14 @@ const COPY = {
   copied: "Copied. Paste it in a text to another parent.",
   shareText: "Pip gets sleepy and asks to be tucked in, so screen time ends without a meltdown. Try it free:",
 };
+
+function funnel(step, detail) {
+  try {
+    const body = JSON.stringify({ step, detail: detail || "" });
+    if (navigator.sendBeacon && navigator.sendBeacon("/api/funnel", new Blob([body], { type: "application/json" }))) return;
+    fetch("/api/funnel", { method: "POST", body, keepalive: true, credentials: "same-origin", headers: { "Content-Type": "application/json" } });
+  } catch { /* measuring never affects the page */ }
+}
 
 function show(id) {
   for (const panel of ["hold", "pay", "wait"]) {
@@ -54,19 +63,38 @@ function armHold() {
 function revealPay() {
   markPassed();
   show("pay");
-  const email = $("email");
-  if (email) email.focus();
+  prefill();
 }
 
-async function prefill() {
+async function signedInEmail() {
   try {
     const res = await fetch("/api/account/me", { credentials: "same-origin", cache: "no-store" });
     const data = await res.json();
-    const email = $("email");
-    if (email && !email.value && data && data.signedIn === true && typeof data.email === "string") {
-      email.value = data.email;
+    if (data && data.signedIn === true && typeof data.email === "string") return data.email;
+  } catch { /* no session */ }
+  return "";
+}
+
+async function prefill() {
+  const address = await signedInEmail();
+  const email = $("email");
+  const form = $("payForm");
+  if (!address) {
+    if (form) form.hidden = false;
+    if (email) {
+      email.value = "";
+      email.disabled = true;
     }
-  } catch { /* sign-in is a choice on this page */ }
+    say("payMsg", COPY.needSignIn);
+    return "";
+  }
+  if (form) form.hidden = false;
+  if (email) {
+    email.disabled = false;
+    email.readOnly = true;
+    email.value = address;
+  }
+  return address;
 }
 
 function safeCheckoutUrl(value) {
@@ -100,23 +128,22 @@ async function rememberParent(address) {
 
 async function startCheckout(event) {
   event.preventDefault();
-  const email = $("email");
-  const address = email ? email.value.trim() : "";
-  if (!address.includes("@") || address.length > 254) {
-    say("payMsg", COPY.needEmail);
-    if (email) email.focus();
+  const address = await signedInEmail();
+  if (!address) {
+    say("payMsg", COPY.needSignIn);
     return;
   }
   const button = $("payGo");
   if (button) button.disabled = true;
   say("payMsg", "");
+  funnel("checkout_click");
   let url = null;
   try {
     const res = await fetch("/api/unlock/checkout", {
       method: "POST",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: address }),
+      body: JSON.stringify({}),
     });
     const data = await res.json().catch(() => null);
     if (res.ok && data && data.ok === true) url = safeCheckoutUrl(data.url);
@@ -132,10 +159,11 @@ async function startCheckout(event) {
   if (button) button.disabled = false;
 }
 
-async function confirmLoop(address) {
+async function confirmLoop() {
   show("wait");
   say("waitMsg", COPY.checking);
   const started = Date.now();
+  const address = await signedInEmail();
   async function step() {
     let result = null;
     try {
@@ -143,7 +171,7 @@ async function confirmLoop(address) {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: address }),
+        body: JSON.stringify({}),
       });
       result = await res.json();
     } catch {
@@ -214,10 +242,14 @@ function boot() {
   const params = new URLSearchParams(location.search);
   const back = params.get("checkout");
   if (back === "success") {
-    const address = params.get("email") || "";
     showRefund(params.get("sid"));
-    confirmLoop(address);
+    confirmLoop();
     return;
+  }
+  if (back === "back") funnel("checkout_back");
+  else {
+    const from = params.get("from");
+    funnel("unlock_view", from === "gate" || from === "goodnight" ? from : "direct");
   }
   if (passed()) {
     show("pay");
@@ -230,8 +262,11 @@ function boot() {
   if (check) {
     check.addEventListener("click", () => {
       const answer = $("answer");
-      if (answerMatches(hold, answer && answer.value)) revealPay();
-      else {
+      if (answerMatches(hold, answer && answer.value)) {
+        funnel("check_pass");
+        revealPay();
+      } else {
+        funnel("check_fail");
         say("holdMsg", COPY.mismatch);
         if (answer) answer.focus();
       }

@@ -1,11 +1,10 @@
 // Money path: visit → tool use (Pip play) → signup → paid step → Stripe.
 //
 // Family play reuses PORTFOLIO_BILLING_SERVICE createCheckout and getCredits.
-// It does not talk to Stripe, does not hold a secret key, and does not read a
-// child's practice record. The price id is the live family price in config.js.
-//
-// Unpaid play stores a day total in KV, per device and per signed-in parent.
-// A stored unlock (or a purchase history hit) skips that total.
+// Paid identity is the email PortfolioMessagingService.currentSession returns
+// for this browser's session cookie. The request body is not that identity.
+// A Checkout session id from purchases[].sourceRef is what setUnlock stores.
+// This file does not talk to Stripe and does not send email.
 
 import {
   COUNTDOWN_SECONDS,
@@ -17,14 +16,19 @@ import {
 } from "./config.js";
 import { checkoutInput, httpsUrl } from "./checkout.js";
 import { COPY } from "./copy.js";
-import { deviceUnlockKey, purchaseGrantsUnlock, unlockKey } from "./entitlement.js";
+import {
+  deviceIdFromCookie,
+  dropDeviceUnlock,
+  purchaseGrantsUnlock,
+  unlockKey,
+} from "./entitlement.js";
 import { normalizeEmail } from "./email.js";
 import { advance, capSeconds, dayStamp, mergePeak, overLimit, playKey } from "./minutes.js";
 import { parentIdFor } from "../account/parent-id.js";
-import { setUnlock } from "../account/session.js";
+import { readUnlocked, setUnlock } from "../account/store.js";
 import { refFromRequest } from "../referral/ref.js";
+import { claimAlert, reconcilePaid, recordStep } from "../funnel/funnel.js";
 
-const DEVICE_RE = /^[A-Za-z0-9_-]{22,80}$/;
 const MAX_BODY = 2000;
 
 const ROUTES = {
@@ -54,12 +58,6 @@ function newDeviceId() {
   let out = "";
   for (const b of bytes) out += String.fromCharCode(b);
   return btoa(out).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-
-function deviceFrom(request) {
-  const raw = request.headers.get("cookie") || "";
-  const match = raw.match(/(?:^|;\s*)kide_device=([A-Za-z0-9_-]{22,80})/);
-  return match && DEVICE_RE.test(match[1]) ? match[1] : null;
 }
 
 async function readJson(request) {
@@ -115,67 +113,75 @@ function grantConfig() {
   return { offeringId: OFFERING_ID, priceId: STRIPE_PRICE_ID, domain: DOMAIN };
 }
 
-const FRESH_MS = 60000;
+// A QA flag must not open Stripe. Metrics have no qa column, so a later
+// request without the flag is a real checkout and is counted.
+function qaCheckout(url, body) {
+  const flag = body && body.qa;
+  if (flag === true || flag === 1 || flag === "1" || flag === "true") return true;
+  return url.searchParams.get("kide_qa") === "1";
+}
 
-async function recordFamilyUnlock(env, email, active) {
+async function storedUnlock(env, email) {
+  if (!env || !env.DB || !email) return false;
+  try {
+    const parentId = await parentIdFor("email", email);
+    return await readUnlocked(env.DB, parentId);
+  } catch {
+    return false;
+  }
+}
+
+async function keptForSession(env, kv, email) {
+  if (await storedUnlock(env, email)) return true;
+  const cached = await kvGet(kv, unlockKey(email));
+  return !!(cached && cached.unlocked === true && typeof cached.sourceRef === "string" && cached.sourceRef);
+}
+
+async function recordFamilyUnlock(env, email, sourceRef, active) {
   if (!env || !email) return;
   try {
     const parentId = await parentIdFor("email", email);
-    await setUnlock(env, parentId, OFFERING_ID, active ? "active" : "inactive");
+    await setUnlock(env, parentId, active ? sourceRef : sourceRef || "", active ? "active" : "inactive");
   } catch {
-    // The minute gate still has the KV copy if the parent table cannot be written.
+    // A hub outage can still honor the row already stored.
   }
 }
 
-async function readUnlock(env, kv, deviceId, email, billing, now) {
-  let deviceEmail = null;
-  if (deviceId) {
-    const onDevice = await kvGet(kv, deviceUnlockKey(deviceId));
-    if (onDevice && onDevice.unlocked === true && typeof onDevice.email === "string") {
-      deviceEmail = onDevice.email;
-    }
-  }
-  const who = email || deviceEmail;
-  if (!who) return { unlocked: false, email: null };
-
-  const cached = await kvGet(kv, unlockKey(who));
-  const fresh = cached && cached.unlocked === true && typeof cached.at === "number" && (now - cached.at) < FRESH_MS;
-  if (fresh) return { unlocked: true, email: who };
-
-  if (!billing || typeof billing.getCredits !== "function") {
-    return { unlocked: !!(cached && cached.unlocked) || !!deviceEmail, email: who };
-  }
-  try {
-    const credits = await billing.getCredits(who);
-    const verdict = purchaseGrantsUnlock(credits, grantConfig());
-    if (!verdict.known) {
-      return { unlocked: !!(cached && cached.unlocked) || !!deviceEmail, email: who };
-    }
-    if (verdict.unlocked) {
-      await rememberUnlock(env, kv, deviceId, who, now);
-      return { unlocked: true, email: who };
-    }
-    await forgetUnlock(env, kv, deviceId, who);
-    return { unlocked: false, email: who };
-  } catch {
-    return { unlocked: !!(cached && cached.unlocked) || !!deviceEmail, email: who };
-  }
-}
-
-async function rememberUnlock(env, kv, deviceId, email, now) {
-  const at = now;
-  await kvPut(kv, unlockKey(email), { unlocked: true, at });
-  if (deviceId) await kvPut(kv, deviceUnlockKey(deviceId), { unlocked: true, email, at });
-  await recordFamilyUnlock(env, email, true);
+async function rememberUnlock(env, kv, deviceId, email, sourceRef, now) {
+  await dropDeviceUnlock(kv, deviceId);
+  await kvPut(kv, unlockKey(email), { unlocked: true, sourceRef, at: now });
+  await recordFamilyUnlock(env, email, sourceRef, true);
 }
 
 async function forgetUnlock(env, kv, deviceId, email) {
   await kvDel(kv, unlockKey(email));
-  if (deviceId) {
-    const onDevice = await kvGet(kv, deviceUnlockKey(deviceId));
-    if (onDevice && onDevice.email === email) await kvDel(kv, deviceUnlockKey(deviceId));
+  await dropDeviceUnlock(kv, deviceId);
+  await recordFamilyUnlock(env, email, "", false);
+}
+
+async function readUnlock(env, kv, deviceId, email, billing, request, now) {
+  await dropDeviceUnlock(kv, deviceId);
+  if (!email) return { unlocked: false, email: null, sourceRef: "" };
+  const keep = async () => ({
+    unlocked: await keptForSession(env, kv, email),
+    email,
+    sourceRef: "",
+  });
+  if (!billing || typeof billing.getCredits !== "function") return keep();
+  try {
+    const credits = await billing.getCredits(email);
+    const verdict = purchaseGrantsUnlock(credits, grantConfig());
+    if (!verdict.known) return keep();
+    await reconcilePaid(env, credits, refFromRequest(request), now);
+    if (verdict.unlocked) {
+      await rememberUnlock(env, kv, deviceId, email, verdict.sourceRef, now);
+      return { unlocked: true, email, sourceRef: verdict.sourceRef };
+    }
+    await forgetUnlock(env, kv, deviceId, email);
+    return { unlocked: false, email, sourceRef: "" };
+  } catch {
+    return keep();
   }
-  await recordFamilyUnlock(env, email, false);
 }
 
 function view(state) {
@@ -209,6 +215,11 @@ async function savePlay(kv, day, deviceId, email, merged) {
   return device.seconds;
 }
 
+async function notifyCheckout(env, ref, now) {
+  const rowId = await recordStep(env, { step: "checkout_open", ref, now });
+  if (rowId) await claimAlert(env, { step: "checkout_open", ref, now });
+}
+
 export async function handleUnlock(request, env, opts = {}) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, "") || "/";
@@ -219,7 +230,7 @@ export async function handleUnlock(request, env, opts = {}) {
 
   const now = typeof opts.now === "number" ? opts.now : Date.now();
   const kv = env && env.KIDE_LEADS;
-  const existing = deviceFrom(request);
+  const existing = deviceIdFromCookie(request);
   const deviceId = existing || newDeviceId();
   const cookie = existing ? null : deviceCookie(deviceId);
   const email = await sessionEmail(request, env);
@@ -227,80 +238,77 @@ export async function handleUnlock(request, env, opts = {}) {
 
   if (path === "/api/unlock/checkout") {
     const body = await readJson(request);
-    if (body.error) return json({ ok: false, message: COPY.needEmail }, 400, cookie);
-    const payEmail = normalizeEmail(body.email);
-    if (!payEmail) return json({ ok: false, message: COPY.needEmail }, 400, cookie);
+    if (body.error) return json({ ok: false, message: COPY.needSignIn }, 400, cookie);
+    if (qaCheckout(url, body)) return json({ ok: false, message: COPY.needSignIn }, 400, cookie);
+    if (!email) return json({ ok: false, message: COPY.needSignIn }, 401, cookie);
     if (!billing || typeof billing.createCheckout !== "function") {
       return json({ ok: false, message: COPY.retry }, 503, cookie);
     }
     const ref = refFromRequest(request);
-    const input = checkoutInput({ origin: url.origin, email: payEmail, ref });
+    const input = checkoutInput({ origin: url.origin, email, ref });
     try {
       const out = await billing.createCheckout(input);
       const payUrl = httpsUrl(out && out.url);
-      if (payUrl) return json({ ok: true, url: payUrl }, 200, cookie);
+      if (payUrl) {
+        await notifyCheckout(env, ref, now);
+        return json({ ok: true, url: payUrl }, 200, cookie);
+      }
+      await recordStep(env, { step: "checkout_fail", ref, now });
       return json({ ok: false, message: COPY.retry }, 502, cookie);
     } catch {
+      await recordStep(env, { step: "checkout_fail", ref, now });
       return json({ ok: false, message: COPY.retry }, 503, cookie);
     }
   }
 
   if (path === "/api/unlock/confirm") {
     const body = await readJson(request);
-    if (body.error) return json({ ok: false, message: COPY.needEmail }, 400, cookie);
-    const payEmail = normalizeEmail(body.email);
-    if (!payEmail) return json({ ok: false, message: COPY.needEmail }, 400, cookie);
-    if (!billing || typeof billing.getCredits !== "function") {
-      const cached = await kvGet(kv, unlockKey(payEmail));
-      return json({
-        ok: true,
-        unlocked: !!(cached && cached.unlocked),
-        pending: !(cached && cached.unlocked),
-      }, 200, cookie);
+    if (body.error) return json({ ok: false, message: COPY.needSignIn }, 400, cookie);
+    if (!email) {
+      return json({ ok: false, unlocked: false, pending: true, message: COPY.needSignIn }, 401, cookie);
     }
+    const pending = async () => {
+      const unlocked = await keptForSession(env, kv, email);
+      return json({ ok: true, unlocked, pending: !unlocked }, 200, cookie);
+    };
+    if (!billing || typeof billing.getCredits !== "function") return pending();
     try {
-      const credits = await billing.getCredits(payEmail);
+      const credits = await billing.getCredits(email);
       const verdict = purchaseGrantsUnlock(credits, grantConfig());
-      if (!verdict.known) {
-        const cached = await kvGet(kv, unlockKey(payEmail));
-        const unlocked = !!(cached && cached.unlocked);
-        return json({ ok: true, unlocked, pending: !unlocked }, 200, cookie);
-      }
+      if (!verdict.known) return pending();
+      await reconcilePaid(env, credits, refFromRequest(request), now);
       if (verdict.unlocked) {
-        await rememberUnlock(env, kv, deviceId, payEmail, now);
+        await rememberUnlock(env, kv, deviceId, email, verdict.sourceRef, now);
         return json({ ok: true, unlocked: true, pending: false }, 200, cookie);
       }
-      await forgetUnlock(env, kv, deviceId, payEmail);
+      await forgetUnlock(env, kv, deviceId, email);
       return json({ ok: true, unlocked: false, pending: true }, 200, cookie);
     } catch {
-      const cached = await kvGet(kv, unlockKey(payEmail));
-      const unlocked = !!(cached && cached.unlocked);
-      return json({ ok: true, unlocked, pending: !unlocked }, 200, cookie);
+      return pending();
     }
   }
 
-  const unlock = await readUnlock(env, kv, deviceId, email, billing, now);
+  const unlock = await readUnlock(env, kv, deviceId, email, billing, request, now);
 
-  // A family's own share link. Only for an email that has family play on this
-  // device (a paid receipt) or is the signed-in parent, so a stranger cannot
-  // mint a payout code for someone else's address from this page.
   if (path === "/api/unlock/referral") {
     const body = await readJson(request);
-    if (body.error) return json({ ok: false, message: COPY.needEmail }, 400, cookie);
-    const want = normalizeEmail(body.email) || unlock.email || email;
-    const allowed = want && ((unlock.unlocked && unlock.email === want) || email === want);
-    if (!allowed) return json({ ok: false, message: COPY.referralLocked }, 403, cookie);
+    if (body.error) return json({ ok: false, message: COPY.needSignIn }, 400, cookie);
+    const posted = normalizeEmail(body.email);
+    if (posted && posted !== email) return json({ ok: false, message: COPY.referralLocked }, 403, cookie);
+    if (!email || !unlock.unlocked || unlock.email !== email) {
+      return json({ ok: false, message: COPY.referralLocked }, 403, cookie);
+    }
     if (!billing || typeof billing.issueCashReferralCode !== "function") {
       return json({ ok: false, message: COPY.retry }, 503, cookie);
     }
     try {
-      const issued = await billing.issueCashReferralCode({ domain: DOMAIN, email: want });
+      const issued = await billing.issueCashReferralCode({ domain: DOMAIN, email });
       if (!issued || issued.ok !== true || typeof issued.link !== "string") {
         return json({ ok: false, message: COPY.retry }, 502, cookie);
       }
       let stats = null;
       if (typeof billing.getCashReferralStatus === "function") {
-        try { stats = await billing.getCashReferralStatus({ domain: DOMAIN, email: want }); } catch { stats = null; }
+        try { stats = await billing.getCashReferralStatus({ domain: DOMAIN, email }); } catch { stats = null; }
       }
       return json({
         ok: true,
@@ -321,7 +329,6 @@ export async function handleUnlock(request, env, opts = {}) {
     return json(view({ unlocked: unlock.unlocked, seconds: loaded.seconds }), 200, cookie);
   }
 
-  // tick
   const body = await readJson(request);
   if (body.error) return json({ ok: false, message: COPY.method }, 400, cookie);
   if (unlock.unlocked) {
@@ -329,9 +336,16 @@ export async function handleUnlock(request, env, opts = {}) {
   }
   const who = unlock.email || email;
   const loaded = await loadSeconds(kv, day, deviceId, who);
+  const share = refFromRequest(request);
+  if (!loaded.device) {
+    await recordStep(env, { step: "play_day", ref: share, now, slot: `play_day:${day}:${share || ""}` });
+  }
   const deviceNext = advance(loaded.device, now, MAX_TICK_SECONDS);
   const accountNext = who ? advance(loaded.account, now, MAX_TICK_SECONDS) : null;
   const merged = mergePeak(deviceNext, accountNext);
   const seconds = kv ? await savePlay(kv, day, deviceId, who, merged) : merged.device.seconds;
+  if (!overLimit(loaded.seconds, FREE_PLAY_MINUTES) && overLimit(seconds, FREE_PLAY_MINUTES)) {
+    await recordStep(env, { step: "gate_day", ref: share, now, slot: `gate_day:${day}:${share || ""}` });
+  }
   return json(view({ unlocked: false, seconds }), 200, cookie);
 }

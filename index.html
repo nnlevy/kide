@@ -437,6 +437,21 @@ try{navigator.clipboard.writeText(link).then(function(){t.textContent="Link copi
    costing more credibility on the front page than an address is worth,
    and a parent who has actually played is a far better person to ask. */
 </script>
+<script>
+  // A tap on Play from this grown-up page. The server reads the share cookie.
+  (function(){
+    document.addEventListener("click", function (e) {
+      var a = e.target && e.target.closest ? e.target.closest('a[href="/play"],a[href="/play/"]') : null;
+      if (!a) return;
+      try {
+        var body = JSON.stringify({ step: "home_cta" });
+        if (!(navigator.sendBeacon && navigator.sendBeacon("/api/funnel", new Blob([body], { type: "application/json" })))) {
+          fetch("/api/funnel", { method: "POST", body: body, keepalive: true, credentials: "same-origin", headers: { "Content-Type": "application/json" } });
+        }
+      } catch (err) {}
+    }, { capture: true });
+  })();
+</script>
 <script type="module">
   // Parent-facing page: measured, with no identifier of any kind. Child-facing
   // surfaces (/words, /play) send nothing at all. See engine/measure.js.

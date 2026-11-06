@@ -87,6 +87,8 @@
   var shown = false;
   var timer = 0;
   var poll = 0;
+  var from = "gate";
+  var NO_CHARGE = "No charge was made. Family play is here whenever you're ready.";
   // A playtime in progress is never cut short. If free time runs out mid-play,
   // the ask waits for Pip's goodnight (or the child leaving for the home screen).
   // A child who never tucks Pip in still meets the ask, after LONG_PLAY_MS.
@@ -117,6 +119,7 @@
   function showAfterGoodnight() {
     if (shown) return;
     shown = true;
+    from = "goodnight";
     pending = false;
     if (poll) clearInterval(poll);
     if (fallback) clearTimeout(fallback);
@@ -145,6 +148,7 @@
   function show(seconds) {
     if (shown) return;
     shown = true;
+    from = "gate";
     pending = false;
     if (poll) clearInterval(poll);
     if (fallback) clearTimeout(fallback);
@@ -186,7 +190,35 @@
 
   function go() {
     if (timer) clearInterval(timer);
-    location.href = "/unlock/";
+    location.href = "/unlock/?from=" + from;
+  }
+
+  function showCancelNote() {
+    var params;
+    try { params = new URLSearchParams(location.search); }
+    catch (e) { return; }
+    if (params.get("checkout") !== "cancel") return;
+    if (document.getElementById("kide-no-charge")) return;
+    params.delete("checkout");
+    var qs = params.toString();
+    try { history.replaceState(null, "", location.pathname + (qs ? "?" + qs : "") + location.hash); }
+    catch (e) { /* the note still shows for this visit */ }
+    var style = document.createElement("style");
+    style.id = "kide-no-charge-style";
+    style.textContent = "#kide-no-charge{position:fixed;z-index:90;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top,0px));background:#fff;color:#2E3A3F;border-radius:18px;padding:14px 14px 12px;box-shadow:0 8px 0 rgba(0,0,0,.08);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Rounded','Segoe UI',Roboto,sans-serif;}#kide-no-charge p{margin:0 0 10px;font-size:16px;line-height:1.35;font-weight:700;}#kide-no-charge button{appearance:none;width:100%;min-height:48px;border:none;border-radius:999px;padding:12px 16px;font:inherit;font-size:16px;font-weight:800;color:#2E3A3F;cursor:pointer;background:#E7F6EE;}";
+    document.head.appendChild(style);
+    var note = document.createElement("div");
+    note.id = "kide-no-charge";
+    note.setAttribute("role", "status");
+    var p = document.createElement("p");
+    p.textContent = NO_CHARGE;
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = "Keep playing";
+    btn.addEventListener("click", function () { note.remove(); });
+    note.appendChild(p);
+    note.appendChild(btn);
+    document.body.appendChild(note);
   }
 
   function apply(data) {
@@ -230,6 +262,7 @@
   }
 
   function start() {
+    showCancelNote();
     post("/api/unlock/status").then(function (data) {
       apply(data);
       if (!shown) poll = setInterval(beat, 15000);

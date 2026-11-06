@@ -78,6 +78,16 @@ function cookiePair(res) {
 }
 
 const SESSION = '__Host-rft_session=abcdefghijklmnopqrstuvwxyzABCDEFGHIJK12345';
+const SID = 'cs_test_a1b2c3d4e5f6g7h8';
+const SID_B = 'cs_test_b2c3d4e5f6g7h8i9';
+
+function messaging(email = 'parent@example.com') {
+  return { async currentSession() { return { ok: true, email }; } };
+}
+
+function signed(env, email) {
+  return { ...env, PORTFOLIO_MESSAGING_SERVICE: messaging(email) };
+}
 
 console.log('\nconfig names the live family price');
 
@@ -103,8 +113,8 @@ await t('checkout input reuses the hub fields and returns to play on cancel', ()
   assert.equal(input.offeringId, 'family_unlock');
   assert.equal(input.priceId, STRIPE_PRICE_ID);
   assert.equal(input.sourceDomain, 'kide.us');
-  assert.equal(input.cancelUrl, 'https://kide.us/play/');
-  assert.equal(input.successUrl, 'https://kide.us/unlock/?checkout=success&email=parent%40example.com');
+  assert.equal(input.cancelUrl, 'https://kide.us/play/?checkout=cancel');
+  assert.equal(input.successUrl, 'https://kide.us/unlock/?checkout=success&sid={CHECKOUT_SESSION_ID}');
   assert(!/data=/.test(input.successUrl + input.cancelUrl));
   assert.equal(httpsUrl('https://checkout.stripe.com/c/pay/cs_test_fake'), 'https://checkout.stripe.com/c/pay/cs_test_fake');
   assert.equal(httpsUrl('http://checkout.stripe.com/c/pay/x'), null);
@@ -113,28 +123,74 @@ await t('checkout input reuses the hub fields and returns to play on cancel', ()
 
 await t('purchase history must name the family offering', () => {
   const cfg = { offeringId: 'family_unlock', priceId: STRIPE_PRICE_ID, domain: 'kide.us' };
-  assert.deepEqual(purchaseGrantsUnlock(null, cfg), { known: false, unlocked: false });
-  assert.deepEqual(purchaseGrantsUnlock({ ok: false }, cfg), { known: false, unlocked: false });
-  assert.equal(purchaseGrantsUnlock({
+  assert.deepEqual(purchaseGrantsUnlock(null, cfg), { known: false, unlocked: false, sourceRef: '' });
+  assert.deepEqual(purchaseGrantsUnlock({ ok: false }, cfg), { known: false, unlocked: false, sourceRef: '' });
+  assert.deepEqual(purchaseGrantsUnlock({
     ok: true,
     summaries: [{ domain: 'kide.us', creditsPurchased: 9 }],
-  }, cfg).unlocked, false, 'a bare credit total is the clinician signal');
+  }, cfg), { known: false, unlocked: false, sourceRef: '' }, 'summaries without purchases are not a receipt');
   assert.equal(purchaseGrantsUnlock({
     ok: true,
     summaries: [{ domain: 'kide.us', offeringId: 'family_unlock', creditsPurchased: 1 }],
-  }, cfg).unlocked, true);
+  }, cfg).unlocked, false, 'summaries are not a purchase receipt');
   assert.equal(purchaseGrantsUnlock({
     ok: true,
     purchases: [{ domain: 'kide.us', priceId: STRIPE_PRICE_ID, status: 'paid' }],
+  }, cfg).unlocked, false, 'a price id is not the Checkout session');
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
+    purchases: [{ domain: 'kide.us', sku: 'family_unlock', status: 'paid' }],
+  }, cfg).unlocked, false);
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
+    purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', sourceRef: '42', status: 'paid' }],
+  }, cfg).unlocked, false, 'purchases.id is not sourceRef');
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
+    purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', sourceRef: SID, status: 'pending' }],
+  }, cfg).unlocked, false);
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
+    purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', sourceRef: SID, status: 'paid' }],
+  }, cfg).sourceRef, SID);
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
+    purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', sourceRef: SID, status: 'fulfilled' }],
   }, cfg).unlocked, true);
   assert.equal(purchaseGrantsUnlock({
     ok: true,
-    purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', status: 'refunded' }],
+    purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', sourceRef: SID, status: 'refunded' }],
   }, cfg).unlocked, false);
   assert.equal(purchaseGrantsUnlock({
     ok: true,
-    purchases: [{ domain: 'other.example', offeringId: 'family_unlock', status: 'paid' }],
+    purchases: [
+      { domain: 'kide.us', offeringId: 'family_unlock', sourceRef: SID, status: 'paid' },
+      { domain: 'kide.us', offeringId: 'family_unlock', sourceRef: SID, status: 'refunded' },
+    ],
+  }, cfg).unlocked, false, 'the same Checkout session refunded wins');
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
+    purchases: [
+      { domain: 'kide.us', offeringId: 'family_unlock', sourceRef: SID, status: 'refunded' },
+      { domain: 'kide.us', offeringId: 'family_unlock', sourceRef: SID_B, status: 'paid' },
+    ],
+  }, cfg).sourceRef, SID_B);
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
+    purchases: [],
+  }, cfg).known, true);
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
+    purchases: [{ domain: 'kide.us', offeringId: 'clinician_report', sourceRef: SID, status: 'paid' }],
   }, cfg).unlocked, false);
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
+    purchases: [{ domain: 'other.example', offeringId: 'family_unlock', sourceRef: SID, status: 'paid' }],
+  }, cfg).unlocked, false);
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
+    purchases: [{ offeringId: 'family_unlock', sourceRef: SID, status: 'paid' }],
+  }, cfg).unlocked, false, 'a receipt with no domain does not grant');
 });
 
 console.log('\ngrown-up hold and the ten second wait');
@@ -168,7 +224,7 @@ console.log('\nthe timer survives a reload and a paid parent skips it');
 
 const paid = {
   ok: true,
-  purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', priceId: STRIPE_PRICE_ID, status: 'paid' }],
+  purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', sourceRef: SID, status: 'paid' }],
 };
 const unpaid = { ok: true, purchases: [] };
 
@@ -202,21 +258,21 @@ await t('five minutes gates, and a new request with the same device is still gat
   assert.equal(tomorrow.playedSeconds, 0);
 });
 
-await t('a purchase sticks on the device and gates the timer off', async () => {
+await t('a signed-in purchase skips the gate and logout cannot restore it', async () => {
   const kv = memoryKv();
   let credits = unpaid;
   const hub = billing(() => credits);
-  const env = { KIDE_LEADS: kv, PORTFOLIO_BILLING_SERVICE: hub };
+  const env = signed({ KIDE_LEADS: kv, PORTFOLIO_BILLING_SERVICE: hub });
   let now = Date.parse('2026-11-01T15:00:00Z');
-  let cookie = '';
-  const hit = async (path, body, extraCookie = '') => {
+  let cookie = SESSION;
+  const hit = async (path, body) => {
     const res = await handleUnlock(req(path, {
       method: body ? 'POST' : 'GET',
-      cookie: [cookie, extraCookie].filter(Boolean).join('; '),
+      cookie,
       body,
     }), env, { now });
     const next = cookiePair(res);
-    if (next) cookie = next;
+    if (next) cookie = `${SESSION}; ${next}`;
     return { res, data: await res.json() };
   };
   await hit('/api/unlock/tick', {});
@@ -227,35 +283,34 @@ await t('a purchase sticks on the device and gates the timer off', async () => {
   const gated = await hit('/api/unlock/status');
   assert.equal(gated.data.gated, true);
 
-  const before = hub.creditReads();
-  const denied = await hit('/api/unlock/confirm', { email: 'Parent@Example.com', offeringId: 'clinician_report' });
+  const denied = await hit('/api/unlock/confirm', { email: 'other@example.com' });
   assert.equal(denied.data.unlocked, false);
+  assert.equal(hub.creditReads() > 0, true);
 
   credits = paid;
-  const bought = await hit('/api/unlock/confirm', { email: 'parent@example.com' });
+  const readsBefore = hub.creditReads();
+  const bought = await hit('/api/unlock/confirm', { email: 'other@example.com' });
   assert.equal(bought.data.unlocked, true);
-  const readsAfterBuy = hub.creditReads();
   const open = await hit('/api/unlock/status');
   assert.equal(open.data.unlocked, true);
   assert.equal(open.data.gated, false);
-  assert.equal(hub.creditReads(), readsAfterBuy, 'a fresh unlock called the hub again');
+  assert.ok(hub.creditReads() > readsBefore, 'a fresh status asks the hub again');
   const ticked = await hit('/api/unlock/tick', { seconds: 99999 });
   assert.equal(ticked.data.gated, false);
 
-  const deviceOnly = cookie;
-  const otherBrowser = await handleUnlock(
+  const deviceOnly = cookie.replace(SESSION, '').replace(/^;\s*/, '');
+  await kv.put('kide:family-unlock:v1:device:planted', JSON.stringify({ unlocked: true, email: 'parent@example.com' }));
+  const signedOut = await handleUnlock(
     req('/api/unlock/status', { cookie: deviceOnly }),
     env,
     { now: now + 1000 },
   );
-  assert.equal((await otherBrowser.json()).unlocked, true);
+  assert.equal((await signedOut.json()).unlocked, false, 'no session means no paid identity');
 
   credits = unpaid;
-  now += 61_000;
   const revoked = await hit('/api/unlock/status');
   assert.equal(revoked.data.unlocked, false);
   assert.equal(revoked.data.gated, true);
-  assert.ok(before >= 0);
 });
 
 await t('a purchase records the parent unlock flag and a refund clears it', async () => {
@@ -267,24 +322,26 @@ await t('a purchase records the parent unlock flag and a refund clears it', asyn
     async batch() {},
   };
   let credits = paid;
-  const env = { KIDE_LEADS: memoryKv(), DB, PORTFOLIO_BILLING_SERVICE: billing(() => credits) };
+  const env = signed({ KIDE_LEADS: memoryKv(), DB, PORTFOLIO_BILLING_SERVICE: billing(() => credits) });
   const bought = await handleUnlock(req('/api/unlock/confirm', {
     method: 'POST',
-    body: { email: 'parent@example.com' },
+    cookie: SESSION,
+    body: { email: 'other@example.com' },
   }), env, { now: 1 });
   assert.equal((await bought.json()).unlocked, true);
   const active = rows.at(-1);
   assert.match(active[0], /^p_[a-f0-9]{32}$/);
   assert.equal(active[1], 'unlock');
-  assert.equal(active[2], 'family_unlock');
+  assert.equal(active[2], SID);
   assert.equal(active[3], 'active');
   credits = {
     ok: true,
-    purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', status: 'refunded' }],
+    purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', sourceRef: SID, status: 'refunded' }],
   };
   const revoked = await handleUnlock(req('/api/unlock/confirm', {
     method: 'POST',
-    body: { email: 'parent@example.com' },
+    cookie: SESSION,
+    body: { email: 'other@example.com' },
   }), env, { now: 2 });
   assert.equal((await revoked.json()).unlocked, false);
   assert.equal(rows.at(-1)[3], 'inactive');
@@ -294,12 +351,13 @@ await t('a purchase records the parent unlock flag and a refund clears it', asyn
   };
   const clinician = await handleUnlock(req('/api/unlock/confirm', {
     method: 'POST',
+    cookie: SESSION,
     body: { email: 'clinician@example.com' },
-  }), {
+  }), signed({
     KIDE_LEADS: memoryKv(),
     DB,
     PORTFOLIO_BILLING_SERVICE: billing(licence),
-  }, { now: 3 });
+  }, 'clinician@example.com'), { now: 3 });
   assert.equal((await clinician.json()).unlocked, false);
   assert.equal(rows.at(-1)[3], 'inactive');
 });
@@ -311,16 +369,16 @@ await t('a hub miss does not take a paid unlock away', async () => {
     if (mode === 'throw') throw new Error('hub down');
     return paid;
   });
-  const env = { KIDE_LEADS: kv, PORTFOLIO_BILLING_SERVICE: hub };
+  const env = signed({ KIDE_LEADS: kv, PORTFOLIO_BILLING_SERVICE: hub });
   const now = Date.parse('2026-11-01T15:00:00Z');
   const first = await handleUnlock(req('/api/unlock/confirm', {
     method: 'POST',
-    body: { email: 'parent@example.com' },
+    cookie: SESSION,
+    body: { email: 'other@example.com' },
   }), env, { now });
-  const cookie = cookiePair(first);
   assert.equal((await first.json()).unlocked, true);
   mode = 'throw';
-  const later = await handleUnlock(req('/api/unlock/status', { cookie }), env, { now: now + 120_000 });
+  const later = await handleUnlock(req('/api/unlock/status', { cookie: SESSION }), env, { now: now + 1000 });
   const data = await later.json();
   assert.equal(data.unlocked, true);
   assert.equal(data.gated, false);
@@ -332,18 +390,28 @@ await t('checkout goes through the billing binding and ignores a swapped offerin
   globalThis.fetch = () => { fetches++; throw new Error('live fetch'); };
   try {
     const hub = billing(unpaid);
-    const env = { KIDE_LEADS: memoryKv(), PORTFOLIO_BILLING_SERVICE: hub };
+    const env = signed({ KIDE_LEADS: memoryKv(), PORTFOLIO_BILLING_SERVICE: hub });
     const res = await handleUnlock(req('/api/unlock/checkout', {
       method: 'POST',
-      body: { email: 'parent@example.com', offeringId: 'clinician_report', record: { targets: [] } },
+      cookie: SESSION,
+      body: { email: 'other@example.com', offeringId: 'clinician_report', record: { targets: [] }, qa: true },
     }), env, { now: 1 });
     const data = await res.json();
-    assert.equal(res.status, 200);
-    assert.equal(data.url, 'https://checkout.stripe.com/c/pay/cs_test_fake');
+    assert.equal(res.status, 400, 'a qa flag cannot open checkout');
+    assert.equal(hub.calls.length, 0);
+    const real = await handleUnlock(req('/api/unlock/checkout', {
+      method: 'POST',
+      cookie: SESSION,
+      body: { email: 'other@example.com', offeringId: 'clinician_report', record: { targets: [] } },
+    }), env, { now: 1 });
+    const realData = await real.json();
+    assert.equal(real.status, 200);
+    assert.equal(realData.url, 'https://checkout.stripe.com/c/pay/cs_test_fake');
     assert.equal(hub.calls.length, 1);
+    assert.equal(hub.calls[0].email, 'parent@example.com');
     assert.equal(hub.calls[0].offeringId, 'family_unlock');
     assert.equal(hub.calls[0].priceId, STRIPE_PRICE_ID);
-    assert.equal(hub.calls[0].cancelUrl, 'https://kide.us/play/');
+    assert.equal(hub.calls[0].cancelUrl, 'https://kide.us/play/?checkout=cancel');
     assert(!('record' in hub.calls[0]));
     assert.equal(fetches, 0);
   } finally {
@@ -352,9 +420,10 @@ await t('checkout goes through the billing binding and ignores a swapped offerin
 });
 
 await t('a bad checkout answer stays in parent language', async () => {
-  const env = { KIDE_LEADS: memoryKv(), PORTFOLIO_BILLING_SERVICE: billing(unpaid, { ok: false, url: 'http://insecure.example/pay' }) };
+  const env = signed({ KIDE_LEADS: memoryKv(), PORTFOLIO_BILLING_SERVICE: billing(unpaid, { ok: false, url: 'http://insecure.example/pay' }) });
   const res = await handleUnlock(req('/api/unlock/checkout', {
     method: 'POST',
+    cookie: SESSION,
     body: { email: 'parent@example.com' },
   }), env, { now: 1 });
   const data = await res.json();
@@ -365,11 +434,12 @@ await t('a bad checkout answer stays in parent language', async () => {
     method: 'POST',
     body: { email: 'not-an-email' },
   }), { KIDE_LEADS: memoryKv() }, { now: 1 });
-  assert.equal((await missing.json()).message, COPY.needEmail);
+  assert.equal((await missing.json()).message, COPY.needSignIn);
   const down = await handleUnlock(req('/api/unlock/checkout', {
     method: 'POST',
+    cookie: SESSION,
     body: { email: 'parent@example.com' },
-  }), { KIDE_LEADS: memoryKv() }, { now: 1 });
+  }), signed({ KIDE_LEADS: memoryKv() }), { now: 1 });
   assert.equal(down.status, 503);
   assert.equal(readable((await down.json()).message), true);
 });
@@ -520,11 +590,20 @@ T(("127.0.0.1", ${port}), H).serve_forever()
     assert.equal(after.priceOk, true, after.price);
 
     let notified = null;
-    await page.route('**/api/unlock/checkout', (route) => route.fulfill({
+    let checkouts = 0;
+    await page.route('**/api/account/me', (route) => route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ ok: false, error: 'fulfillment_not_ready', message: 'Checkout failed' }),
+      body: JSON.stringify({ ok: false, signedIn: false }),
     }));
+    await page.route('**/api/unlock/checkout', (route) => {
+      checkouts += 1;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: false, error: 'fulfillment_not_ready', message: 'Checkout failed' }),
+      });
+    });
     await page.route('**/api/notify', async (route) => {
       notified = route.request().postDataJSON();
       await route.fulfill({
@@ -533,7 +612,16 @@ T(("127.0.0.1", ${port}), H).serve_forever()
         body: JSON.stringify({ ok: true }),
       });
     });
-    await page.fill('#email', 'parent@example.com');
+    await page.click('#payGo');
+    await page.waitForFunction(() => /parent account/i.test(document.getElementById('payMsg').textContent));
+    assert.equal(checkouts, 0, 'a typed email is not a checkout');
+    assert.equal(notified, null);
+    await page.unroute('**/api/account/me');
+    await page.route('**/api/account/me', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, signedIn: true, email: 'parent@example.com' }),
+    }));
     await page.click('#payGo');
     await page.waitForFunction(() => /opening soon/i.test(document.getElementById('payMsg').textContent));
     const msg = await page.locator('#payMsg').innerText();
@@ -542,6 +630,7 @@ T(("127.0.0.1", ${port}), H).serve_forever()
     assert.doesNotMatch(msg, /fulfillment|failed|502|503/i);
     const visible = await page.locator('body').innerText();
     assert.doesNotMatch(visible, /fulfillment_not_ready|Checkout failed/);
+    assert.equal(checkouts, 1);
     assert.equal(notified && notified.email, 'parent@example.com');
     assert.equal(notified.matchedDomain, 'kide');
     console.log('  ok   unlock page at 320px');
@@ -620,10 +709,11 @@ await t('share links name the sender and a claim link can add a payout email', a
 
 await t('checkout carries the ref code to the hub, and no code means no metadata', async () => {
   const hub = billing(unpaid);
-  const env = { KIDE_LEADS: memoryKv(), PORTFOLIO_BILLING_SERVICE: hub };
-  await handleUnlock(req('/api/unlock/checkout', { method: 'POST', cookie: 'kide_ref=AB3DEFGH', body: { email: 'friend@example.com' } }), env, { now: 1 });
+  const env = signed({ KIDE_LEADS: memoryKv(), PORTFOLIO_BILLING_SERVICE: hub });
+  await handleUnlock(req('/api/unlock/checkout', { method: 'POST', cookie: `${SESSION}; kide_ref=AB3DEFGH`, body: { email: 'friend@example.com' } }), env, { now: 1 });
+  assert.equal(hub.calls[0].email, 'parent@example.com');
   assert.deepEqual(hub.calls[0].customMetadata, { ref: 'AB3DEFGH' });
-  await handleUnlock(req('/api/unlock/checkout', { method: 'POST', body: { email: 'friend@example.com' } }), env, { now: 1 });
+  await handleUnlock(req('/api/unlock/checkout', { method: 'POST', cookie: SESSION, body: { email: 'friend@example.com' } }), env, { now: 1 });
   assert.equal('customMetadata' in hub.calls[1], false);
   assert.equal('customMetadata' in checkoutInput({ origin: 'https://kide.us', email: 'a@b.co', ref: 'bad' }), false);
 });
@@ -635,18 +725,18 @@ await t('only a family with play on this device (or the signed-in parent) gets a
     async issueCashReferralCode(input) { issued.push(input); return { ok: true, code: 'AB3DEFGH', link: 'https://kide.us/?ref=AB3DEFGH', rewardLabel: '$5 for you' }; },
     async getCashReferralStatus() { return { ok: true, families: 2, earnedCents: 1000 }; },
   };
-  const env = { KIDE_LEADS: memoryKv(), PORTFOLIO_BILLING_SERVICE: hub };
+  const env = signed({ KIDE_LEADS: memoryKv(), PORTFOLIO_BILLING_SERVICE: hub });
   const stranger = await handleUnlock(req('/api/unlock/referral', { method: 'POST', body: { email: 'someone@example.com' } }), env, { now: 1 });
   assert.equal(stranger.status, 403);
   assert.equal(issued.length, 0);
   const strangerData = await stranger.json();
   assert.ok(readable(strangerData.message));
 
-  const confirmed = await handleUnlock(req('/api/unlock/confirm', { method: 'POST', body: { email: 'parent@example.com' } }), env, { now: 1 });
-  const cookie = cookiePair(confirmed);
-  const other = await handleUnlock(req('/api/unlock/referral', { method: 'POST', cookie, body: { email: 'someone@example.com' } }), env, { now: 2 });
-  assert.equal(other.status, 403, 'a paid device cannot mint a code for another address');
-  const mine = await handleUnlock(req('/api/unlock/referral', { method: 'POST', cookie, body: { email: 'Parent@Example.com' } }), env, { now: 2 });
+  const confirmed = await handleUnlock(req('/api/unlock/confirm', { method: 'POST', cookie: SESSION, body: { email: 'someone@example.com' } }), env, { now: 1 });
+  assert.equal((await confirmed.json()).unlocked, true);
+  const other = await handleUnlock(req('/api/unlock/referral', { method: 'POST', cookie: SESSION, body: { email: 'someone@example.com' } }), env, { now: 2 });
+  assert.equal(other.status, 403, 'a posted email cannot mint a code');
+  const mine = await handleUnlock(req('/api/unlock/referral', { method: 'POST', cookie: SESSION, body: {} }), env, { now: 2 });
   const data = await mine.json();
   assert.equal(mine.status, 200);
   assert.equal(data.link, 'https://kide.us/?ref=AB3DEFGH');
