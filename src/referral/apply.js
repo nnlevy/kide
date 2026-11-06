@@ -1,20 +1,20 @@
 // Money path: a cleared $15 family_unlock credits the sharer $6 in the cash
-// ledger. Attribution comes only from the hub purchase row (custom_ref +
-// stable Stripe/hub id + paid time). The browser kide_ref cookie is not proof.
+// ledger only when the hub row carries a stable purchase id, checkout-time
+// attribution, and paid time. The browser kide_ref cookie is not proof.
 //
-// Hub contract (getCredits). riskfreetrial source was not readable here.
-// Until Automator returns these fields on a family purchase, kide will unlock
-// play from offering/status but will not credit $6:
-//   purchases[].domain = "kide.us"
-//   purchases[].offeringId = "family_unlock" OR priceId = live family price
-//   purchases[].status = paid | refunded | reversed | canceled | ...
-//   purchases[].id | sessionId | paymentIntent | chargeId = cs_|ch_|pi_|in_|py_...
-//   purchases[].paidAt | createdAt = ISO or epoch ms (hold starts here)
-//   purchases[].metadata.custom_ref = the 8-char code from createCheckout
-//     customMetadata.ref (hub copies that to Stripe metadata[custom_ref])
-//   optional purchases[].amountCents = 1500 and currency = usd; a present
-//     wrong amount blocks the credit
-// No new hub method. No Connect. No webhook on this worker.
+// Pinned hub source (reported, not live, not deployed): riskfreetrial
+// a686eaa getCredits(email) returns purchases shaped
+// { domain, offeringId, sourceRef, status } where sourceRef is the Checkout
+// session id and status is paid | fulfilled | refunded. That source has NO
+// paidAt and NO custom_ref. Live hub remains 1a75001 and publication HELD.
+// A refunded status alone is not webhook freshness.
+//
+// $6 stays 0 until a family row also has:
+//   paidAt | createdAt (ISO or epoch ms) — hold starts here
+//   metadata.custom_ref | customRef | metadata.ref — the 8-char code from
+//     createCheckout customMetadata.ref
+// optional amountCents = 1500 usd; a present wrong amount blocks the credit
+// No new hub method. No invented fields. No Connect. No webhook here.
 
 import { parentIdFor } from "../account/parent-id.js";
 import { DOMAIN, OFFERING_ID, STRIPE_PRICE_ID } from "../unlock/config.js";

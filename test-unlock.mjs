@@ -17,7 +17,7 @@ import {
 } from './src/unlock/config.js';
 import { checkoutInput, httpsUrl } from './src/unlock/checkout.js';
 import { COPY, readable } from './src/unlock/copy.js';
-import { purchaseGrantsUnlock } from './src/unlock/entitlement.js';
+import { familyPurchaseFacts, purchaseGrantsUnlock, purchaseRefOf } from './src/unlock/entitlement.js';
 import { advance, overLimit } from './src/unlock/minutes.js';
 import { answerMatches, makeHold, nextPoll, ENTITLEMENT_WAIT_MS as WAIT } from './public/unlock/gate.js';
 import { isMeasured } from './public/engine/measure.js';
@@ -141,6 +141,17 @@ await t('purchase history must name the family offering', () => {
   assert.equal(purchaseGrantsUnlock({
     ok: true,
     purchases: [{ domain: 'other.example', offeringId: 'family_unlock', status: 'paid' }],
+  }, cfg).unlocked, false);
+  const hubShape = {
+    domain: 'kide.us', offeringId: 'family_unlock', sourceRef: 'cs_test_hub_session', status: 'fulfilled',
+  };
+  assert.equal(purchaseRefOf(hubShape), 'cs_test_hub_session');
+  assert.equal(purchaseRefOf({ domain: 'kide.us', offeringId: 'family_unlock', status: 'paid' }), null);
+  assert.equal(purchaseGrantsUnlock({ ok: true, purchases: [hubShape] }, cfg).unlocked, true);
+  assert.deepEqual(familyPurchaseFacts({ ok: true, purchases: [hubShape] }, cfg), [], 'no paidAt or custom_ref means no $6');
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
+    purchases: [{ ...hubShape, status: 'refunded' }],
   }, cfg).unlocked, false);
 });
 

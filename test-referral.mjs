@@ -334,6 +334,77 @@ await t('a second purchase id for the same buyer does not pay a second $6', asyn
   assert.equal((await earningsFor(db, a, DAY + 2)).pendingCents, 0);
 });
 
+await t('hub sourceRef/status unlocks play and credits $0 without paidAt and custom_ref', async () => {
+  const db = memoryDb();
+  const events = [];
+  const a = await parent('a@example.com');
+  const issued = await issueCode(db, { parentId: a, email: 'a@example.com' });
+  // MOCKED getCredits shaped like pinned riskfreetrial a686eaa. Not live hub 1a75001.
+  const hubPaid = {
+    ok: true,
+    purchases: [{
+      domain: 'kide.us',
+      offeringId: 'family_unlock',
+      sourceRef: 'cs_test_source_ref',
+      status: 'paid',
+    }],
+  };
+  const env = { DB: db, KIDE_LEADS: memoryKv(), PORTFOLIO_BILLING_SERVICE: { ...hub(events), async getCredits() { return hubPaid; } } };
+  const paid = await handleUnlock(req('/api/unlock/confirm', {
+    method: 'POST',
+    cookie: `kide_ref=${issued.code}`,
+    body: { email: 'b@example.com' },
+  }), env, { now: DAY });
+  assert.equal((await paid.json()).unlocked, true);
+  assert.equal((await earningsFor(db, a, DAY)).pendingCents, 0, 'sourceRef without paidAt and custom_ref is not a $6');
+
+  env.PORTFOLIO_BILLING_SERVICE.getCredits = async () => ({
+    ok: true,
+    purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', sourceRef: 'cs_test_source_ref', status: 'fulfilled' }],
+  });
+  const fulfilled = await handleUnlock(req('/api/unlock/confirm', {
+    method: 'POST',
+    cookie: `kide_ref=${issued.code}`,
+    body: { email: 'b@example.com' },
+  }), env, { now: DAY + 1 });
+  assert.equal((await fulfilled.json()).unlocked, true);
+  assert.equal((await earningsFor(db, a, DAY + 1)).pendingCents, 0);
+
+  env.PORTFOLIO_BILLING_SERVICE.getCredits = async () => ({
+    ok: true,
+    purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', sourceRef: 'cs_test_source_ref', status: 'refunded' }],
+  });
+  const refunded = await handleUnlock(req('/api/unlock/confirm', {
+    method: 'POST',
+    body: { email: 'b@example.com' },
+  }), env, { now: DAY + 2 });
+  assert.equal((await refunded.json()).unlocked, false);
+  assert.equal((await earningsFor(db, a, DAY + 2)).pendingCents, 0);
+  assert.equal(events.some((e) => e.event === 'reversed'), false, 'refunded status alone is not a webhook');
+
+  env.PORTFOLIO_BILLING_SERVICE.getCredits = async () => ({
+    ok: true,
+    purchases: [{
+      domain: 'kide.us',
+      offeringId: 'family_unlock',
+      sourceRef: 'cs_test_source_ref',
+      status: 'paid',
+      paidAt: DAY,
+      metadata: { custom_ref: issued.code },
+    }],
+  });
+  const credited = await handleUnlock(req('/api/unlock/confirm', {
+    method: 'POST',
+    cookie: 'kide_ref=ZZZZZZZZ',
+    body: { email: 'b@example.com' },
+  }), env, { now: DAY + 3 });
+  assert.equal((await credited.json()).unlocked, true);
+  assert.equal((await earningsFor(db, a, DAY + 3)).pendingCents, 600);
+  const row = await db.prepare('SELECT purchase_ref, hold_until FROM kide_referral_ledger').first();
+  assert.equal(row.purchase_ref, 'cs_test_source_ref');
+  assert.equal(row.hold_until, new Date(DAY + HOLD_MS).toISOString());
+});
+
 await t('the sharer cannot be the buyer on the confirm path', async () => {
   const db = memoryDb();
   const aEmail = 'a@example.com';

@@ -7,6 +7,7 @@ import { AMOUNT_CENTS } from "./config.js";
 import { normalizeRef } from "../referral/ref.js";
 
 const REFUND = new Set(["refunded", "reversed", "canceled", "cancelled", "failed", "unpaid"]);
+const CLEARED = new Set(["paid", "fulfilled"]);
 const PURCHASE_REF = /^(cs_|ch_|pi_|in_|py_)[A-Za-z0-9_]+$/;
 
 function rowsOf(credits) {
@@ -45,7 +46,9 @@ export function isStablePurchaseRef(value) {
 
 export function purchaseRefOf(row) {
   if (!row || typeof row !== "object") return null;
-  for (const key of ["id", "purchaseId", "sessionId", "paymentIntent", "chargeId"]) {
+  // Hub getCredits (pinned riskfreetrial main a686eaa) names the Checkout
+  // session sourceRef. Do not require an invented id / sessionId field.
+  for (const key of ["sourceRef", "id", "purchaseId", "sessionId", "paymentIntent", "chargeId"]) {
     if (isStablePurchaseRef(row[key])) return row[key];
   }
   return null;
@@ -101,10 +104,12 @@ export function purchaseGrantsUnlock(credits, cfg) {
   for (const row of rowsOf(credits)) {
     if (!familyRow(row, cfg)) continue;
     const key = purchaseRefOf(row) || "_noid_";
-    const refunded = REFUND.has(statusOf(row));
+    const status = statusOf(row);
+    const refunded = REFUND.has(status);
+    const cleared = !status || CLEARED.has(status);
     const prev = groups.get(key) || { paid: false, refunded: false };
     if (refunded) prev.refunded = true;
-    else prev.paid = true;
+    else if (cleared) prev.paid = true;
     groups.set(key, prev);
   }
   let unlocked = false;
@@ -126,7 +131,9 @@ export function familyPurchaseFacts(credits, cfg) {
     if (!familyRow(row, cfg)) continue;
     const purchaseRef = purchaseRefOf(row);
     if (!purchaseRef) continue;
-    const refunded = REFUND.has(statusOf(row));
+    const status = statusOf(row);
+    const refunded = REFUND.has(status);
+    const cleared = CLEARED.has(status);
     const prev = groups.get(purchaseRef) || {
       purchaseRef,
       customRef: null,
@@ -136,7 +143,7 @@ export function familyPurchaseFacts(credits, cfg) {
       refunded: false,
     };
     if (refunded) prev.refunded = true;
-    else prev.paid = true;
+    else if (cleared) prev.paid = true;
     prev.customRef = prev.customRef || customRefOf(row);
     prev.paidAt = prev.paidAt || paidAtOf(row);
     prev.amountOk = prev.amountOk && amountMatches(row);
