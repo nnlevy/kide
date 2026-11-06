@@ -1,0 +1,184 @@
+name: CI
+
+# Money path: no visitor copy and no price change. This check is what lets a
+# paid-path PR merge (pricing → /clinician/ $39 licence; family play → /unlock/
+# family_unlock $15, price_1UWqYjIzTeKgjbPrOtu7jVAG).
+#
+# pull_request and push to main must produce a real check run. kide is public,
+# so this file does not call a private reusable workflow.
+#
+# What runs: npm ci, a hard browser launch (Chromium and WebKit), ffprobe,
+# wrangler types, npm test, then the vendored canonical preflight (full
+# discovery, all 15 profiles, no path or device narrowing). The unfiltered
+# gate JSON is uploaded. A missing gate file, a browser that will not launch,
+# a missing ffprobe, or a gate finding fails the job.
+# What does not run: wrangler deploy (including deploy --dry-run), Stripe,
+# DNS, Cloudflare secrets, and any live checkout.
+# Three catalog checks still skip inside npm test. They read a sibling
+# riskfreetrial billing.ts that names kide.us, which this job does not have.
+# Those skips are missing dependencies, not proof the hub catalog is present.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# GITHUB_TOKEN stays contents: read for checkout. actions/upload-artifact@v4
+# (tag v4, package 4.6.2, dist/upload/index.js getRuntimeToken) sends
+# CreateArtifact with Bearer ACTIONS_RUNTIME_TOKEN to ACTIONS_RESULTS_URL.
+# That is not the GITHUB_TOKEN actions scope. The workflow syntax docs give
+# actions: write as the example that can cancel a workflow run, which this
+# file does not do. overwrite is left at its default false, so the bundled
+# delete path that can call the REST API with a token is not used.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Require the vendored gate
+        run: |
+          test -s tools/platform-gate/gate.mjs
+          test -s tools/platform-gate/preflight.mjs
+          test -s tools/platform-gate/VERSION
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+            if (pkg.scripts["gate:preflight"] !== "node tools/platform-gate/preflight.mjs") {
+              console.error("gate:preflight script is missing or replaced");
+              process.exit(1);
+            }
+            if (pkg.gateDomain !== "kide.us") {
+              console.error("gateDomain is not kide.us");
+              process.exit(1);
+            }
+          '
+
+      - name: Install browsers
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Browsers must launch
+        run: |
+          node --input-type=module -e '
+            import { chromium, webkit } from "playwright";
+            for (const [name, engine] of [["chromium", chromium], ["webkit", webkit]]) {
+              const browser = await engine.launch();
+              await browser.close();
+              console.log(name + " launch ok");
+            }
+          '
+
+      - name: Require ffprobe
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          command -v ffprobe
+          command -v ffmpeg
+          ffprobe -version
+
+      - name: wrangler types
+        run: npx wrangler types "${RUNNER_TEMP}/worker-configuration.d.ts"
+
+      - name: npm test
+        run: npm test
+
+      - name: Canonical platform gate
+        run: npm run gate:preflight
+
+      - name: Gate receipt is complete
+        run: |
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const gate = JSON.parse(readFileSync("gate-preflight-out/gate.json", "utf8"));
+            const rows = JSON.parse(readFileSync("gate-preflight-out/mobile/report.json", "utf8"));
+            const devices = new Set(rows.map((r) => r.device));
+            const urls = new Set(rows.map((r) => r.url));
+            const need = ["/", "/account", "/parent", "/clinician", "/unlock"];
+            const paths = new Set((gate.urls || []).map((u) => new URL(u).pathname.replace(/\/$/, "") || "/"));
+            const problems = [];
+            if (gate.summary?.failing !== 0) problems.push("failing " + gate.summary?.failing);
+            if (!gate.mobile || gate.mobile.pass !== gate.mobile.total) problems.push("mobile pass mismatch");
+            if (gate.mobile?.failing?.length) problems.push("mobile failing " + gate.mobile.failing.length);
+            if (devices.size !== 15) problems.push("devices " + devices.size);
+            if (rows.length !== devices.size * urls.size) problems.push("matrix " + rows.length);
+            if ((gate.urls || []).length !== urls.size) problems.push("url count");
+            for (const p of need) if (!paths.has(p)) problems.push("missing " + p);
+            if (problems.length) {
+              console.error(problems.join("\n"));
+              process.exit(1);
+            }
+            console.log(gate.summary);
+          '
+
+      # A failed gate still produced JSON. Uploading it does not clear that
+      # failure: this step has no continue-on-error, and a missing file errors.
+      - name: Upload gate JSON
+        if: always() && !cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-preflight
+          path: |
+            gate-preflight-out/gate.json
+            gate-preflight-out/mobile/report.json
+          if-no-files-found: error
+
+      # Local worker only. Not wrangler deploy and not a dry-run deploy.
+      # Static preflight answers /sw.js with text/plain 404; the worker must
+      # answer the asset probes with non-HTML bodies.
+      - name: Local worker asset probes
+        run: |
+          set -euo pipefail
+          npx wrangler dev --local --ip 127.0.0.1 --port 8788 --inspector-port 9230 --persist-to "${RUNNER_TEMP}/wrangler-state" --show-interactive-dev-session=false > "${RUNNER_TEMP}/wrangler.log" 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for _ in $(seq 1 90); do
+            if grep -q 'Ready on' "${RUNNER_TEMP}/wrangler.log"; then ready=1; break; fi
+            if ! kill -0 "$pid" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if [ "$ready" != 1 ]; then
+            cat "${RUNNER_TEMP}/wrangler.log"
+            exit 1
+          fi
+          node --input-type=module << 'EOF'
+          const html = (ct) => /^\s*text\/html\b/i.test(ct || "");
+          const get = async (path) => {
+            const r = await fetch("http://127.0.0.1:8788" + path, { redirect: "manual" });
+            return { path, status: r.status, ct: r.headers.get("content-type") || "" };
+          };
+          const assets = ["/sw.js", "/manifest.json", "/manifest.webmanifest", "/site.webmanifest"];
+          const pages = ["/account/", "/parent/", "/unlock/", "/clinician/"];
+          const rows = [];
+          for (const path of [...assets, ...pages, "/does-not-exist-gate"]) rows.push(await get(path));
+          const problems = [];
+          for (const row of rows) {
+            if (assets.includes(row.path) && (row.status !== 200 || html(row.ct))) problems.push(JSON.stringify(row));
+            if (pages.includes(row.path) && (row.status !== 200 || !html(row.ct))) problems.push(JSON.stringify(row));
+          }
+          const missing = rows.find((row) => row.path === "/does-not-exist-gate");
+          if (!missing || missing.status !== 404 || !html(missing.ct)) problems.push("missing-path " + JSON.stringify(missing));
+          console.log(JSON.stringify(rows, null, 1));
+          if (problems.length) {
+            console.error(problems.join("\n"));
+            process.exit(1);
+          }
+          EOF
