@@ -18,6 +18,22 @@
 //   notification source sending referral code+counts to the referrer.
 // Compatibility: do not promise "games send none of this" or "counts are not
 // shared". Leave those facts for the 20+16 page when that journey ships.
+//
+// PR22 independent review (5d1d974; 4a4 now owns corrective authorship; next
+// head needs a different reviewer). Do not implement those fixes here:
+//   POST /api/studio/clear is denied without enabled monthly entitlement;
+//   /parent Delete everything ignores that failure; expiry hides approved
+//   lessons. Do not promise those rows are wiped, or that a future fix is
+//   already on this head. Studio notes are dropped before the model/lesson
+//   row on that inspected path and are not logged there; the filter still
+//   accepts a name-bearing sample ("for Eli please"), so "never collect a
+//   child's name" is not an absolute this head may claim.
+//   Unpatched static 480/480 plus a separate private 30/30 did not prove
+//   Worker execution or current canonical-kit (ab09c0c+claims-fix) compliance.
+// Planning addendum 2026-11-05: "only answer timing" was suggested scope copy,
+// not Nir's requirement. $6/referral and $50 via Connect, and $15/month Studio,
+// are settled planning; 14-day refund hold was a proposal. None of that is
+// live collection or billing work on this branch.
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -37,6 +53,7 @@ const FORBIDDEN = [
   /latency only/i,
   /games send none/i,
   /counts are not shared/i,
+  /never collect a child's name/i,
 ];
 
 function walk(dir, out = [], ext = ['.html', '.js', '.ts', '.mjs']) {
@@ -119,14 +136,17 @@ t('privacy names the actual stores without inventing deletion days or Studio', (
   assert.match(page, /which item, which skill, how long/);
   assert.match(page, /practice record/);
   assert.match(page, /child's age in years/);
-  assert.match(page, /gift card can carry a child's name in the link/);
+  assert.match(page, /gift card can put a name in the link/);
   assert.match(page, /weekly board/);
   assert.match(page, /Delete everything on the parent page/);
+  assert.match(page, /does not claim to wipe every server row/);
+  assert.match(page, /We do not ask for a child's name on the parent account/);
+  assert.match(page, /not a promise that no name can ever be typed/);
   assert.equal(/\$15\/month|Lesson Studio|studio_monthly|we delete after \d+ days|retained for \d+ days/i.test(page), false);
   assert.equal(/We store only answer timing/i.test(page), false);
   assert.equal(/the only cookie this site sets/i.test(page), false);
-  assert.equal(/games send none|counts are not shared/i.test(page), false);
-  assert.equal(/play_day|gate_day|\/api\/funnel|2-day email hash/i.test(page), false);
+  assert.equal(/games send none|counts are not shared|never collect a child's name/i.test(page), false);
+  assert.equal(/play_day|gate_day|\/api\/funnel|2-day email hash|\/api\/studio\/clear/i.test(page), false);
   assert.match(page, /Play on this phone can also keep practice timing/);
 });
 
