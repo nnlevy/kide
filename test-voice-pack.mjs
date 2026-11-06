@@ -22,7 +22,10 @@ if (!existsSync(join(OUT, 'index.json'))
   process.exit(0);
 }
 try { execFileSync('ffprobe', ['-version'], { stdio: 'ignore' }); }
-catch { console.log('\n(SKIPPED test-voice-pack: ffprobe not installed)\n'); process.exit(0); }
+catch {
+  console.log('\n(SKIPPED test-voice-pack: ffprobe not installed)\n');
+  process.exit(process.env.CI ? 1 : 0);
+}
 
 let pass = 0, fail = 0;
 const t = (name, fn) => {

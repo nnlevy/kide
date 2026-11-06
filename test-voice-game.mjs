@@ -168,7 +168,11 @@ let ffprobe = true;
 try { execFileSync('ffprobe', ['-version'], { stdio: 'ignore' }); } catch { ffprobe = false; }
 
 t('every clip is published at the agreed profile, not whatever the API returned', () => {
-  if (!ffprobe) { console.log('       (skipped: ffprobe not installed)'); return; }
+  if (!ffprobe) {
+    console.log('       (skipped: ffprobe not installed)');
+    if (process.env.CI) throw new Error('ffprobe is required in CI');
+    return;
+  }
   // EVERY clip, not a sample. The first version checked the first twelve and
   // missed a raw 128 kbps file dropped in at position sixty — which is exactly
   // how the publish step gets skipped for one clip and nobody finds out.
@@ -186,7 +190,11 @@ t('every clip is published at the agreed profile, not whatever the API returned'
 });
 
 t('no clip is empty or truncated', () => {
-  if (!ffprobe) { console.log('       (skipped: ffprobe not installed)'); return; }
+  if (!ffprobe) {
+    console.log('       (skipped: ffprobe not installed)');
+    if (process.env.CI) throw new Error('ffprobe is required in CI');
+    return;
+  }
   const bad = index.ids.filter((id) => statSync(join(OUT, `${id}.mp3`)).size < 1200);
   assert.equal(bad.length, 0, `suspiciously small: ${bad.slice(0, 5).join(', ')}`);
   for (const id of index.ids.slice(0, 10)) {
