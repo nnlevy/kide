@@ -2,6 +2,7 @@ User-agent: *
 Allow: /
 Disallow: /account/
 Disallow: /bench/
+Disallow: /cast/app/
 Disallow: /clinician/
 Disallow: /engine/
 Disallow: /parent/
