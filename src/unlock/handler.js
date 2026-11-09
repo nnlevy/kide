@@ -211,11 +211,13 @@ async function savePlay(kv, day, deviceId, email, merged) {
 }
 
 // One "paid" row per confirmed purchase, though the success page asks several
-// times. The marker is the purchase itself and does not expire, so a later
-// visit does not count a historical receipt again. An unfinished checkout has
-// no key and is not counted. The funnel row itself carries no email. qa is
-// never set here: the kide_qa cookie is unsigned, so it must not drop a
-// purchase out of the paid total or burn this marker on a row that does not count.
+// times. The marker is written only after that row is stored. recordStep
+// returns 0 and does not throw when the database is missing or the insert
+// fails; a marker written first would never expire, and the purchase would
+// stay uncounted. An unfinished checkout has no key and is not counted. The
+// funnel row itself carries no email. qa is never set here: the kide_qa
+// cookie is unsigned, so it must not drop a purchase out of the paid total
+// or burn this marker on a row that does not count.
 async function countPaidOnce(env, kv, request, email, now, credits) {
   try {
     for (const purchaseKey of confirmedPurchaseKeys(credits, grantConfig())) {
@@ -224,8 +226,9 @@ async function countPaidOnce(env, kv, request, email, now, credits) {
       const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
       const key = `kide:funnel-paid:v2:${hex}`;
       if (kv && (await kvGet(kv, key))) continue;
+      const rowId = await recordStep(env, { step: "paid", ref: refFromRequest(request), qa: false, now });
+      if (!rowId) continue;
       if (kv) await kv.put(key, JSON.stringify({ at: now }));
-      await recordStep(env, { step: "paid", ref: refFromRequest(request), qa: false, now });
     }
   } catch {
     // Counting never blocks the unlock.

@@ -70,6 +70,9 @@ const BINGBOT = 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bing
 const APPLEBOT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15 (Applebot/0.1; +http://www.apple.com/go/applebot)';
 const GOOGLEBOT = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
 const NOT_A_CRAWLER = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Preview/1.0';
+const CUBOT_PHONE = 'Mozilla/5.0 (Linux; Android 11; CUBOT NOTE 20 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.105 Mobile Safari/537.36';
+const BING_PREVIEW = 'BingPreview/1.0b';
+const META_EXTERNAL_AGENT = 'meta-externalagent/1.1';
 const CODE = 'DXGN9HC6';
 const open = (url, ua = IPHONE) => new Request(url, { headers: { 'user-agent': ua } });
 const call = (path, body, cookie) => new Request('https://kide.us' + path, {
@@ -162,6 +165,50 @@ await t('a WhatsApp or Pinterest in-app tap is a real open; only the crawler is 
   await recordLinkOpen(open(`https://kide.us/?ref=${CODE}`, PINTEREST_BROWSER), env, null, at + 2 * 60 * 60_000);
   assert.equal(rows()[2].step, 'link_open');
   assert.equal(alerts.length, 2);
+});
+
+await t('a CUBOT phone is a real open and can email the owner', async () => {
+  assert.equal(isPreviewFetch(CUBOT_PHONE), false);
+  assert.equal(deviceClass(CUBOT_PHONE), 'phone');
+  const { env, alerts, rows } = fresh();
+  await recordLinkOpen(open(`https://kide.us/?ref=${CODE}`, CUBOT_PHONE), env, null, Date.parse('2026-11-04T02:14:00Z'));
+  assert.deepEqual(rows().map((r) => [r.step, r.detail, r.alerted]), [['link_open', 'phone', 1]]);
+  assert.equal(alerts.length, 1);
+});
+
+await t('BingPreview/1.0b is a preview and does not email the owner', async () => {
+  assert.equal(isPreviewFetch(BING_PREVIEW), true);
+  const { env, alerts, rows } = fresh();
+  await recordLinkOpen(open(`https://kide.us/?ref=${CODE}`, BING_PREVIEW), env, null, Date.parse('2026-11-04T02:14:00Z'));
+  assert.deepEqual(rows().map((r) => [r.step, r.detail, r.alerted]), [['link_preview', 'preview', 0]]);
+  assert.equal(alerts.length, 0);
+});
+
+await t('meta-externalagent is a preview even when the word crawler is absent', async () => {
+  assert.equal(/crawler/i.test(META_EXTERNAL_AGENT), false);
+  assert.equal(isPreviewFetch(META_EXTERNAL_AGENT), true);
+  const { env, alerts, rows } = fresh();
+  await recordLinkOpen(open(`https://kide.us/?ref=${CODE}`, META_EXTERNAL_AGENT), env, null, Date.parse('2026-11-04T02:14:00Z'));
+  assert.deepEqual(rows().map((r) => [r.step, r.detail, r.alerted]), [['link_preview', 'preview', 0]]);
+  assert.equal(alerts.length, 0);
+});
+
+await t('a WhatsApp in-app browser is a real open and can email the owner', async () => {
+  assert.equal(isPreviewFetch(WHATSAPP_BROWSER), false);
+  const { env, alerts, rows } = fresh();
+  await recordLinkOpen(open(`https://kide.us/?ref=${CODE}`, WHATSAPP_BROWSER), env, null, Date.parse('2026-11-04T02:14:00Z'));
+  assert.equal(rows()[0].step, 'link_open');
+  assert.equal(rows()[0].detail, 'phone');
+  assert.equal(alerts.length, 1);
+});
+
+await t('a Pinterest in-app browser is a real open and can email the owner', async () => {
+  assert.equal(isPreviewFetch(PINTEREST_BROWSER), false);
+  const { env, alerts, rows } = fresh();
+  await recordLinkOpen(open(`https://kide.us/?ref=${CODE}`, PINTEREST_BROWSER), env, null, Date.parse('2026-11-04T02:14:00Z'));
+  assert.equal(rows()[0].step, 'link_open');
+  assert.equal(rows()[0].detail, 'phone');
+  assert.equal(alerts.length, 1);
 });
 
 await t('crawler user agents, including suffix bots, are previews and do not alert', async () => {
@@ -432,6 +479,44 @@ await t('a purchase with the kide_qa cookie is still counted as paid', async () 
   assert.equal(rows().filter((r) => r.step === 'paid').length, 1);
 });
 
+await t('a missed paid insert does not burn the once-only marker', async () => {
+  const { env, rows } = fresh();
+  const at = Date.parse('2026-11-04T02:10:00Z');
+  const confirm = () => handleUnlock(
+    call('/api/unlock/confirm', { email: 'p@example.com' }, `kide_ref=${CODE}`),
+    env,
+    { now: at },
+  );
+  const paidPuts = () => env.KIDE_LEADS.puts.filter((p) => String(p.k).startsWith('kide:funnel-paid:'));
+  const realPrepare = env.DB.prepare.bind(env.DB);
+  env.DB.prepare = (sql) => {
+    if (/insert into kide_funnel_events/i.test(sql)) {
+      return { bind() { return { run: async () => { throw new Error('d1 down'); } }; } };
+    }
+    return realPrepare(sql);
+  };
+  let res = await confirm();
+  assert.equal((await res.json()).unlocked, true);
+  assert.equal(rows().filter((r) => r.step === 'paid').length, 0);
+  assert.equal(paidPuts().length, 0, 'a failed insert must not write the marker');
+
+  const db = env.DB;
+  env.DB = null;
+  res = await confirm();
+  assert.equal((await res.json()).unlocked, true);
+  assert.equal(paidPuts().length, 0, 'a missing database must not write the marker');
+
+  env.DB = db;
+  env.DB.prepare = realPrepare;
+  resetForTests();
+  res = await confirm();
+  assert.equal((await res.json()).unlocked, true);
+  assert.equal(rows().filter((r) => r.step === 'paid').length, 1);
+  assert.equal(paidPuts().length, 1);
+  assert.equal(paidPuts()[0].opts, null, 'the purchase marker must not expire');
+  assert.match(paidPuts()[0].k, /^kide:funnel-paid:v2:/);
+});
+
 console.log('\nthe privacy page says what is counted');
 
 await t('the policy names what is stored, what can be joined, and what is sent on', () => {
@@ -443,6 +528,14 @@ await t('the policy names what is stored, what can be joined, and what is sent o
   assert.match(text, /files a referral credit on a queue/);
   assert.match(text, /sent to our billing service/);
   assert.match(text, /preview card fetched by a message app/);
+  assert.match(text, /fetch of that same link by a crawler/);
+  assert.match(text, /page for speech-language pathologists/);
+  assert.match(text, /card maker/);
+  assert.match(text, /this privacy page, the terms, and the clinician page do not send these notes/);
+  assert.doesNotMatch(text, /this privacy page, the terms, the clinician page, and the card maker/);
+  assert.match(text, /session cookie named kide_qa/);
+  assert.match(text, /when the address contains kide_qa=1/);
+  assert.match(text, /lasts until the browser is closed/);
   assert.match(text, /tap on play from the home page/);
   assert.match(text, /grown-up check passed/);
   assert.match(text, /grown-up check missed/);
@@ -471,6 +564,12 @@ await t('the policy names what is stored, what can be joined, and what is sent o
   assert.match(home, /Your email, so a referral credit can be queued for you/);
   assert.match(home, /Games stay on the device/);
   assert.doesNotMatch(home, /Nothing leaves the device/);
+  assert.match(home, /The referral record still waits on a queue\. It is not a payment\./);
+  assert.doesNotMatch(home, /for referral credits/);
+  assert.doesNotMatch(home, /rewardLabel/);
+  assert.doesNotMatch(home, /\$\d/);
+  const claimStart = home.slice(home.indexOf('id="claimStart"'), home.indexOf('id="claimDone"'));
+  assert.equal(claimStart.includes('claimReward'), false, 'success hides the queue note with the form');
   assert.match(home, /step: "home_cta"/);
   assert.doesNotMatch(home, /payouts reach you/);
   assert.doesNotMatch(home, /Payouts go to/);
