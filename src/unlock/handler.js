@@ -16,9 +16,9 @@ import {
   STRIPE_PRICE_ID,
 } from "./config.js";
 import { checkoutInput, httpsUrl } from "./checkout.js";
-import { alertOwner, recordStep } from "../funnel/funnel.js";
+import { alertOwner, qaFromRequest, recordStep } from "../funnel/funnel.js";
 import { COPY } from "./copy.js";
-import { deviceUnlockKey, purchaseGrantsUnlock, unlockKey } from "./entitlement.js";
+import { confirmedPurchaseKeys, deviceUnlockKey, purchaseGrantsUnlock, unlockKey } from "./entitlement.js";
 import { normalizeEmail } from "./email.js";
 import { advance, capSeconds, dayStamp, mergePeak, overLimit, playKey } from "./minutes.js";
 import { parentIdFor } from "../account/parent-id.js";
@@ -210,18 +210,21 @@ async function savePlay(kv, day, deviceId, email, merged) {
   return device.seconds;
 }
 
-// One "paid" row per purchase, though the success page asks several times.
-// The KV marker is keyed by a hash of the receipt email and expires in two
-// days. The funnel row itself carries no email.
-async function countPaidOnce(env, kv, request, email, qa, now) {
+// One "paid" row per confirmed purchase, though the success page asks several
+// times. The marker is the purchase itself and does not expire, so a later
+// visit does not count a historical receipt again. An unfinished checkout has
+// no key and is not counted. The funnel row itself carries no email.
+async function countPaidOnce(env, kv, request, email, qa, now, credits) {
   try {
-    const bytes = new TextEncoder().encode(`kide-funnel-paid:${email}`);
-    const digest = await crypto.subtle.digest("SHA-256", bytes);
-    const hex = [...new Uint8Array(digest)].slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
-    const key = `kide:funnel-paid:v1:${hex}`;
-    if (kv && (await kvGet(kv, key))) return;
-    if (kv) await kv.put(key, JSON.stringify({ at: now }), { expirationTtl: 2 * 86400 });
-    await recordStep(env, { step: "paid", ref: refFromRequest(request), qa, now });
+    for (const purchaseKey of confirmedPurchaseKeys(credits, grantConfig())) {
+      const bytes = new TextEncoder().encode(`kide-funnel-paid:${email}\n${purchaseKey}`);
+      const digest = await crypto.subtle.digest("SHA-256", bytes);
+      const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+      const key = `kide:funnel-paid:v2:${hex}`;
+      if (kv && (await kvGet(kv, key))) continue;
+      if (kv) await kv.put(key, JSON.stringify({ at: now }));
+      await recordStep(env, { step: "paid", ref: refFromRequest(request), qa, now });
+    }
   } catch {
     // Counting never blocks the unlock.
   }
@@ -242,6 +245,8 @@ export async function handleUnlock(request, env, opts = {}) {
   const cookie = existing ? null : deviceCookie(deviceId);
   const email = await sessionEmail(request, env);
   const billing = env && env.PORTFOLIO_BILLING_SERVICE;
+  // QA is the kide_qa signal the server already saw. The POST body cannot set it.
+  const qa = qaFromRequest(request);
 
   if (path === "/api/unlock/checkout") {
     const body = await readJson(request);
@@ -252,7 +257,6 @@ export async function handleUnlock(request, env, opts = {}) {
       return json({ ok: false, message: COPY.retry }, 503, cookie);
     }
     const ref = refFromRequest(request);
-    const qa = body.qa === true;
     const input = checkoutInput({ origin: url.origin, email: payEmail, ref });
     try {
       const out = await billing.createCheckout(input);
@@ -296,7 +300,7 @@ export async function handleUnlock(request, env, opts = {}) {
         return json({ ok: true, unlocked, pending: !unlocked }, 200, cookie);
       }
       if (verdict.unlocked) {
-        await countPaidOnce(env, kv, request, payEmail, body.qa === true, now);
+        await countPaidOnce(env, kv, request, payEmail, qa, now, credits);
         await rememberUnlock(env, kv, deviceId, payEmail, now);
         return json({ ok: true, unlocked: true, pending: false }, 200, cookie);
       }

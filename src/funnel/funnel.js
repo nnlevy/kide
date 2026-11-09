@@ -1,26 +1,28 @@
 // Conversion funnel for family play: from a tap on a share link to a paid unlock.
 //
-// THE SAME CONSTRAINT AS public/engine/measure.js. kide.us is directed to
-// children, so a persistent identifier collected here is personal information
-// under COPPA. Each row below is one step with the time it happened. A row
-// never carries a visitor id, cookie value, IP address, email, user agent
-// string, or anything typed by a person or done in a child's game.
+// kide.us is directed to children, so a persistent identifier collected here
+// is personal information under COPPA. A row is one step, the time it happened,
+// and the sharer's code when a share link was followed. It does not carry a
+// visitor id, a cookie value, an IP address, an email, a user agent string, or
+// anything a child typed or did inside a game.
 //
-// Rows can be counted. They cannot be joined into one family's journey. The
-// funnel is read by comparing step counts per day and per share code. That
-// answers "where do families drop off", and it cannot answer "what did this
-// family do".
+// The share code is the join key. Counts for one code can be read together,
+// which shows how families who followed that link moved through the site. It
+// does not name the child. The code and the totals of opens, checkouts, and
+// paid purchases are sent to the billing hub, which queues a referral credit
+// and can email the owner. This file does not pay anyone.
 //
 // Where steps come from:
 //   server  link_open, link_preview   GET / with ?ref=CODE (worker/index.ts)
 //   server  play_day, gate_day        the free-play meter's own ticks
 //                                     (unlock/handler.js), counted once per
-//                                     device per day. Nothing new is sent from
-//                                     the child's screen.
+//                                     device per day, with the share code from
+//                                     the cookie. The play page does not send a
+//                                     separate step list.
 //   server  checkout_open, checkout_fail, paid   unlock/handler.js
 //   browser home_cta, unlock_view, check_pass, check_fail, checkout_click,
 //           checkout_back            parent-facing pages only: / and /unlock.
-//                                     /play sends nothing.
+//                                     /play does not call /api/funnel.
 //
 // The share code on a row is the sharer's (an adult's) code, from the
 // kide_ref cookie the share link already sets. It says who sent the link,
@@ -63,10 +65,17 @@ export function deviceClass(ua) {
 }
 
 // Message apps fetch a link to draw its preview card before anyone taps it.
-// iMessage sends "facebookexternalhit ... Facebot Twitterbot". A preview means
-// the link was pasted into a chat, not that it was opened.
+// iMessage sends "facebookexternalhit ... Facebot Twitterbot". That fetch is
+// not a tap. WhatsApp's in-app browser is a tap: its UA is a normal browser
+// that also says WhatsApp. The preview fetcher's UA is only "WhatsApp/<version>".
+// Pinterest's in-app browser likewise names Pinterest; the crawler is
+// Pinterestbot or the short "Pinterest/<digits>" fetcher. A UA that merely
+// contains the word "preview" is not a crawler.
 export function isPreviewFetch(ua) {
-  return /facebookexternalhit|Facebot|Twitterbot|Slackbot|WhatsApp|TelegramBot|Discordbot|LinkedInBot|Pinterest|SkypeUriPreview|bot\b|crawler|spider|preview/i.test(String(ua || ""));
+  const s = String(ua || "").trim();
+  if (/^WhatsApp\//i.test(s)) return true;
+  if (/Pinterestbot|(?:^|\s)Pinterest\/\d/i.test(s)) return true;
+  return /facebookexternalhit|Facebot|Twitterbot|Slackbot|TelegramBot|Discordbot|LinkedInBot|SkypeUriPreview|\bbot\b|crawler|spider/i.test(s);
 }
 
 function cleanDetail(map, step, detail) {
@@ -127,9 +136,27 @@ export async function recordStep(env, { step, ref, detail, qa, now }, steps = SE
 }
 
 // A link the owner or a QA script opens on purpose carries kide_qa=1. Those
-// rows are kept apart and never alert.
+// rows are kept apart and never alert. The server records that from the URL
+// it served, then from the cookie it set. A qa field in a POST body is ignored.
+export const QA_COOKIE = "kide_qa";
+
 export function isQa(url) {
   try { return new URL(url).searchParams.get("kide_qa") === "1"; } catch { return false; }
+}
+
+export function qaFromRequest(request) {
+  if (request && isQa(request.url)) return true;
+  const raw = (request && request.headers && request.headers.get("cookie")) || "";
+  return new RegExp(`(?:^|;\\s*)${QA_COOKIE}=1(?:;|$)`).test(raw);
+}
+
+// Session cookie, set only when this request's URL carries kide_qa=1.
+// HttpOnly so the page script cannot rewrite the flag it then posts back.
+export function withQaCookie(request, response) {
+  if (!request || !response || !isQa(request.url)) return response;
+  const out = new Response(response.body, response);
+  out.headers.append("Set-Cookie", `${QA_COOKIE}=1; HttpOnly; Secure; SameSite=Lax; Path=/`);
+  return out;
 }
 
 /**
@@ -148,7 +175,7 @@ export async function alertOwner(env, { rowId, step, ref, detail, now }) {
     const recent = await db.prepare(
       "SELECT COUNT(*) AS n FROM kide_funnel_events WHERE ref = ? AND alerted = 1 AND ts > ?"
     ).bind(code, ts - ALERT_GAP_MS).first();
-    if (recent && Number(recent.n) > 0 && step === "link_open") return false;
+    if (recent && Number(recent.n) > 0) return false;
     const today = await db.prepare(
       "SELECT COUNT(*) AS n FROM kide_funnel_events WHERE ref = ? AND alerted = 1 AND day = ?"
     ).bind(code, new Date(ts).toISOString().slice(0, 10)).first();
@@ -159,7 +186,6 @@ export async function alertOwner(env, { rowId, step, ref, detail, now }) {
     ).bind(code).all();
     const totals = {};
     for (const row of (counts && counts.results) || []) totals[row.step] = Number(row.n) || 0;
-    await db.prepare("UPDATE kide_funnel_events SET alerted = 1 WHERE id = ?").bind(rowId).run();
     const out = await billing.notifyReferralActivity({
       domain: DOMAIN,
       code,
@@ -170,7 +196,9 @@ export async function alertOwner(env, { rowId, step, ref, detail, now }) {
       checkouts: totals.checkout_open || 0,
       paid: totals.paid || 0,
     });
-    return !!(out && out.ok);
+    if (!(out && out.ok)) return false;
+    await db.prepare("UPDATE kide_funnel_events SET alerted = 1 WHERE id = ?").bind(rowId).run();
+    return true;
   } catch {
     return false;
   }
@@ -183,7 +211,7 @@ export async function recordLinkOpen(request, env, ctx, now) {
   try { code = normalizeRef(new URL(request.url).searchParams.get("ref")); } catch { code = null; }
   if (!code) return;
   const ua = request.headers.get("user-agent") || "";
-  const qa = isQa(request.url);
+  const qa = qaFromRequest(request);
   const preview = isPreviewFetch(ua);
   const step = preview ? "link_preview" : "link_open";
   const detail = preview ? "preview" : deviceClass(ua);
@@ -199,8 +227,9 @@ const json = (body, status) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
 
 /**
- * POST /api/funnel {step, detail, qa}. Browser steps from parent-facing pages.
+ * POST /api/funnel {step, detail}. Browser steps from parent-facing pages.
  * The share code comes from the kide_ref cookie, never from the body.
+ * QA comes from ?kide_qa=1 or the cookie set from that URL. body.qa is ignored.
  */
 export async function handleFunnel(request, env, now) {
   if (request.method !== "POST") return json({ ok: false }, 405);
@@ -215,7 +244,7 @@ export async function handleFunnel(request, env, now) {
     step,
     ref: refFromRequest(request),
     detail: body.detail,
-    qa: body.qa === true,
+    qa: qaFromRequest(request),
     now,
   }, BROWSER_STEPS);
   return json({ ok: true }, 200);

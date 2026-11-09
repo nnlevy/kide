@@ -114,7 +114,7 @@ const jsonRes = (data, status = 200) =>
 
 const CLAIM_ERRORS = {
   invalid_email: "That email doesn't look right. Try again?",
-  email_in_use: "That email already has a kide link. Ask Nir to sort it out.",
+  email_in_use: "That email already has a kide link. Email hello@kide.us and we'll help.",
   not_claimable: "This link was already claimed.",
 };
 

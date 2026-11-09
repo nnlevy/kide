@@ -8,7 +8,8 @@ const $ = (id) => document.getElementById(id);
 const COPY = {
   mismatch: "That does not match. Try another answer.",
   needEmail: "Enter the email you want on the receipt.",
-  soon: "Family play is opening soon. We'll email you.",
+  retry: "Pip could not open checkout. Try again in a moment.",
+  noCharge: "No charge was made. Family play is here whenever you're ready.",
   checking: "Checking the receipt.",
   keep: "This email can keep playing with Pip.",
   waiting: "The receipt is still on its way. Return to Pip. This page can check again.",
@@ -16,18 +17,11 @@ const COPY = {
   shareText: "Pip gets sleepy and asks to be tucked in, so screen time ends without a meltdown. Try it free:",
 };
 
-// Funnel steps for this grown-up page. No identifier of any kind: the server
-// adds the share code from its own cookie. See src/funnel/funnel.js.
-function isQa() {
-  try {
-    if (new URLSearchParams(location.search).get("kide_qa") === "1") sessionStorage.setItem("kide.qa", "1");
-    return sessionStorage.getItem("kide.qa") === "1";
-  } catch { return false; }
-}
-
+// Funnel steps for this grown-up page. The server adds the share code from
+// its own cookie, and marks a QA visit from the cookie it set. See src/funnel.
 function funnel(step, detail) {
   try {
-    const body = JSON.stringify({ step, detail: detail || "", qa: isQa() });
+    const body = JSON.stringify({ step, detail: detail || "" });
     if (navigator.sendBeacon && navigator.sendBeacon("/api/funnel", new Blob([body], { type: "application/json" }))) return;
     fetch("/api/funnel", { method: "POST", body, keepalive: true, credentials: "same-origin", headers: { "Content-Type": "application/json" } });
   } catch { /* measuring never affects the page */ }
@@ -73,6 +67,9 @@ function revealPay() {
   show("pay");
   const email = $("email");
   if (email) email.focus();
+  try {
+    if (new URLSearchParams(location.search).get("checkout") === "back") say("payMsg", COPY.noCharge);
+  } catch { /* the offer still shows */ }
 }
 
 async function prefill() {
@@ -96,25 +93,6 @@ function safeCheckoutUrl(value) {
   }
 }
 
-async function rememberParent(address) {
-  try {
-    await fetch("/api/notify", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: address,
-        matchedDomain: "kide",
-        matchedTitle: "Kide — family play",
-        need: "Email me when family play opens",
-        pageUrl: location.origin + location.pathname,
-      }),
-    });
-  } catch {
-    // The sentence on the page is the whole reply.
-  }
-}
-
 async function startCheckout(event) {
   event.preventDefault();
   const email = $("email");
@@ -134,7 +112,7 @@ async function startCheckout(event) {
       method: "POST",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: address, qa: isQa() }),
+      body: JSON.stringify({ email: address }),
     });
     const data = await res.json().catch(() => null);
     if (res.ok && data && data.ok === true) url = safeCheckoutUrl(data.url);
@@ -145,8 +123,7 @@ async function startCheckout(event) {
     location.href = url;
     return;
   }
-  say("payMsg", COPY.soon);
-  await rememberParent(address);
+  say("payMsg", COPY.retry);
   if (button) button.disabled = false;
 }
 
@@ -161,7 +138,7 @@ async function confirmLoop(address) {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: address, qa: isQa() }),
+        body: JSON.stringify({ email: address }),
       });
       result = await res.json();
     } catch {
@@ -245,11 +222,12 @@ function boot() {
   if (passed()) {
     show("pay");
     prefill();
-    // Back from Stripe without paying. Nothing was charged, and the offer stays.
-    if (back === "back") say("payMsg", "No charge was made. Family play is here whenever you're ready.");
   } else {
     armHold();
   }
+  // Stripe sends every cancel here, including a browser that lost kide.grownup.
+  // The sentence has to be on the panel that is actually showing.
+  if (back === "back") say(passed() ? "payMsg" : "holdMsg", COPY.noCharge);
 
   const check = $("check");
   if (check) {

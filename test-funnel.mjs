@@ -7,7 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 import {
   BROWSER_STEPS, SERVER_STEPS, deviceClass, handleFunnel, isPreviewFetch,
-  recordLinkOpen, recordStep, resetForTests,
+  qaFromRequest, recordLinkOpen, recordStep, resetForTests, withQaCookie,
 } from './src/funnel/funnel.js';
 import { handleUnlock } from './src/unlock/handler.js';
 import { STRIPE_PRICE_ID } from './src/unlock/config.js';
@@ -31,9 +31,11 @@ function d1() {
 
 function memoryKv() {
   const m = new Map();
+  const puts = [];
   return {
+    puts,
     async get(k) { return m.has(k) ? m.get(k) : null; },
-    async put(k, v) { m.set(k, String(v)); },
+    async put(k, v, opts) { m.set(k, String(v)); puts.push({ k, opts: opts === undefined ? null : opts }); },
     async delete(k) { m.delete(k); },
   };
 }
@@ -58,8 +60,19 @@ function fresh(extra = {}) {
 
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 const IMESSAGE_PREVIEW = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/601.2.4 (KHTML, like Gecko) Version/9.0.1 Safari/601.2.4 facebookexternalhit/1.1 Facebot Twitterbot/1.0';
+const WHATSAPP_BROWSER = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 WhatsApp/24.20.78';
+const WHATSAPP_ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.230 Mobile Safari/537.36 WhatsApp/2.24.1.74';
+const WHATSAPP_PREVIEW = 'WhatsApp/2.23.20.0 A';
+const PINTEREST_BROWSER = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Safari/604.1 Pinterest/iOS';
+const PINTEREST_BOT = 'Mozilla/5.0 (compatible; Pinterestbot/1.0; +https://www.pinterest.com/bot.html)';
+const NOT_A_CRAWLER = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Preview/1.0';
 const CODE = 'DXGN9HC6';
 const open = (url, ua = IPHONE) => new Request(url, { headers: { 'user-agent': ua } });
+const call = (path, body, cookie) => new Request('https://kide.us' + path, {
+  method: 'POST',
+  headers: { 'content-type': 'application/json', cookie },
+  body: JSON.stringify(body),
+});
 
 console.log('\na row is a step and a time, never a person');
 
@@ -124,6 +137,78 @@ await t('a message app drawing the preview card is counted apart and never alert
   assert.equal(alerts.length, 0);
 });
 
+await t('a WhatsApp or Pinterest in-app tap is a real open; only the crawler is a preview', async () => {
+  assert.equal(isPreviewFetch(WHATSAPP_BROWSER), false);
+  assert.equal(isPreviewFetch(WHATSAPP_ANDROID), false);
+  assert.equal(isPreviewFetch(WHATSAPP_PREVIEW), true);
+  assert.equal(isPreviewFetch(PINTEREST_BROWSER), false);
+  assert.equal(isPreviewFetch(PINTEREST_BOT), true);
+  assert.equal(isPreviewFetch('Pinterest/0.2 (+http://www.pinterest.com/)'), true);
+  assert.equal(isPreviewFetch(NOT_A_CRAWLER), false);
+  assert.equal(deviceClass(WHATSAPP_BROWSER), 'phone');
+  const { env, alerts, rows } = fresh();
+  const at = Date.parse('2026-11-04T02:14:00Z');
+  await recordLinkOpen(open(`https://kide.us/?ref=${CODE}`, WHATSAPP_BROWSER), env, null, at);
+  assert.equal(rows()[0].step, 'link_open');
+  assert.equal(rows()[0].detail, 'phone');
+  assert.equal(alerts.length, 1);
+  await recordLinkOpen(open(`https://kide.us/?ref=${CODE}`, WHATSAPP_PREVIEW), env, null, at + 60 * 60_000);
+  assert.equal(rows()[1].step, 'link_preview');
+  assert.equal(alerts.length, 1);
+  await recordLinkOpen(open(`https://kide.us/?ref=${CODE}`, PINTEREST_BROWSER), env, null, at + 2 * 60 * 60_000);
+  assert.equal(rows()[2].step, 'link_open');
+  assert.equal(alerts.length, 2);
+});
+
+await t('an alert is marked only after the hub accepts it', async () => {
+  let mode = 'no';
+  const { env, alerts, rows } = fresh({
+    async notifyReferralActivity(input) {
+      if (mode === 'no') return { ok: false };
+      if (mode === 'throw') throw new Error('down');
+      alerts.push(input);
+      return { ok: true };
+    },
+  });
+  const at = Date.parse('2026-11-04T02:14:00Z');
+  await recordLinkOpen(open(`https://kide.us/?ref=${CODE}`), env, null, at);
+  assert.equal(rows()[0].alerted, 0);
+  assert.equal(alerts.length, 0);
+  mode = 'throw';
+  await recordLinkOpen(open(`https://kide.us/?ref=${CODE}`), env, null, at + 1000);
+  assert.equal(rows()[1].alerted, 0);
+  assert.equal(alerts.length, 0);
+  mode = 'ok';
+  await recordLinkOpen(open(`https://kide.us/?ref=${CODE}`), env, null, at + 2000);
+  assert.equal(rows()[2].alerted, 1);
+  assert.equal(alerts.length, 1);
+});
+
+await t('the ten-minute quiet period and the daily cap cover checkout too', async () => {
+  const { env, alerts, rows } = fresh();
+  const at = Date.parse('2026-11-04T02:14:00Z');
+  await recordLinkOpen(open(`https://kide.us/?ref=${CODE}`), env, null, at);
+  const early = await handleUnlock(call('/api/unlock/checkout', { email: 'p@example.com' }, `kide_ref=${CODE}`), env, { now: at + 60_000 });
+  assert.equal(early.status, 200);
+  assert.equal(alerts.length, 1);
+  assert.deepEqual(rows().map((r) => [r.step, r.alerted]), [['link_open', 1], ['checkout_open', 0]]);
+  const later = await handleUnlock(call('/api/unlock/checkout', { email: 'p@example.com' }, `kide_ref=${CODE}`), env, { now: at + 11 * 60_000 });
+  assert.equal(later.status, 200);
+  assert.equal(alerts.length, 2);
+  assert.equal(alerts[1].step, 'checkout_open');
+
+  const capped = fresh();
+  let when = Date.parse('2026-11-04T00:00:00Z');
+  for (let i = 0; i < 20; i++) {
+    await recordLinkOpen(open(`https://kide.us/?ref=${CODE}`), capped.env, null, when);
+    when += 11 * 60_000;
+  }
+  assert.equal(capped.alerts.length, 20);
+  await recordLinkOpen(open(`https://kide.us/?ref=${CODE}`), capped.env, null, when);
+  await handleUnlock(call('/api/unlock/checkout', { email: 'p@example.com' }, `kide_ref=${CODE}`), capped.env, { now: when });
+  assert.equal(capped.alerts.length, 20);
+});
+
 await t('a QA open is marked and never alerts; no code means no row', async () => {
   const { env, alerts, rows } = fresh();
   await recordLinkOpen(open(`https://kide.us/?ref=${CODE}&kide_qa=1`), env, null, Date.now());
@@ -151,9 +236,38 @@ const post = (body, cookie = '') => new Request('https://kide.us/api/funnel', {
 
 await t('a browser step takes the share code from the cookie, never the body', async () => {
   const { env, rows } = fresh();
-  const res = await handleFunnel(post({ step: 'unlock_view', detail: 'goodnight', ref: '23456789' }, `kide_ref=${CODE}`), env);
+  const res = await handleFunnel(post({ step: 'unlock_view', detail: 'goodnight', ref: '23456789', qa: true }, `kide_ref=${CODE}`), env);
   assert.equal(res.status, 200);
   assert.deepEqual(rows(), [{ step: 'unlock_view', ref: CODE, detail: 'goodnight', qa: 0, alerted: 0 }]);
+  assert.equal(qaFromRequest(new Request('https://kide.us/api/funnel?kide_qa=1')), true);
+  assert.equal(qaFromRequest(new Request('https://kide.us/api/funnel')), false);
+  await handleFunnel(post({ step: 'check_pass', qa: false }, 'kide_qa=1'), env);
+  assert.equal(rows()[1].qa, 1);
+  await handleFunnel(new Request('https://kide.us/api/funnel?kide_qa=1', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ step: 'check_fail', qa: false }),
+  }), env);
+  assert.equal(rows()[2].qa, 1);
+  const wrapped = withQaCookie(new Request('https://kide.us/?kide_qa=1'), new Response('ok'));
+  assert.match(wrapped.headers.get('set-cookie') || '', /^kide_qa=1; HttpOnly; Secure; SameSite=Lax; Path=\/$/);
+  assert.equal(withQaCookie(new Request('https://kide.us/'), new Response('ok')).headers.get('set-cookie'), null);
+  const worker = readFileSync('src/worker/index.ts', 'utf8');
+  assert.match(worker, /withQaCookie\(request, withRefCookie\(request,/);
+});
+
+await t('a checkout qa flag in the body does not silence the alert', async () => {
+  const { env, alerts, rows } = fresh();
+  const at = Date.parse('2026-11-04T04:00:00Z');
+  const forged = await handleUnlock(call('/api/unlock/checkout', { email: 'p@example.com', qa: true }, `kide_ref=${CODE}`), env, { now: at });
+  assert.equal(forged.status, 200);
+  assert.equal(rows()[0].qa, 0);
+  assert.equal(rows()[0].alerted, 1);
+  assert.equal(alerts.length, 1);
+  await handleUnlock(call('/api/unlock/checkout', { email: 'p@example.com', qa: false }, `kide_ref=${CODE}; kide_qa=1`), env, { now: at + 60 * 60_000 });
+  assert.equal(rows()[1].qa, 1);
+  assert.equal(rows()[1].alerted, 0);
+  assert.equal(alerts.length, 1);
 });
 
 await t('server-only steps, unknown steps and big bodies are refused', async () => {
@@ -187,12 +301,6 @@ await t('every browser step the pages send is one the server accepts', () => {
 
 console.log('\ncheckout, payment and the free-play meter feed the same funnel');
 
-const call = (path, body, cookie) => new Request('https://kide.us' + path, {
-  method: 'POST',
-  headers: { 'content-type': 'application/json', cookie },
-  body: JSON.stringify(body),
-});
-
 await t('a checkout from a share link is counted and alerts', async () => {
   const { env, alerts, rows } = fresh();
   const res = await handleUnlock(call('/api/unlock/checkout', { email: 'p@example.com' }, `kide_ref=${CODE}`), env, { now: Date.now() });
@@ -221,6 +329,44 @@ await t('a purchase is counted once, though the success page asks several times'
   assert(!/example\.com/.test(stored), 'the email reached the funnel');
 });
 
+await t('only a confirmed purchase is counted, and the same purchase never counts again', async () => {
+  let purchases = [{ id: 'pi_old', domain: 'kide.us', offeringId: 'family_unlock', status: 'pending' }];
+  const { env, rows } = fresh({ async getCredits() { return { ok: true, purchases }; } });
+  const confirm = (now, body = { email: 'p@example.com', qa: true }) =>
+    handleUnlock(call('/api/unlock/confirm', body, `kide_ref=${CODE}`), env, { now });
+  let res = await confirm(Date.parse('2026-11-04T02:00:00Z'));
+  assert.equal((await res.json()).unlocked, false);
+  assert.equal(rows().length, 0, 'a pending checkout must not add a paid row');
+  purchases = [{ id: 'pi_open', domain: 'kide.us', offeringId: 'family_unlock', status: 'open' }];
+  res = await confirm(Date.parse('2026-11-04T02:05:00Z'));
+  assert.equal((await res.json()).unlocked, false);
+  purchases = [{ domain: 'kide.us', offeringId: 'family_unlock', creditsPurchased: 1 }];
+  res = await confirm(Date.parse('2026-11-04T02:06:00Z'));
+  assert.equal((await res.json()).unlocked, false);
+  assert.equal(rows().length, 0, 'a blank status must not add a paid row');
+
+  purchases = [{ id: 'pi_old', domain: 'kide.us', offeringId: 'family_unlock', status: 'paid' }];
+  res = await confirm(Date.parse('2026-11-04T02:10:00Z'));
+  assert.equal((await res.json()).unlocked, true);
+  res = await confirm(Date.parse('2026-12-01T02:00:00Z'));
+  assert.equal((await res.json()).unlocked, true);
+  assert.deepEqual(rows().map((r) => [r.step, r.ref, r.qa]), [['paid', CODE, 0]]);
+  const paidPuts = () => env.KIDE_LEADS.puts.filter((p) => String(p.k).startsWith('kide:funnel-paid:'));
+  assert.equal(paidPuts().length, 1);
+  assert.equal(paidPuts()[0].opts, null, 'the purchase marker must not expire');
+  assert.match(paidPuts()[0].k, /^kide:funnel-paid:v2:/);
+
+  purchases = [
+    { id: 'pi_old', domain: 'kide.us', offeringId: 'family_unlock', status: 'paid' },
+    { id: 'pi_new', domain: 'kide.us', offeringId: 'family_unlock', status: 'succeeded' },
+  ];
+  await confirm(Date.parse('2026-12-02T02:00:00Z'), { email: 'p@example.com' });
+  assert.deepEqual(rows().map((r) => r.step), ['paid', 'paid']);
+  assert.equal(paidPuts().length, 2);
+  for (const put of paidPuts()) assert.equal(put.opts, null);
+  assert(!/example\.com/.test(JSON.stringify(rows())), 'the email reached the funnel');
+});
+
 await t('a device\'s first play of the day and its used-up day are each counted once', async () => {
   const { env, rows } = fresh({ async getCredits() { return { ok: true, purchases: [] }; } });
   let now = Date.parse('2026-11-04T15:00:00Z');
@@ -240,13 +386,25 @@ await t('a device\'s first play of the day and its used-up day are each counted 
 
 console.log('\nthe privacy page says what is counted');
 
-await t('the policy names the counts, the cookies, and what they never carry', () => {
+await t('the policy names what is stored, what can be joined, and what is sent on', () => {
   const text = readFileSync('public/privacy/index.html', 'utf8').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-  assert.match(text, /we count steps on the grown-up pages/);
-  assert.match(text, /no device number, no cookie, no IP address, and no email/);
-  assert.match(text, /Pip's games send none of it/);
   assert.match(text, /random device number/);
+  assert.match(text, /store the email they gave us against that same device number/);
+  assert.match(text, /Counts that carry the same share code can be read together/);
+  assert.match(text, /free-play minute meter/);
+  assert.match(text, /files a referral credit on a queue/);
+  assert.match(text, /sent to our billing service/);
+  assert.doesNotMatch(text, /can't be joined|cannot be joined/);
+  assert.doesNotMatch(text, /Pip's games send none/);
+  assert.doesNotMatch(text, /identify no one/);
+  assert.doesNotMatch(text, /used for nothing else/);
+  assert.doesNotMatch(text, /shared with anyone/);
+  assert.doesNotMatch(text, /thanked|thank-you|thank you/i);
   assert.doesNotMatch(text, /the only cookie this site sets is the short-lived sign-in cookie/);
+  const home = readFileSync('index.html', 'utf8');
+  assert.match(home, /Your email, so a referral credit can be queued for you/);
+  assert.doesNotMatch(home, /payouts reach you/);
+  assert.doesNotMatch(home, /Payouts go to/);
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);
