@@ -7,6 +7,7 @@ import { routeParentAccount } from "../account/router.js";
 import { handlePlayEvents } from "../perf/http.js";
 import { handleCompete } from "../compete/http.js";
 import { handleUnlock } from "../unlock/handler.js";
+import { handleCastStory } from "../cast/story.js";
 import { withRefCookie } from "../referral/ref.js";
 import { handleFunnel, recordLinkOpen, withQaCookie } from "../funnel/funnel.js";
 import { handleRefClaim, inviteResponse } from "../referral/invite.js";
@@ -229,6 +230,12 @@ async function route(request: Request, env: Env, ctx?: ExecutionContext): Promis
     // clinician licence. A child's practice record never reaches this route.
     if (url.pathname.startsWith("/api/unlock")) {
       return handleUnlock(request, env, { ctx });
+    }
+
+    // Pip's Cast Club: tonight's bedtime story, from closed-list ids only.
+    // The child's name never reaches this route. See src/cast/story.js.
+    if (url.pathname === "/api/cast/story") {
+      return handleCastStory(request, env);
     }
 
     // Clinician licence: the chart-ready practice record at /clinician

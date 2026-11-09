@@ -1,0 +1,105 @@
+/* Pip's Cast Club. Tokens and the whole Pip sheet are copied from the rest of
+ * Kide on purpose (see the trap in docs: extracting only some .pip rules drops
+ * same-line rules and puts both eyes on the left). Cast pieces are new. */
+:root{
+  --sky-top:#56C6E6; --sky-bottom:#BDEBFF;
+  --sun:#FFD166; --grass:#6FD08C; --grass-deep:#4FB874; --grass-dark:#3D9C63;
+  --coral:#FF8A73; --coral-deep:#F16E55;
+  --berry:#FF8FA8; --sand:#4EA8DE; --sand-deep:#3B8FC4; --grape:#B497D6;
+  --dusk-top:#3C5A8A; --dusk-bottom:#7C8FC9; --night-top:#232B4D; --night-bottom:#3A3E72;
+  --cream:#FFFBF2; --card:#FFFFFF; --line:#E7E1D4;
+  --ink:#2E3A3F; --ink-soft:#4F5D5A;
+  --radius-lg:28px; --radius:20px;
+}
+*{box-sizing:border-box;}
+html,body{max-width:100%;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;background:var(--cream);color:var(--ink);line-height:1.45;font-size:17px;}
+a{color:var(--ink);}
+img,svg{max-width:100%;}
+.wrap{max-width:720px;margin:0 auto;padding:0 16px;}
+h1{font-size:clamp(28px,7.5vw,48px);font-weight:800;letter-spacing:-.02em;line-height:1.12;margin:10px 0 0;}
+h2{font-size:clamp(22px,5.5vw,28px);font-weight:800;letter-spacing:-.01em;line-height:1.2;margin:0 0 10px;}
+h3{font-size:19px;font-weight:800;margin:0 0 6px;}
+.eyebrow{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--grass-dark);margin:0;}
+.lede{font-size:18px;margin:12px 0 0;}
+.muted{color:var(--ink-soft);}
+
+/* ---- buttons (brand: pill, bold, pressed shadow; coral = the one action) */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:14px 24px;border-radius:999px;border:none;font:inherit;font-size:18px;font-weight:800;color:var(--ink);text-decoration:none;cursor:pointer;box-shadow:0 5px 0 rgba(0,0,0,.12);text-align:center;}
+.btn:focus-visible{outline:3px solid var(--ink);outline-offset:3px;}
+.btn-primary{background:linear-gradient(180deg,var(--coral),var(--coral-deep));}
+.btn-secondary{background:linear-gradient(180deg,#7CC3EC,var(--sand));}
+.btn-ghost{background:#fff;border:2px solid var(--line);box-shadow:none;}
+.btn-block{display:flex;width:100%;}
+.btn[disabled]{opacity:.55;cursor:default;}
+
+/* ---- nav */
+nav{padding:14px 0;}
+nav .row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.wordmark{font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.02em;text-decoration:none;min-height:44px;display:inline-flex;align-items:center;}
+.nav-links{display:flex;gap:4px;flex-wrap:wrap;}
+.nav-links a{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;font-weight:700;text-decoration:none;border-radius:999px;}
+.nav-links a:hover{background:#fff;}
+
+/* ---- cards */
+.card{background:var(--card);border-radius:var(--radius-lg);padding:22px 18px;box-shadow:0 8px 0 rgba(0,0,0,.05);}
+section{margin-top:36px;}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));}
+
+/* ---- the doctor note: always the same, always visible */
+.doctor-note{display:flex;gap:12px;align-items:flex-start;background:#FFF6DA;border:2px solid #F3D98A;border-radius:var(--radius);padding:14px 16px;font-size:16px;}
+.doctor-note b{display:block;}
+.doctor-note .ic{flex:none;font-size:24px;line-height:1;}
+
+/* =========================================================================
+   Pip (verbatim sheet) + Cast Club additions
+   ========================================================================= */
+.pip{position:relative;width:100%;height:100%;}
+.pip-bob{position:relative;width:100%;height:100%;transform-origin:bottom center;animation:bob 3.2s ease-in-out infinite;}
+@keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}
+.pip-body{position:absolute;left:8%;right:8%;bottom:4%;top:14%;background:linear-gradient(160deg,var(--grass),var(--grass-deep));border-radius:48% 48% 46% 46% / 58% 58% 42% 42%;box-shadow:inset 0 -10px 18px rgba(0,0,0,.10),inset 0 8px 14px rgba(255,255,255,.35);}
+.pip-cheek{position:absolute;width:13%;height:8%;background:var(--berry);opacity:.55;border-radius:50%;top:56%;}
+.pip-cheek.l{left:14%;}.pip-cheek.r{right:14%;}
+.pip-eye{position:absolute;width:19%;height:22%;background:#fff;border-radius:50%;top:32%;}
+.pip-eye.l{left:22%;}.pip-eye.r{right:22%;}
+.pip-pupil{position:absolute;width:52%;height:52%;background:var(--ink);border-radius:50%;top:26%;left:26%;animation:blink 5.5s ease-in-out infinite;}
+@keyframes blink{0%,92%,100%{transform:scaleY(1);}94%{transform:scaleY(.15);}96%{transform:scaleY(1);}}
+.pip-mouth{position:absolute;left:32%;right:32%;top:60%;height:16%;}
+.pip-sprout{position:absolute;top:-6%;left:50%;transform:translateX(-50%);width:34%;height:26%;}
+.pip-stem{position:absolute;bottom:0;left:50%;width:6%;height:70%;background:var(--grass-dark);transform:translateX(-50%);border-radius:3px;}
+.pip-leaf{position:absolute;width:46%;height:32%;background:linear-gradient(160deg,#8CE3A9,var(--grass-deep));border-radius:0% 100% 0% 100%;bottom:32%;}
+.pip-leaf.n1{left:2%;transform:rotate(-18deg);}
+.pip-leaf.n2{right:2%;transform:rotate(18deg) scaleX(-1);bottom:46%;}
+
+.pc-pip{--pc-font:16px;}
+.pc-limb{position:absolute;background:linear-gradient(160deg,var(--grass-deep),var(--grass-dark));border-radius:50%;}
+.pc-foot{width:20%;height:12%;bottom:-2%;}
+.pc-foot.l{left:24%;}.pc-foot.r{right:24%;}
+.pc-arm{width:15%;height:24%;top:50%;}
+.pc-arm.l{left:1%;transform:rotate(22deg);}
+.pc-arm.r{right:1%;transform:rotate(-22deg);}
+.hidden-under{visibility:hidden;}
+.pc-cast{position:absolute;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;gap:0 2px;background:var(--cast);background:linear-gradient(160deg,color-mix(in srgb,var(--cast) 70%,#fff),var(--cast));border-radius:42%;box-shadow:inset 0 -6px 10px rgba(0,0,0,.10),inset 0 5px 8px rgba(255,255,255,.55),0 2px 0 rgba(0,0,0,.08);overflow:hidden;transition:background .4s ease;}
+.pc-cast.on-leg{left:19%;width:30%;bottom:-5%;height:27%;border-radius:38% 38% 46% 46%;}
+.pc-cast.on-arm{right:-3%;top:44%;width:23%;height:34%;transform:rotate(-22deg);}
+.pc-splint{background:var(--cast);background:repeating-linear-gradient(90deg,color-mix(in srgb,var(--cast) 55%,#fff) 0 10%,#fff 10% 14%);}
+.pc-boot{background:linear-gradient(160deg,#B7C2C6,#8C9AA0);}
+.pc-boot.on-leg{height:30%;width:34%;left:17%;}
+.pc-boot .strap{position:absolute;left:-4%;right:-4%;height:12%;background:#55636A;border-radius:4px;}
+.pc-boot .strap.a{top:24%;}.pc-boot .strap.b{top:58%;}
+.pc-sling{position:absolute;left:24%;top:46%;width:74%;height:13%;background:#fff;background:color-mix(in srgb,var(--cast) 45%,#fff);border:3px solid var(--cast);border-radius:999px;transform:rotate(-28deg);transform-origin:right center;}
+.pc-sticker{position:relative;z-index:1;font-size:max(12px,calc(var(--pc-font) * .82));line-height:1.15;animation:stick .45s cubic-bezier(.3,1.6,.5,1) both;}
+@keyframes stick{from{transform:scale(2.4) rotate(-30deg);opacity:.2;}to{transform:none;opacity:1;}}
+.pc-crutch{position:absolute;right:-12%;bottom:-4%;width:7%;height:86%;}
+.pc-crutch::before{content:"";position:absolute;left:30%;width:40%;top:6%;bottom:0;background:#9AA6AB;border-radius:4px;}
+.pc-crutch i{position:absolute;left:-40%;right:-40%;top:0;height:7%;background:#6E7C82;border-radius:999px;}
+.is-sleepy .pip-pupil{transform:scaleY(.12);animation:none;}
+.is-sleepy .pip-bob{animation-duration:5s;}
+.pc-zzz{position:absolute;right:-6%;top:-4%;font-weight:800;font-size:max(14px,var(--pc-font));color:#fff;letter-spacing:.1em;animation:zzz 2.4s ease-in-out infinite;}
+@keyframes zzz{0%,100%{transform:translateY(0);opacity:.75;}50%{transform:translateY(-6px);opacity:1;}}
+.pip-cheer .pip-bob{animation:hop .5s ease 2;}
+@keyframes hop{0%,100%{transform:translateY(0);}40%{transform:translateY(-14px);}}
+
+@media (prefers-reduced-motion: reduce){
+  .pip-bob,.pip-pupil,.pc-sticker,.pc-zzz,.pip-cheer .pip-bob{animation:none !important;}
+}

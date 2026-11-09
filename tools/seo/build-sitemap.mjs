@@ -25,8 +25,10 @@ const ROOT = 'public';
  *  - /scene               an internal rig, not a page.
  *  - /account, /unlock    sign-in and the paid step. Thin, per-visitor pages a
  *                         stranger should reach through Pip, not from search.
+ *  - /cast/app            a child's screen holding what a parent typed. The
+ *                         public door is /cast.
  */
-const PRIVATE = [/^\/parent/, /^\/clinician/, /^\/bench/, /^\/engine/, /^\/scene/, /^\/account/, /^\/unlock/];
+const PRIVATE = [/^\/parent/, /^\/clinician/, /^\/bench/, /^\/engine/, /^\/scene/, /^\/account/, /^\/unlock/, /^\/cast\/app/];
 
 /* Priority reflects what we would most like a stranger to land on.
  * /sounds outranks the product pages deliberately: it is the surface that
@@ -44,6 +46,8 @@ const PRIORITY = [
   // one clinician is worth more here than a hundred parents, and there are far
   // fewer of them searching.
   [/^\/for-slps$/,  '0.9', 'monthly'],
+  // Pip's Cast Club: answers a parent searching about a toddler in a cast.
+  [/^\/cast$/,      '0.8', 'monthly'],
   [/^\/(privacy|terms)$/, '0.3', 'yearly'],
 ];
 
