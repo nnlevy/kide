@@ -8,9 +8,10 @@
 //
 // The share code is the join key. Counts for one code can be read together,
 // which shows how families who followed that link moved through the site. It
-// does not name the child. The code and the totals of opens, checkouts, and
-// paid purchases are sent to the billing hub, which queues a referral credit
-// and can email the owner. This file does not pay anyone.
+// does not name the child. The code, the step name, the device class, the
+// time, and the totals of opens, checkouts, and paid purchases are sent to
+// the billing hub, which queues a referral credit and can email the owner.
+// This file does not pay anyone.
 //
 // Where steps come from:
 //   server  link_open, link_preview   GET / with ?ref=CODE (worker/index.ts)
@@ -69,13 +70,17 @@ export function deviceClass(ua) {
 // not a tap. WhatsApp's in-app browser is a tap: its UA is a normal browser
 // that also says WhatsApp. The preview fetcher's UA is only "WhatsApp/<version>".
 // Pinterest's in-app browser likewise names Pinterest; the crawler is
-// Pinterestbot or the short "Pinterest/<digits>" fetcher. A UA that merely
-// contains the word "preview" is not a crawler.
+// Pinterestbot or the short "Pinterest/<digits>" fetcher.
+// Crawler tokens end in "bot" (bingbot/2.0, Applebot, Googlebot). A standalone
+// "\bbot\b" misses those, because the letters before "bot" sit in the same
+// word. A UA that merely contains the word "preview" is not a crawler.
+const CRAWLER_UA = /[a-z]bot\b|crawler|spider|slurp|facebookexternalhit|skypeuripreview|embedly|quora link preview|ia_archiver/i;
+
 export function isPreviewFetch(ua) {
   const s = String(ua || "").trim();
   if (/^WhatsApp\//i.test(s)) return true;
   if (/Pinterestbot|(?:^|\s)Pinterest\/\d/i.test(s)) return true;
-  return /facebookexternalhit|Facebot|Twitterbot|Slackbot|TelegramBot|Discordbot|LinkedInBot|SkypeUriPreview|\bbot\b|crawler|spider/i.test(s);
+  return CRAWLER_UA.test(s);
 }
 
 function cleanDetail(map, step, detail) {
@@ -135,9 +140,12 @@ export async function recordStep(env, { step, ref, detail, qa, now }, steps = SE
   }
 }
 
-// A link the owner or a QA script opens on purpose carries kide_qa=1. Those
-// rows are kept apart and never alert. The server records that from the URL
-// it served, then from the cookie it set. A qa field in a POST body is ignored.
+// A link the owner or a QA script opens on purpose carries kide_qa=1. Link
+// opens and browser steps from that visit are kept apart and never alert.
+// The cookie is not signed, and no signing secret is configured, so a visitor
+// can set it. Paid, checkout, play_day, and gate_day rows ignore it: a real
+// purchase still counts. The server reads the flag from the URL it served,
+// then from the cookie. A qa field in a POST body is ignored.
 export const QA_COOKIE = "kide_qa";
 
 export function isQa(url) {

@@ -156,7 +156,8 @@ async function confirmLoop(address) {
 }
 
 // After a paid unlock the grown-up is still here: offer the family's own link.
-// The hub pays the sharer only when someone they sent buys family play.
+// A purchase through that link is recorded on the hub's queue. This page does
+// not tell the parent they have been paid.
 async function showShare(address) {
   let data = null;
   try {
@@ -175,7 +176,7 @@ async function showShare(address) {
   try { localStorage.setItem("kide.refLink", link); } catch { /* the page still shows it */ }
   const input = $("shareLink");
   if (input) input.value = link;
-  say("shareReward", typeof data.reward === "string" ? data.reward + "." : "");
+  say("shareReward", "We record a referral when a family buys family play through your link. That record waits on a queue. It is not a payment from this page.");
   const box = $("share");
   if (box) box.hidden = false;
   const go = $("shareGo");
