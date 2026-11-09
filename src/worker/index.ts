@@ -1,6 +1,6 @@
 // Sitemap and robots are GENERATED from the pages that actually exist -- the
 // hand-written version silently went stale and was missing five live pages.
-import { SITEMAP, ROBOTS, PUBLIC_ROUTES } from "./seo-generated";
+import { SITEMAP, ROBOTS, PUBLIC_ROUTES, LLMS } from "./seo-generated";
 import { dispatchChallenge } from "../../public/engine/challenge.js";
 import { handleAccount } from "./account.js";
 import { routeParentAccount } from "../account/router.js";
@@ -148,6 +148,10 @@ async function route(request: Request, env: Env): Promise<Response> {
 
     if (url.pathname === "/robots.txt") {
       return new Response(ROBOTS, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+    }
+
+    if (url.pathname === "/llms.txt") {
+      return new Response(LLMS, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=3600" } });
     }
 
     // A gift link a parent made and texted to somebody. Rendered here rather

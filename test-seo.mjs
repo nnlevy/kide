@@ -390,5 +390,19 @@ t('the homepage links into the sound surface', () => {
     'the strongest page on the site barely links to the surface built to rank');
 });
 
+t('llms.txt lists every public page with its own title, and no private page', () => {
+  const llms = read('public/llms.txt');
+  const sitemap = read('public/sitemap.xml');
+  const worker = read('src/worker/index.ts');
+  assert(/url\.pathname === "\/llms\.txt"/.test(worker), 'the worker does not serve /llms.txt');
+  assert(llms.startsWith('# Kide\n\n> '), 'llms.txt has no title and summary line');
+  for (const m of sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)) {
+    if (/\/(privacy|terms)$/.test(m[1])) continue;
+    assert(llms.includes(`](${m[1]})`), `${m[1]} is in the sitemap but not in llms.txt`);
+  }
+  assert(!/\/(parent|clinician|bench|engine|scene|account|unlock)\b/.test(llms), 'a private page leaked into llms.txt');
+  assert(!/\[\/[^\]]*\]\(/.test(llms), 'a page is listed with its path instead of a title');
+});
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
