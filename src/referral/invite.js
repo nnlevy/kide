@@ -7,9 +7,9 @@
 // "A friend", which is still true: somebody shared the link.
 //
 // A claim link (?ref=CODE&claim=TOKEN) is the one the owner hands the referrer.
-// It adds a "Welcome Austin" bar with what they earn and one button to add the
-// email their payouts go to. The hub checks the token and spends it on use.
-// Parents following the plain link never see the bar or the payout.
+// It adds a "Welcome Austin" bar that says a referral is recorded on a queue,
+// and one button for the email that queue should remember. The hub checks the
+// token and spends it on use. Parents following the plain link never see the bar.
 //
 // The hub owns names, tokens and payouts (riskfreetrial src/cashReferrals.ts).
 // This file renders and forwards. It never decides a payout.
@@ -62,6 +62,11 @@ export function inviteCopy(firstName) {
   };
 }
 
+// Shown on the claim bar. The hub's reward label is a queue note, not a
+// payment this page makes, so the bar does not say the visitor earns it.
+export const RECORDED_REFERRAL =
+  "We record a referral when a family buys family play through your link. That record waits on a queue. It is not a payment from this page.";
+
 const setAttr = (name, value) => ({ element(el) { el.setAttribute(name, value); } });
 const setText = (text) => ({ element(el) { el.setInnerContent(text); } });
 const show = { element(el) { el.removeAttribute("hidden"); } };
@@ -97,7 +102,7 @@ export async function inviteResponse(request, env, asset) {
       .on("#claimBar", setAttr("data-code", code))
       .on("#claimBar", setAttr("data-claim", claim))
       .on("#claimName", setText(ref.firstName ? `Welcome ${ref.firstName}` : "Welcome"))
-      .on("#claimReward", setText(ref.rewardLabel ? `You earn ${ref.rewardLabel}.` : "You earn a reward for each family that buys family play through your link."));
+      .on("#claimReward", setText(RECORDED_REFERRAL));
   }
 
   const out = rw.transform(asset);
@@ -114,7 +119,7 @@ const jsonRes = (data, status = 200) =>
 
 const CLAIM_ERRORS = {
   invalid_email: "That email doesn't look right. Try again?",
-  email_in_use: "That email already has a kide link. Ask Nir to sort it out.",
+  email_in_use: "That email already has a kide link. Email hello@kide.us and we'll help.",
   not_claimable: "This link was already claimed.",
 };
 

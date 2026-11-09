@@ -8,13 +8,24 @@ const $ = (id) => document.getElementById(id);
 const COPY = {
   mismatch: "That does not match. Try another answer.",
   needEmail: "Enter the email you want on the receipt.",
-  soon: "Family play is opening soon. We'll email you.",
+  retry: "Pip could not open checkout. Try again in a moment.",
+  noCharge: "No charge was made. Family play is here whenever you're ready.",
   checking: "Checking the receipt.",
   keep: "This email can keep playing with Pip.",
   waiting: "The receipt is still on its way. Return to Pip. This page can check again.",
   copied: "Copied. Paste it in a text to another parent.",
   shareText: "Pip gets sleepy and asks to be tucked in, so screen time ends without a meltdown. Try it free:",
 };
+
+// Funnel steps for this grown-up page. The server adds the share code from
+// its own cookie, and marks a QA visit from the cookie it set. See src/funnel.
+function funnel(step, detail) {
+  try {
+    const body = JSON.stringify({ step, detail: detail || "" });
+    if (navigator.sendBeacon && navigator.sendBeacon("/api/funnel", new Blob([body], { type: "application/json" }))) return;
+    fetch("/api/funnel", { method: "POST", body, keepalive: true, credentials: "same-origin", headers: { "Content-Type": "application/json" } });
+  } catch { /* measuring never affects the page */ }
+}
 
 function show(id) {
   for (const panel of ["hold", "pay", "wait"]) {
@@ -56,6 +67,9 @@ function revealPay() {
   show("pay");
   const email = $("email");
   if (email) email.focus();
+  try {
+    if (new URLSearchParams(location.search).get("checkout") === "back") say("payMsg", COPY.noCharge);
+  } catch { /* the offer still shows */ }
 }
 
 async function prefill() {
@@ -79,25 +93,6 @@ function safeCheckoutUrl(value) {
   }
 }
 
-async function rememberParent(address) {
-  try {
-    await fetch("/api/notify", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: address,
-        matchedDomain: "kide",
-        matchedTitle: "Kide — family play",
-        need: "Email me when family play opens",
-        pageUrl: location.origin + location.pathname,
-      }),
-    });
-  } catch {
-    // The sentence on the page is the whole reply.
-  }
-}
-
 async function startCheckout(event) {
   event.preventDefault();
   const email = $("email");
@@ -110,6 +105,7 @@ async function startCheckout(event) {
   const button = $("payGo");
   if (button) button.disabled = true;
   say("payMsg", "");
+  funnel("checkout_click");
   let url = null;
   try {
     const res = await fetch("/api/unlock/checkout", {
@@ -127,8 +123,7 @@ async function startCheckout(event) {
     location.href = url;
     return;
   }
-  say("payMsg", COPY.soon);
-  await rememberParent(address);
+  say("payMsg", COPY.retry);
   if (button) button.disabled = false;
 }
 
@@ -161,7 +156,8 @@ async function confirmLoop(address) {
 }
 
 // After a paid unlock the grown-up is still here: offer the family's own link.
-// The hub pays the sharer only when someone they sent buys family play.
+// A purchase through that link is recorded on the hub's queue. This page does
+// not tell the parent they have been paid.
 async function showShare(address) {
   let data = null;
   try {
@@ -180,7 +176,7 @@ async function showShare(address) {
   try { localStorage.setItem("kide.refLink", link); } catch { /* the page still shows it */ }
   const input = $("shareLink");
   if (input) input.value = link;
-  say("shareReward", typeof data.reward === "string" ? data.reward + "." : "");
+  say("shareReward", "We record a referral when a family buys family play through your link. That record waits on a queue. It is not a payment from this page.");
   const box = $("share");
   if (box) box.hidden = false;
   const go = $("shareGo");
@@ -219,19 +215,30 @@ function boot() {
     confirmLoop(address);
     return;
   }
+  if (back === "back") funnel("checkout_back");
+  else {
+    const from = params.get("from");
+    funnel("unlock_view", from === "gate" || from === "goodnight" ? from : "direct");
+  }
   if (passed()) {
     show("pay");
     prefill();
   } else {
     armHold();
   }
+  // Stripe sends every cancel here, including a browser that lost kide.grownup.
+  // The sentence has to be on the panel that is actually showing.
+  if (back === "back") say(passed() ? "payMsg" : "holdMsg", COPY.noCharge);
 
   const check = $("check");
   if (check) {
     check.addEventListener("click", () => {
       const answer = $("answer");
-      if (answerMatches(hold, answer && answer.value)) revealPay();
-      else {
+      if (answerMatches(hold, answer && answer.value)) {
+        funnel("check_pass");
+        revealPay();
+      } else {
+        funnel("check_fail");
         say("holdMsg", COPY.mismatch);
         if (answer) answer.focus();
       }

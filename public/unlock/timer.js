@@ -86,6 +86,9 @@
 
   var shown = false;
   var timer = 0;
+  // Which card sent the grown-up to /unlock/. Carried in the URL only; this
+  // page sends nothing. The parent page counts it (src/funnel/funnel.js).
+  var from = "gate";
   var poll = 0;
   // A playtime in progress is never cut short. If free time runs out mid-play,
   // the ask waits for Pip's goodnight (or the child leaving for the home screen).
@@ -117,6 +120,7 @@
   function showAfterGoodnight() {
     if (shown) return;
     shown = true;
+    from = "goodnight";
     pending = false;
     if (poll) clearInterval(poll);
     if (fallback) clearTimeout(fallback);
@@ -145,6 +149,7 @@
   function show(seconds) {
     if (shown) return;
     shown = true;
+    from = "gate";
     pending = false;
     if (poll) clearInterval(poll);
     if (fallback) clearTimeout(fallback);
@@ -186,7 +191,7 @@
 
   function go() {
     if (timer) clearInterval(timer);
-    location.href = "/unlock/";
+    location.href = "/unlock/?from=" + from;
   }
 
   function apply(data) {

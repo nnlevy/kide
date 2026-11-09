@@ -97,13 +97,13 @@ await t('price id is the live family price and not a secret', () => {
   assert(!/PLACEHOLDER/.test(files), 'the family price is still a placeholder');
 });
 
-await t('checkout input reuses the hub fields and returns to play on cancel', () => {
+await t('checkout input reuses the hub fields and returns to the offer on cancel', () => {
   const input = checkoutInput({ origin: 'https://kide.us', email: 'parent@example.com' });
   assert.equal(input.domain, 'kide.us');
   assert.equal(input.offeringId, 'family_unlock');
   assert.equal(input.priceId, STRIPE_PRICE_ID);
   assert.equal(input.sourceDomain, 'kide.us');
-  assert.equal(input.cancelUrl, 'https://kide.us/play/');
+  assert.equal(input.cancelUrl, 'https://kide.us/unlock/?checkout=back');
   assert.equal(input.successUrl, 'https://kide.us/unlock/?checkout=success&email=parent%40example.com');
   assert(!/data=/.test(input.successUrl + input.cancelUrl));
   assert.equal(httpsUrl('https://checkout.stripe.com/c/pay/cs_test_fake'), 'https://checkout.stripe.com/c/pay/cs_test_fake');
@@ -122,10 +122,26 @@ await t('purchase history must name the family offering', () => {
   assert.equal(purchaseGrantsUnlock({
     ok: true,
     summaries: [{ domain: 'kide.us', offeringId: 'family_unlock', creditsPurchased: 1 }],
-  }, cfg).unlocked, true);
+  }, cfg).unlocked, false, 'a row with no paid status is not a grant');
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
+    purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', status: 'pending' }],
+  }, cfg).unlocked, false);
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
+    purchases: [{ domain: 'kide.us', offeringId: 'family_unlock', status: 'open' }],
+  }, cfg).unlocked, false);
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
+    purchases: [{ domain: 'kide.us', offeringId: 'family_unlock' }],
+  }, cfg).unlocked, false);
   assert.equal(purchaseGrantsUnlock({
     ok: true,
     purchases: [{ domain: 'kide.us', priceId: STRIPE_PRICE_ID, status: 'paid' }],
+  }, cfg).unlocked, true);
+  assert.equal(purchaseGrantsUnlock({
+    ok: true,
+    purchases: [{ domain: 'kide.us', priceId: STRIPE_PRICE_ID, status: 'succeeded' }],
   }, cfg).unlocked, true);
   assert.equal(purchaseGrantsUnlock({
     ok: true,
@@ -343,7 +359,7 @@ await t('checkout goes through the billing binding and ignores a swapped offerin
     assert.equal(hub.calls.length, 1);
     assert.equal(hub.calls[0].offeringId, 'family_unlock');
     assert.equal(hub.calls[0].priceId, STRIPE_PRICE_ID);
-    assert.equal(hub.calls[0].cancelUrl, 'https://kide.us/play/');
+    assert.equal(hub.calls[0].cancelUrl, 'https://kide.us/unlock/?checkout=back');
     assert(!('record' in hub.calls[0]));
     assert.equal(fetches, 0);
   } finally {
@@ -408,8 +424,13 @@ await t('visitor sentences and the new pages avoid gate words', () => {
   const timer = readFileSync('public/unlock/timer.js', 'utf8');
   assert(!/\$\d/.test(timer), 'the countdown names a price');
   const parent = readFileSync('public/unlock/parent.js', 'utf8');
-  assert(/Family play is opening soon\. We'll email you\./.test(parent));
-  assert(/\/api\/notify/.test(parent));
+  assert(/Pip could not open checkout\. Try again in a moment\./.test(parent));
+  assert(/No charge was made\. Family play is here whenever you're ready\./.test(parent));
+  assert(/We record a referral when a family buys family play through your link\. That record waits on a queue\. It is not a payment from this page\./.test(parent));
+  assert(!/You earn/.test(parent), 'the share line must not say the parent earns a payment');
+  assert(!/opening soon/i.test(parent), 'a checkout problem must not say family play is opening soon');
+  assert(!/\/api\/notify/.test(parent), 'a checkout problem must not be filed as a waitlist lead');
+  assert(/if \(back === "back"\) say\(passed\(\) \? "payMsg" : "holdMsg", COPY\.noCharge\)/.test(parent));
   assert(!/data\.error|data\.message|fulfillment_not_ready/.test(parent));
   assert(/Pip needs a grown-up/.test(timer));
   assert(/\/unlock\//.test(timer));
@@ -526,14 +547,14 @@ T(("127.0.0.1", ${port}), H).serve_forever()
     assert.ok(after.overflow <= 1, `overflow after the hold ${after.overflow}px`);
     assert.equal(after.priceOk, true, after.price);
 
-    let notified = null;
+    let notified = false;
     await page.route('**/api/unlock/checkout', (route) => route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ ok: false, error: 'fulfillment_not_ready', message: 'Checkout failed' }),
     }));
     await page.route('**/api/notify', async (route) => {
-      notified = route.request().postDataJSON();
+      notified = true;
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -542,15 +563,33 @@ T(("127.0.0.1", ${port}), H).serve_forever()
     });
     await page.fill('#email', 'parent@example.com');
     await page.click('#payGo');
-    await page.waitForFunction(() => /opening soon/i.test(document.getElementById('payMsg').textContent));
+    await page.waitForFunction(() => /could not open checkout/i.test(document.getElementById('payMsg').textContent));
     const msg = await page.locator('#payMsg').innerText();
-    assert.match(msg, /opening soon/i);
-    assert.match(msg, /email you/i);
-    assert.doesNotMatch(msg, /fulfillment|failed|502|503/i);
+    assert.match(msg, /could not open checkout/i);
+    assert.match(msg, /try again/i);
+    assert.doesNotMatch(msg, /opening soon|email you|fulfillment|failed|502|503/i);
     const visible = await page.locator('body').innerText();
     assert.doesNotMatch(visible, /fulfillment_not_ready|Checkout failed/);
-    assert.equal(notified && notified.email, 'parent@example.com');
-    assert.equal(notified.matchedDomain, 'kide');
+    assert.equal(notified, false);
+
+    const cancel = await browser.newPage({
+      viewport: { width: 320, height: 568 },
+      isMobile: true,
+      hasTouch: true,
+      deviceScaleFactor: 2,
+    });
+    await cancel.goto(`http://127.0.0.1:${port}/unlock/?checkout=back`, { waitUntil: 'domcontentloaded' });
+    await cancel.waitForFunction(() => /No charge was made/.test(document.getElementById('holdMsg').textContent));
+    assert.equal(await cancel.locator('#pay').getAttribute('hidden'), '');
+    assert.match(await cancel.locator('#holdMsg').innerText(), /No charge was made\. Family play is here whenever you're ready\./);
+    const cancelPrompt = await cancel.locator('#prompt').innerText();
+    const sum = cancelPrompt.match(/What is (\d+) \+ (\d+)\?/);
+    assert.ok(sum, 'prompt was ' + cancelPrompt);
+    await cancel.fill('#answer', String(Number(sum[1]) + Number(sum[2])));
+    await cancel.click('#check');
+    await cancel.waitForSelector('#pay:not([hidden])');
+    assert.match(await cancel.locator('#payMsg').innerText(), /No charge was made/);
+    await cancel.close();
     console.log('  ok   unlock page at 320px');
     pass++;
   } catch (e) {
@@ -590,6 +629,7 @@ await t('share links reach the Worker, so the referral cookie is actually set', 
   const cfg = JSON.parse(readFileSync(new URL('./wrangler.json', import.meta.url), 'utf8'));
   const first = cfg.assets && cfg.assets.run_worker_first;
   assert(Array.isArray(first) ? first.includes('/') : first === true, 'the share-link landing "/" must run the Worker first');
+  assert(Array.isArray(first) && first.includes('/unlock') && first.includes('/unlock/'), 'the unlock page runs the Worker so a QA visit can set the server cookie');
   const home = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
   assert.match(home, /id="inviteDeal" hidden/, 'invited parents get the deal line, hidden for everyone else');
   assert.match(home, /id="claimBar" hidden/, 'the referrer claim bar stays hidden unless the worker unhides it');
@@ -606,7 +646,11 @@ await t('share links name the sender and a claim link can add a payout email', a
   const calls = [];
   const hub = {
     getCashReferrerPublic: async (input) => { calls.push(input); return { ok: true, found: true, firstName: input.code === 'AB3DEFGH' ? 'Austin' : '<b>x</b>', claimable: input.claim === 'a'.repeat(24), rewardLabel: '$7.50 for each family' }; },
-    claimCashReferrer: async (input) => { calls.push(input); return input.claim === 'a'.repeat(24) ? { ok: true, rewardLabel: '$7.50 for each family' } : { ok: false, reason: 'not_claimable' }; },
+    claimCashReferrer: async (input) => {
+      calls.push(input);
+      if (input.email === 'used@example.com') return { ok: false, reason: 'email_in_use' };
+      return input.claim === 'a'.repeat(24) ? { ok: true, rewardLabel: '$7.50 for each family' } : { ok: false, reason: 'not_claimable' };
+    },
   };
   const env = { PORTFOLIO_BILLING_SERVICE: hub };
   assert.deepEqual(await lookupReferrer(env, 'AB3DEFGH', null), { firstName: 'Austin', claimable: false, rewardLabel: '$7.50 for each family' });
@@ -621,6 +665,11 @@ await t('share links name the sender and a claim link can add a payout email', a
   assert.equal(res.status, 400);
   res = await handleRefClaim(req('/api/ref/claim', { method: 'POST', body: { code: 'AB3DEFGH', claim: 'a'.repeat(24), email: 'nope' } }), env);
   assert.equal(res.status, 400);
+  res = await handleRefClaim(req('/api/ref/claim', { method: 'POST', body: { code: 'AB3DEFGH', claim: 'a'.repeat(24), email: 'used@example.com' } }), env);
+  assert.equal(res.status, 400);
+  const used = await res.json();
+  assert.equal(used.error, "That email already has a kide link. Email hello@kide.us and we'll help.");
+  assert.doesNotMatch(used.error, /Nir/);
   res = await handleRefClaim(req('/api/ref/claim'), env);
   assert.equal(res.status, 405);
 });

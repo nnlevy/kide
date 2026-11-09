@@ -16,8 +16,9 @@ import {
   STRIPE_PRICE_ID,
 } from "./config.js";
 import { checkoutInput, httpsUrl } from "./checkout.js";
+import { alertOwner, recordStep } from "../funnel/funnel.js";
 import { COPY } from "./copy.js";
-import { deviceUnlockKey, purchaseGrantsUnlock, unlockKey } from "./entitlement.js";
+import { confirmedPurchaseKeys, deviceUnlockKey, purchaseGrantsUnlock, unlockKey } from "./entitlement.js";
 import { normalizeEmail } from "./email.js";
 import { advance, capSeconds, dayStamp, mergePeak, overLimit, playKey } from "./minutes.js";
 import { parentIdFor } from "../account/parent-id.js";
@@ -209,6 +210,28 @@ async function savePlay(kv, day, deviceId, email, merged) {
   return device.seconds;
 }
 
+// One "paid" row per confirmed purchase, though the success page asks several
+// times. The marker is the purchase itself and does not expire, so a later
+// visit does not count a historical receipt again. An unfinished checkout has
+// no key and is not counted. The funnel row itself carries no email. qa is
+// never set here: the kide_qa cookie is unsigned, so it must not drop a
+// purchase out of the paid total or burn this marker on a row that does not count.
+async function countPaidOnce(env, kv, request, email, now, credits) {
+  try {
+    for (const purchaseKey of confirmedPurchaseKeys(credits, grantConfig())) {
+      const bytes = new TextEncoder().encode(`kide-funnel-paid:${email}\n${purchaseKey}`);
+      const digest = await crypto.subtle.digest("SHA-256", bytes);
+      const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+      const key = `kide:funnel-paid:v2:${hex}`;
+      if (kv && (await kvGet(kv, key))) continue;
+      if (kv) await kv.put(key, JSON.stringify({ at: now }));
+      await recordStep(env, { step: "paid", ref: refFromRequest(request), qa: false, now });
+    }
+  } catch {
+    // Counting never blocks the unlock.
+  }
+}
+
 export async function handleUnlock(request, env, opts = {}) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, "") || "/";
@@ -238,9 +261,19 @@ export async function handleUnlock(request, env, opts = {}) {
     try {
       const out = await billing.createCheckout(input);
       const payUrl = httpsUrl(out && out.url);
-      if (payUrl) return json({ ok: true, url: payUrl }, 200, cookie);
+      if (payUrl) {
+        const rowId = await recordStep(env, { step: "checkout_open", ref, qa: false, now });
+        if (ref && rowId && opts.alert !== false) {
+          const work = alertOwner(env, { rowId, step: "checkout_open", ref, now });
+          if (opts.ctx && typeof opts.ctx.waitUntil === "function") opts.ctx.waitUntil(work);
+          else await work;
+        }
+        return json({ ok: true, url: payUrl }, 200, cookie);
+      }
+      await recordStep(env, { step: "checkout_fail", ref, qa: false, now });
       return json({ ok: false, message: COPY.retry }, 502, cookie);
     } catch {
+      await recordStep(env, { step: "checkout_fail", ref, qa: false, now });
       return json({ ok: false, message: COPY.retry }, 503, cookie);
     }
   }
@@ -267,6 +300,7 @@ export async function handleUnlock(request, env, opts = {}) {
         return json({ ok: true, unlocked, pending: !unlocked }, 200, cookie);
       }
       if (verdict.unlocked) {
+        await countPaidOnce(env, kv, request, payEmail, now, credits);
         await rememberUnlock(env, kv, deviceId, payEmail, now);
         return json({ ok: true, unlocked: true, pending: false }, 200, cookie);
       }
@@ -329,9 +363,17 @@ export async function handleUnlock(request, env, opts = {}) {
   }
   const who = unlock.email || email;
   const loaded = await loadSeconds(kv, day, deviceId, who);
+  // Funnel: a device's first free-play tick today, and the tick that uses the
+  // day up. Counts only, from the meter that already runs. See src/funnel.
+  // Same rule as paid and checkout: the unsigned kide_qa cookie does not
+  // keep a play day or a used-up day out of the count.
+  if (!loaded.device) await recordStep(env, { step: "play_day", ref: refFromRequest(request), qa: false, now });
   const deviceNext = advance(loaded.device, now, MAX_TICK_SECONDS);
   const accountNext = who ? advance(loaded.account, now, MAX_TICK_SECONDS) : null;
   const merged = mergePeak(deviceNext, accountNext);
   const seconds = kv ? await savePlay(kv, day, deviceId, who, merged) : merged.device.seconds;
+  if (!overLimit(loaded.seconds, FREE_PLAY_MINUTES) && overLimit(seconds, FREE_PLAY_MINUTES)) {
+    await recordStep(env, { step: "gate_day", ref: refFromRequest(request), qa: false, now });
+  }
   return json(view({ unlocked: false, seconds }), 200, cookie);
 }
