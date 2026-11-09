@@ -9,6 +9,7 @@ import {
   BROWSER_STEPS, SERVER_STEPS, deviceClass, handleFunnel, isPreviewFetch,
   qaFromRequest, recordLinkOpen, recordStep, resetForTests, withQaCookie,
 } from './src/funnel/funnel.js';
+import { RECORDED_REFERRAL } from './src/referral/invite.js';
 import { handleUnlock } from './src/unlock/handler.js';
 import { STRIPE_PRICE_ID } from './src/unlock/config.js';
 
@@ -65,6 +66,9 @@ const WHATSAPP_ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/5
 const WHATSAPP_PREVIEW = 'WhatsApp/2.23.20.0 A';
 const PINTEREST_BROWSER = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Safari/604.1 Pinterest/iOS';
 const PINTEREST_BOT = 'Mozilla/5.0 (compatible; Pinterestbot/1.0; +https://www.pinterest.com/bot.html)';
+const BINGBOT = 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)';
+const APPLEBOT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15 (Applebot/0.1; +http://www.apple.com/go/applebot)';
+const GOOGLEBOT = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
 const NOT_A_CRAWLER = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Preview/1.0';
 const CODE = 'DXGN9HC6';
 const open = (url, ua = IPHONE) => new Request(url, { headers: { 'user-agent': ua } });
@@ -158,6 +162,25 @@ await t('a WhatsApp or Pinterest in-app tap is a real open; only the crawler is 
   await recordLinkOpen(open(`https://kide.us/?ref=${CODE}`, PINTEREST_BROWSER), env, null, at + 2 * 60 * 60_000);
   assert.equal(rows()[2].step, 'link_open');
   assert.equal(alerts.length, 2);
+});
+
+await t('crawler user agents, including suffix bots, are previews and do not alert', async () => {
+  assert.equal(isPreviewFetch(BINGBOT), true);
+  assert.equal(isPreviewFetch(APPLEBOT), true);
+  assert.equal(isPreviewFetch(GOOGLEBOT), true);
+  assert.equal(isPreviewFetch('Mozilla/5.0 (compatible; Somebot/1.2; +https://example.com/bot)'), true);
+  assert.equal(isPreviewFetch('Mozilla/5.0 (compatible; Applebot)'), true);
+  assert.equal(isPreviewFetch(WHATSAPP_BROWSER), false);
+  assert.equal(isPreviewFetch(PINTEREST_BROWSER), false);
+  const { env, alerts, rows } = fresh();
+  const at = Date.parse('2026-11-04T02:14:00Z');
+  await recordLinkOpen(open(`https://kide.us/?ref=${CODE}`, BINGBOT), env, null, at);
+  await recordLinkOpen(open(`https://kide.us/?ref=${CODE}`, APPLEBOT), env, null, at + 60_000);
+  assert.deepEqual(rows().map((r) => [r.step, r.detail, r.alerted]), [
+    ['link_preview', 'preview', 0],
+    ['link_preview', 'preview', 0],
+  ]);
+  assert.equal(alerts.length, 0);
 });
 
 await t('an alert is marked only after the hub accepts it', async () => {
@@ -256,7 +279,7 @@ await t('a browser step takes the share code from the cookie, never the body', a
   assert.match(worker, /withQaCookie\(request, withRefCookie\(request,/);
 });
 
-await t('a checkout qa flag in the body does not silence the alert', async () => {
+await t('a checkout qa flag in the body or the kide_qa cookie does not drop the row', async () => {
   const { env, alerts, rows } = fresh();
   const at = Date.parse('2026-11-04T04:00:00Z');
   const forged = await handleUnlock(call('/api/unlock/checkout', { email: 'p@example.com', qa: true }, `kide_ref=${CODE}`), env, { now: at });
@@ -265,9 +288,10 @@ await t('a checkout qa flag in the body does not silence the alert', async () =>
   assert.equal(rows()[0].alerted, 1);
   assert.equal(alerts.length, 1);
   await handleUnlock(call('/api/unlock/checkout', { email: 'p@example.com', qa: false }, `kide_ref=${CODE}; kide_qa=1`), env, { now: at + 60 * 60_000 });
-  assert.equal(rows()[1].qa, 1);
-  assert.equal(rows()[1].alerted, 0);
-  assert.equal(alerts.length, 1);
+  assert.equal(rows()[1].qa, 0);
+  assert.equal(rows()[1].step, 'checkout_open');
+  assert.equal(rows()[1].alerted, 1);
+  assert.equal(alerts.length, 2);
 });
 
 await t('server-only steps, unknown steps and big bodies are refused', async () => {
@@ -370,7 +394,7 @@ await t('only a confirmed purchase is counted, and the same purchase never count
 await t('a device\'s first play of the day and its used-up day are each counted once', async () => {
   const { env, rows } = fresh({ async getCredits() { return { ok: true, purchases: [] }; } });
   let now = Date.parse('2026-11-04T15:00:00Z');
-  let cookie = `kide_ref=${CODE}`;
+  let cookie = `kide_ref=${CODE}; kide_qa=1`;
   const tick = async () => {
     const res = await handleUnlock(call('/api/unlock/tick', {}, cookie), env, { now });
     const set = (res.headers.get('set-cookie') || '').split(';')[0];
@@ -381,7 +405,31 @@ await t('a device\'s first play of the day and its used-up day are each counted 
   for (let i = 0; i < 30 && !data.gated; i++) { now += 15_000; data = await tick(); }
   assert.equal(data.gated, true);
   now += 15_000; await tick();
-  assert.deepEqual(rows().map((r) => [r.step, r.ref]), [['play_day', CODE], ['gate_day', CODE]]);
+  assert.deepEqual(rows().map((r) => [r.step, r.ref, r.qa]), [['play_day', CODE, 0], ['gate_day', CODE, 0]]);
+});
+
+await t('a purchase with the kide_qa cookie is still counted as paid', async () => {
+  const { env, alerts, rows } = fresh();
+  const at = Date.parse('2026-11-04T02:14:00Z');
+  const res = await handleUnlock(
+    call('/api/unlock/confirm', { email: 'p@example.com' }, `kide_ref=${CODE}; kide_qa=1`),
+    env,
+    { now: at },
+  );
+  assert.equal((await res.json()).unlocked, true);
+  assert.deepEqual(rows().map((r) => [r.step, r.qa, r.ref]), [['paid', 0, CODE]]);
+  const paidPuts = env.KIDE_LEADS.puts.filter((p) => String(p.k).startsWith('kide:funnel-paid:'));
+  assert.equal(paidPuts.length, 1);
+  assert.equal(paidPuts[0].opts, null);
+  await recordLinkOpen(open(`https://kide.us/?ref=${CODE}`), env, null, at + 11 * 60_000);
+  assert.equal(alerts.at(-1).paid, 1);
+  const again = await handleUnlock(
+    call('/api/unlock/confirm', { email: 'p@example.com' }, `kide_ref=${CODE}`),
+    env,
+    { now: at + 12 * 60_000 },
+  );
+  assert.equal((await again.json()).unlocked, true);
+  assert.equal(rows().filter((r) => r.step === 'paid').length, 1);
 });
 
 console.log('\nthe privacy page says what is counted');
@@ -394,6 +442,24 @@ await t('the policy names what is stored, what can be joined, and what is sent o
   assert.match(text, /free-play minute meter/);
   assert.match(text, /files a referral credit on a queue/);
   assert.match(text, /sent to our billing service/);
+  assert.match(text, /preview card fetched by a message app/);
+  assert.match(text, /tap on play from the home page/);
+  assert.match(text, /grown-up check passed/);
+  assert.match(text, /grown-up check missed/);
+  assert.match(text, /free-minute gate/);
+  assert.match(text, /Pip's goodnight/);
+  assert.match(text, /opened directly/);
+  assert.match(text, /checkout tapped/);
+  assert.match(text, /checkout that did not start/);
+  assert.match(text, /checkout left before payment/);
+  assert.match(text, /with the step name, phone, tablet, or computer when we know it, the time/);
+  assert.match(text, /today's minutes are also stored against that email/);
+  assert.match(text, /When you claim a share link, that email is sent to our billing service together with your share code/);
+  assert.match(text, /SHA-256 scramble of the receipt email and the purchase id/);
+  assert.match(text, /it does not expire/);
+  assert.match(text, /https:\/\/riskfreetrial\.org\/api\/analytics/);
+  assert.match(text, /scrolled halfway/);
+  assert.match(text, /when a link or button is tapped/);
   assert.doesNotMatch(text, /can't be joined|cannot be joined/);
   assert.doesNotMatch(text, /Pip's games send none/);
   assert.doesNotMatch(text, /identify no one/);
@@ -403,8 +469,19 @@ await t('the policy names what is stored, what can be joined, and what is sent o
   assert.doesNotMatch(text, /the only cookie this site sets is the short-lived sign-in cookie/);
   const home = readFileSync('index.html', 'utf8');
   assert.match(home, /Your email, so a referral credit can be queued for you/);
+  assert.match(home, /Games stay on the device/);
+  assert.doesNotMatch(home, /Nothing leaves the device/);
+  assert.match(home, /step: "home_cta"/);
   assert.doesNotMatch(home, /payouts reach you/);
   assert.doesNotMatch(home, /Payouts go to/);
+  const invite = readFileSync('src/referral/invite.js', 'utf8');
+  const parent = readFileSync('public/unlock/parent.js', 'utf8');
+  assert.equal(RECORDED_REFERRAL.includes('You earn'), false);
+  assert.match(invite, /setText\(RECORDED_REFERRAL\)/);
+  assert.doesNotMatch(invite, /You earn/);
+  assert.match(parent, /We record a referral when a family buys family play through your link/);
+  assert.doesNotMatch(parent, /You earn/);
+  assert.doesNotMatch(parent, /data\.reward \+ "\."/);
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

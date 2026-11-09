@@ -426,6 +426,8 @@ await t('visitor sentences and the new pages avoid gate words', () => {
   const parent = readFileSync('public/unlock/parent.js', 'utf8');
   assert(/Pip could not open checkout\. Try again in a moment\./.test(parent));
   assert(/No charge was made\. Family play is here whenever you're ready\./.test(parent));
+  assert(/We record a referral when a family buys family play through your link\. That record waits on a queue\. It is not a payment from this page\./.test(parent));
+  assert(!/You earn/.test(parent), 'the share line must not say the parent earns a payment');
   assert(!/opening soon/i.test(parent), 'a checkout problem must not say family play is opening soon');
   assert(!/\/api\/notify/.test(parent), 'a checkout problem must not be filed as a waitlist lead');
   assert(/if \(back === "back"\) say\(passed\(\) \? "payMsg" : "holdMsg", COPY\.noCharge\)/.test(parent));
