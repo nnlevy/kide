@@ -97,13 +97,13 @@ await t('price id is the live family price and not a secret', () => {
   assert(!/PLACEHOLDER/.test(files), 'the family price is still a placeholder');
 });
 
-await t('checkout input reuses the hub fields and returns to play on cancel', () => {
+await t('checkout input reuses the hub fields and returns to the offer on cancel', () => {
   const input = checkoutInput({ origin: 'https://kide.us', email: 'parent@example.com' });
   assert.equal(input.domain, 'kide.us');
   assert.equal(input.offeringId, 'family_unlock');
   assert.equal(input.priceId, STRIPE_PRICE_ID);
   assert.equal(input.sourceDomain, 'kide.us');
-  assert.equal(input.cancelUrl, 'https://kide.us/play/');
+  assert.equal(input.cancelUrl, 'https://kide.us/unlock/?checkout=back');
   assert.equal(input.successUrl, 'https://kide.us/unlock/?checkout=success&email=parent%40example.com');
   assert(!/data=/.test(input.successUrl + input.cancelUrl));
   assert.equal(httpsUrl('https://checkout.stripe.com/c/pay/cs_test_fake'), 'https://checkout.stripe.com/c/pay/cs_test_fake');
@@ -343,7 +343,7 @@ await t('checkout goes through the billing binding and ignores a swapped offerin
     assert.equal(hub.calls.length, 1);
     assert.equal(hub.calls[0].offeringId, 'family_unlock');
     assert.equal(hub.calls[0].priceId, STRIPE_PRICE_ID);
-    assert.equal(hub.calls[0].cancelUrl, 'https://kide.us/play/');
+    assert.equal(hub.calls[0].cancelUrl, 'https://kide.us/unlock/?checkout=back');
     assert(!('record' in hub.calls[0]));
     assert.equal(fetches, 0);
   } finally {
