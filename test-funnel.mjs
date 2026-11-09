@@ -535,7 +535,7 @@ await t('the policy names what is stored, what can be joined, and what is sent o
   assert.doesNotMatch(text, /this privacy page, the terms, the clinician page, and the card maker/);
   assert.match(text, /session cookie named kide_qa/);
   assert.match(text, /when the address contains kide_qa=1/);
-  assert.match(text, /lasts until the browser is closed/);
+  assert.match(text, /lasts until you close the browser/);
   assert.match(text, /tap on play from the home page/);
   assert.match(text, /grown-up check passed/);
   assert.match(text, /grown-up check missed/);
