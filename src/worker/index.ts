@@ -8,7 +8,7 @@ import { handlePlayEvents } from "../perf/http.js";
 import { handleCompete } from "../compete/http.js";
 import { handleUnlock } from "../unlock/handler.js";
 import { withRefCookie } from "../referral/ref.js";
-import { handleFunnel, recordLinkOpen } from "../funnel/funnel.js";
+import { handleFunnel, recordLinkOpen, withQaCookie } from "../funnel/funnel.js";
 import { handleRefClaim, inviteResponse } from "../referral/invite.js";
 
 // kide.us is a leaf on the Quizbiz portfolio billing hub (riskfreetrial) and
@@ -89,7 +89,7 @@ const NOT_FOUND_HTML = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-
 
 export default {
   async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
-    return withRefCookie(request, await route(request, env, ctx));
+    return withQaCookie(request, withRefCookie(request, await route(request, env, ctx)));
   },
 };
 
