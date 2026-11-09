@@ -85,10 +85,10 @@
 <body>
 <div class="sheet" id="sheet">
   <h1>Practice record</h1>
-  <!-- Empty record is painted here, not only after clinical.js arrives. On a slow
-       phone that script lands late and was shoving the $39 licence block down
-       (CLS 0.519). Keep this equal to render(buildRecord([])). -->
-  <p class="meta" id="meta">Generated 00/00/0000, 00:00:00 AM · method kide-clinical-1.0.0 · 0 scored of 0 attempts</p>
+  <!-- Empty-state copy is in the first paint. The module fills the same
+       boxes after a slow fetch; reserving them here keeps that fill from
+       shifting the chart and the $39 licence. -->
+  <p class="meta" id="meta">Generated 11/5/2026, 12:00:00 AM · method kide-clinical-1.0.0 · 0 scored of 0 attempts</p>
 
   <section id="proHeader" class="hidden">
     <dl class="hdr">

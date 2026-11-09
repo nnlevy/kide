@@ -1,0 +1,165 @@
+{
+ "*": {
+  "ownPricePaths": [
+   "/buy",
+   "/credits",
+   "/pricing",
+   "/checkout",
+   "/pack",
+   "/packs",
+   "/plans",
+   "/subscribe",
+   "/order"
+  ],
+  "allowPatterns": [
+   "\\b24/7\\b",
+   "\\b404\\b",
+   "\\b\\d+\\s?(?:questions?|steps?)\\b",
+   "\\b\\d+\\s?credits\\s+[$€£]\\d+(?:\\.\\d+)?"
+  ]
+ },
+ "watershortcut.com": {
+  "ownPrices": [
+   "$29"
+  ],
+  "_pwaKit": true
+ },
+ "quizbiz.org": {
+  "ownPricePaths": [
+   "/credits"
+  ],
+  "ownPrices": [
+   "$1 earn",
+   "credits $1",
+   "cash-out from $5",
+   "$30 daily earn budget",
+   "$1",
+   "$5",
+   "$30/day"
+  ],
+  "_note": "Quizbiz earn program terms ($1 per excellent feedback, $30/day budget, $5 cash-out) are the site's own offer.",
+  "_pwaKit": true
+ },
+ "machinelearninglogistics.com": {
+  "ownPricePaths": [
+   "/cheese-shop"
+  ],
+  "ownPrices": [
+   "Starter $49 (100 credits)",
+   "Desk $199 (500)",
+   "Terminal $599 (2,000)",
+   "$49",
+   "$199",
+   "$599"
+  ],
+  "ownSkus": [
+   "2,000 credits",
+   "(100 credits)"
+  ],
+  "_note": "MLL's own credit packs: Starter $49 (100 credits), Desk $199 (500), Terminal $599 (2,000). Parenthesized counts are exempt only in that pack context; a bare 2,000 elsewhere still counts."
+ },
+ "growth.business": {},
+ "riskfreetrial.org": {
+  "ownPrices": [
+   "up to $59"
+  ],
+  "_pwaKit": true
+ },
+ "communityinternet.co": {
+  "ownPrices": [
+   "Credits refill monthly · packs 30% off",
+   "packs 30% off",
+   "$29/MO",
+   "$29/mo"
+  ]
+ },
+ "partimepreneur.com": {
+  "_pwaKit": true
+ },
+ "10-7.org": {},
+ "_portfolio": {
+  "_note": "Nir's own domains (FULL_PORTFOLIO_DOMAINS.md). Links to these never count as citations.",
+  "portfolioDomains": [
+   "10-7.org",
+   "affordablehome.us",
+   "analyzher.com",
+   "buypatioheater.com",
+   "cascadeave.com",
+   "chatulah.com",
+   "checkinforwork.com",
+   "cloudgpo.com",
+   "communityinternet.co",
+   "contentasaservice.co",
+   "crmforlaw.com",
+   "datadaylabor.com",
+   "deadtreeatlanta.com",
+   "debtsettlements.co",
+   "digitalgiftcard.org",
+   "doting.co",
+   "escapeheat.com",
+   "estimatemarketshare.com",
+   "firmwebsite.com",
+   "fixac.co",
+   "fleetrepair.us",
+   "freestock.tips",
+   "goldloanindia.com",
+   "grocerydelivered.org",
+   "growinglaughs.com",
+   "growth.business",
+   "healthwellnessjobs.com",
+   "healthytasty.org",
+   "helpbuy.us",
+   "homeownercoalition.com",
+   "impactinvestingmillennials.com",
+   "industrialrefurbisher.com",
+   "inspiredquorum.com",
+   "investyourlifeinsurance.com",
+   "kide.us",
+   "machinelearninglogistics.com",
+   "makelife.org",
+   "makeyourownbitcoin.com",
+   "millennialsocialimpact.com",
+   "nirlevy.org",
+   "oneononebot.com",
+   "partimepreneur.com",
+   "payperclickpro.co",
+   "quizbiz.org",
+   "readyaog.com",
+   "reclaimedwoodbrokerage.com",
+   "recruitdevelopersatlanta.com",
+   "refundvat.info",
+   "riskfreetrial.org",
+   "roofleakatlanta.com",
+   "saasonsale.com",
+   "scentedairconditioningfilter.com",
+   "searchfirm.co",
+   "smallbusinessholder.com",
+   "softwarefinancing.co",
+   "startbusiness.us",
+   "successclub.me",
+   "supportchatsoftware.com",
+   "telavivyacht.com",
+   "toptiertalent.co",
+   "toptiertechnicaltalent.com",
+   "trycrm.co",
+   "vails.org",
+   "valuestockscreen.com",
+   "visualtos.com",
+   "voiceapp.co",
+   "watershortcut.com"
+  ]
+ },
+ "_toolRoutes": {
+  "_patterns": [
+   "^/tools?/[^/]+",
+   "-(calculator|checker|estimator|diagnosis|quiz|generator|ritual|tool)$"
+  ],
+  "trycrm.co": [
+   "/field-sales-morning-ritual",
+   "/field-sales-diagnosis"
+  ],
+  "checkinforwork.com": [
+   "/crew-missed-checkin"
+  ]
+ }
+}
