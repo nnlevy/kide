@@ -10,7 +10,8 @@
 
 import { readFileSync } from "node:fs";
 import assert from "node:assert";
-import { deviceUnlockKey } from "./src/unlock/entitlement.js";
+import { deviceUnlockKey, unlockKey } from "./src/unlock/entitlement.js";
+import { handleUnlock } from "./src/unlock/handler.js";
 
 let pass = 0, fail = 0;
 const t = async (name, fn) => {
@@ -251,6 +252,8 @@ await t("visitor copy names the story send, the card, and what delete clears", (
   assert(setup.includes("send those choices later"), "set-up does not say the choices are sent later");
   assert(setup.includes("together with this phone's device cookie"));
   assert(setup.includes("The device cookie lasts one year"));
+  assert(setup.includes("The visit date stays on this phone"));
+  assert(!setup.includes("The name and the visit date stay"), "the card does not carry the visit date");
   assert(setup.includes("does not send the name or the visit date"));
   assert(setup.includes("that picture can include the name"));
   assert(!setup.includes("It stays on this phone"));
@@ -299,6 +302,33 @@ await t("a parent sign-in on the story request is not used", async () => {
   assert.equal(sessions.length, 0, "the story path asked who was signed in");
   const sent = JSON.stringify(e.PORTFOLIO_AI_SERVICE.calls);
   assert(!sent.includes(id), "the device number reached the story writer");
+});
+
+await t("a fresh email unlock writes this phone's device marker and the next story sees family play", async () => {
+  const id = "f".repeat(24);
+  const now = Date.now();
+  const at = now - 5000;
+  const e = env({ reply: good });
+  e.store.set(unlockKey("parent@example.com"), JSON.stringify({ unlocked: true, at }));
+  e.PORTFOLIO_MESSAGING_SERVICE = {
+    async currentSession() { return { ok: true, email: "parent@example.com" }; },
+  };
+  assert.equal(e.store.has(deviceUnlockKey(id)), false);
+  const session = "__Host-rft_session=abcdefghijklmnopqrstuvwxyzABCDEFGHIJK12345";
+  const status = await handleUnlock(new Request("https://kide.us/api/unlock/status", {
+    headers: { cookie: `kide_device=${id}; ${session}` },
+  }), e, { now });
+  assert.equal((await status.json()).unlocked, true);
+  const marker = JSON.parse(e.store.get(deviceUnlockKey(id)));
+  assert.equal(marker.unlocked, true);
+  assert.equal(marker.email, "parent@example.com");
+  assert.equal(marker.at, at);
+  const first = await S.handleCastStory(post({ kind: "cast" }, `kide_device=${id}`), e);
+  const story = await first.json();
+  assert.equal(story.ok, true, JSON.stringify(story));
+  assert.equal(story.left, S.FAMILY_PER_DAY - 1, "a device-only story request is still on the free limit");
+  const second = await S.handleCastStory(post({ kind: "cast" }, `kide_device=${id}`), e);
+  assert.equal((await second.json()).ok, true, "the second story is still the free limit");
 });
 
 await t("family play already on this phone still allows more stories", async () => {

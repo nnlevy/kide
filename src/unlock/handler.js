@@ -141,7 +141,12 @@ async function readUnlock(env, kv, deviceId, email, billing, now) {
 
   const cached = await kvGet(kv, unlockKey(who));
   const fresh = cached && cached.unlocked === true && typeof cached.at === "number" && (now - cached.at) < FRESH_MS;
-  if (fresh) return { unlocked: true, email: who };
+  if (fresh) {
+    if (deviceId && email && !deviceEmail) {
+      await kvPut(kv, deviceUnlockKey(deviceId), { unlocked: true, email, at: cached.at });
+    }
+    return { unlocked: true, email: who };
+  }
 
   if (!billing || typeof billing.getCredits !== "function") {
     return { unlocked: !!(cached && cached.unlocked) || !!deviceEmail, email: who };

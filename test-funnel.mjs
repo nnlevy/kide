@@ -556,7 +556,13 @@ await t('the policy names what is stored, what can be joined, and what is sent o
   assert.match(text, /checkout that did not start/);
   assert.match(text, /checkout left before payment/);
   assert.match(text, /with the step name, phone, tablet, or computer when we know it, the time/);
-  assert.match(text, /today's minutes are also stored against that email/);
+  assert.match(text, /We don't collect your child's name, age, photo, or location with that email/);
+  assert.doesNotMatch(text, /any other information about your child/);
+  assert.match(text, /We store the minutes for the UTC day against that device number, and that record does not expire/);
+  assert.match(text, /the minutes for the UTC day are also stored against that email, and that record does not expire/);
+  assert.match(text, /Those records do not expire/);
+  assert.match(text, /the sign-in cookie after a parent signs in, the random device number, a share code/);
+  assert.doesNotMatch(text, /the free-play minute count, a share code/);
   assert.match(text, /When you claim a share link, that email is sent to our billing service together with your share code/);
   assert.match(text, /SHA-256 scramble of the receipt email and the purchase id/);
   assert.match(text, /it does not expire/);
