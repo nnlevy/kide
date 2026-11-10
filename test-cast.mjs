@@ -243,19 +243,35 @@ await t("visitor copy names the story send, the card, and what delete clears", (
   const privacy = read("public/privacy/index.html");
   for (const src of [welcome, grown, privacy]) {
     assert(src.includes("device cookie"), "missing the device cookie");
-    assert(src.includes("a day and a half"), "missing the story count");
+    assert(src.includes("The device cookie lasts one year"), "missing the device cookie lifetime");
+    assert(src.includes("stored for 36 hours"), "missing the story count");
+    assert(src.includes("A new UTC day starts the allowance again"), "story count must restart on the UTC day");
+    assert(!src.includes("a day and a half"), "story count still says a day and a half");
   }
-  assert(setup.includes("send those taps later"), "set-up does not say the taps are sent later");
+  assert(setup.includes("send those choices later"), "set-up does not say the choices are sent later");
+  assert(setup.includes("together with this phone's device cookie"));
+  assert(setup.includes("The device cookie lasts one year"));
+  assert(setup.includes("does not send the name or the visit date"));
+  assert(setup.includes("that picture can include the name"));
+  assert(!setup.includes("It stays on this phone"));
   assert(welcome.includes("cast set-up saved at the start"));
   assert(welcome.includes("picture can include the name"));
   assert(grown.includes("picture can include the name"));
+  assert(grown.includes("This phone also sends its device cookie"));
+  assert(grown.includes("The name is not in that request"));
+  assert(!grown.includes("The name never leaves this phone"));
   assert(welcome.includes("does not clear the device cookie"));
-  assert(grown.includes("Delete Cast Club on this phone"));
+  assert(grown.includes("Delete Cast Club on this phone clears what was saved here"));
+  assert(grown.includes("does not clear the device cookie or that story count"));
   assert(privacy.includes("Cast Club welcome page"));
   assert(privacy.includes("do not use a parent sign-in for that story"));
   assert(pages.includes("whether family play is already on"));
   const json = welcome.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1];
   assert(json.includes("device cookie") && !json.includes("only the taps") && !json.includes("Only what you type"));
+  assert(json.includes("The device cookie lasts one year") && json.includes("stored for 36 hours") && json.includes("A new UTC day starts the allowance again"));
+  const visibleFaq = welcome.match(/What do you store about my child\?<\/summary><p>([^<]+)<\/p>/)[1];
+  const jsonFaq = JSON.parse(json)["@graph"].find((n) => n["@type"] === "FAQPage").mainEntity.find((q) => q.name === "What do you store about my child?").acceptedAnswer.text;
+  assert.equal(visibleFaq, jsonFaq, "the visible FAQ and the JSON-LD answer drifted");
   assert(!/gpt-4o|kide\.cast\.v1/.test(pages), "visitor copy uses an internal name");
 });
 

@@ -59,7 +59,7 @@ export function render(root, a) {
       `<label class="chip"><input type="radio" name="like" value="${l.id}"><span>${esc(l.label)}</span></label>`).join("")}</div>
     <button type="button" class="btn btn-primary btn-block" id="guWrite">Write tonight's story</button>
     <p class="gu-msg" id="storyMsg" role="status"></p>
-    <p class="gu-fine">Written with AI from the taps above. The name never leaves this phone: the story comes back with a blank where the name goes, and this phone fills it in. If the AI can't help, Pip writes it right here instead.</p>
+    <p class="gu-fine">Written with AI from the cast set-up saved at the start and the taps above. This phone also sends its device cookie. The device cookie lasts one year. The name is not in that request: the story comes back with a blank and this phone fills it in. If you send the card, that picture can include the name. If the AI can't help, Pip writes it right here instead.</p>
   </section>
 
   <section class="card gu-card">
@@ -94,7 +94,7 @@ export function render(root, a) {
 
   <section class="card gu-card">
     <h2>What this stores</h2>
-    <p>On this phone: the nickname you typed, the cast set-up, the visit date, stickers, which chapters were opened, tonight's story, and whether family play is already on. No account. The name stays here unless you send the card, and that picture can include the name. A bedtime story sends the cast set-up, the taps you pick, and this phone's device cookie. It never sends the name. We count today's stories on that device number for a day and a half. Pages your child uses carry no ads and no analytics.</p>
+    <p>On this phone: the nickname you typed, the cast set-up, the visit date, stickers, which chapters were opened, tonight's story, and whether family play is already on. No account. The name stays here unless you send the card, and that picture can include the name. A bedtime story sends the cast set-up, the taps you pick, and this phone's device cookie. The device cookie lasts one year. It never sends the name. We keep a count of stories for the UTC day on that device number, and that count is stored for 36 hours. A new UTC day starts the allowance again. Pages your child uses carry no ads and no analytics. Delete Cast Club on this phone clears what was saved here. It does not clear the device cookie or that story count.</p>
     <button type="button" class="btn btn-ghost" id="guWipe">Delete Cast Club on this phone</button>
   </section>`;
 

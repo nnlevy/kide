@@ -534,9 +534,14 @@ await t('the policy names what is stored, what can be joined, and what is sent o
   assert.match(text, /Cast Club welcome page/);
   assert.match(text, /this privacy page, the terms, the clinician page, and the Cast Club app do not send these notes/);
   assert.match(text, /together with this phone's device cookie/);
+  assert.match(text, /The device cookie lasts one year/);
+  assert.match(text, /a cookie with a random device number\. It lasts one year\./);
   assert.match(text, /do not use a parent sign-in for that story/);
-  assert.match(text, /a day and a half/);
+  assert.match(text, /stored for 36 hours/);
+  assert.match(text, /A new UTC day starts the allowance again/);
+  assert.doesNotMatch(text, /a day and a half/);
   assert.match(text, /does not clear the device cookie or that story count/);
+  assert.match(text, /That email is not your child's name\. Pip's Cast Club, described below, sends the cast set-up and the taps you pick, and does not send the name/);
   assert.doesNotMatch(text, /this privacy page, the terms, the clinician page, and the card maker/);
   assert.match(text, /session cookie named kide_qa/);
   assert.match(text, /when the address contains kide_qa=1/);
