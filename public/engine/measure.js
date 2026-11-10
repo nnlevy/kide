@@ -74,6 +74,33 @@ const MEASURED = [
 
 export const isMeasured = (path) => MEASURED.some((rx) => rx.test(path));
 
+/* WHAT A TAP MAY SAY. On the card maker (/make) the buttons ARE the card: a
+ * button's words can be a child's name or a choice about how they look, and the
+ * finished card's link carries the names and the note in its query string. So:
+ *
+ *   - a destination never carries anything after its path. No query, no hash,
+ *     on any page. "Where does this go" is the useful part; the rest is content.
+ *   - on routes listed in NO_TEXT, a tap's label is only the control's declared
+ *     role (data-measure="share"), never its words. An unlabelled control sends
+ *     no label at all.
+ */
+const NO_TEXT = [/^\/make\/?$/];
+
+export function destinationOf(href) {
+  if (!href) return '';
+  if (/^(mailto|tel|sms):/i.test(href)) return href.split(':')[0].toLowerCase() + ':';
+  try {
+    const u = new URL(href, 'https://' + DOMAIN);
+    return href.startsWith('/') || u.hostname === DOMAIN ? u.pathname : u.origin + u.pathname;
+  } catch { return ''; }
+}
+
+export function labelOf(el, path) {
+  const role = (el.getAttribute && el.getAttribute('data-measure')) || '';
+  if (NO_TEXT.some((rx) => rx.test(path))) return role.slice(0, 60);
+  return role || (el.textContent || '').trim().slice(0, 60);
+}
+
 function send(eventName, label, destination) {
   try {
     const body = JSON.stringify({
@@ -120,7 +147,7 @@ export function start() {
     if (!a) return;
     const href = a.getAttribute('href') || '';
     send(href && !href.startsWith('/') && !href.includes(DOMAIN) ? 'cross_domain_click' : 'cta_click',
-         (a.textContent || '').trim().slice(0, 60), href);
+         labelOf(a, location.pathname), destinationOf(href));
   }, { passive: true, capture: true });
 
   return true;
