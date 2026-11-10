@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Make a card · Kide</title>
-<meta name="description" content="Build a card for a child you know. Choose who is on it, what they look like, and what it says — then send the link. The card is not saved on our servers. This page sends a note of the page, a halfway scroll, and each button or link tapped: the words on that control and, for a link, its address. On this page those words can be a card choice or a name on the picture, and the Open link's address contains the names and the note.">
+<meta name="description" content="Build a card for a child you know. Choose who is on it, what they look like, and what it says — then send the link. The card lives only in the link, never on our servers.">
 <link rel="canonical" href="https://kide.us/make">
 <meta name="theme-color" content="#56C6E6">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Make a card · Kide">
-<meta property="og:description" content="Build a card for a child you know, one choice at a time. The card is not saved on our servers. This page sends a note of the page, a halfway scroll, and each button or link tapped: the words on that control and, for a link, its address. On this page those words can be a card choice or a name on the picture, and the Open link's address contains the names and the note.">
+<meta property="og:description" content="Build a card for a child you know, one choice at a time. The card lives only in the link, never on our servers.">
 <meta property="og:url" content="https://kide.us/make">
 <meta property="og:image" content="https://kide.us/og-card.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -35,10 +35,9 @@
 
   THE CARD STAYS IN THE LINK. Every choice ends up in the link, which is the
   only place the card is stored — see the note in /scene/cast.js. This page
-  sends a note of the page, a halfway scroll, and each button or link tapped:
-  the words on that control and, for a link, its address. On this page those
-  words can be a card choice or a name on the picture, and the Open link's
-  address contains the names and the note. The finished card keeps working
+  counts visits and which of Share, Copy and Open was tapped, and nothing
+  else: engine/measure.js sends no button words here and no link query, so no
+  name, choice or note ever leaves with a count. The finished card keeps working
   with no account and nothing running.
 -->
 <style>
@@ -602,14 +601,14 @@ function finish() {
   box.className = 'done';
   box.innerHTML = '<b>Send this link</b>'
     + '<p style="margin:0;font-size:14.5px;color:var(--ink-soft)">Everything you chose is inside '
-    + 'the link itself. The card is not saved on our servers. Opening the link from this page also sends that address, which contains the names and the note.</p>'
+    + 'the link itself. The card is not saved on our servers.</p>'
     + `<div class="link">${url.replace(/&/g, '&amp;')}</div>`;
 
   const row = document.createElement('div');
   row.className = 'row';
-  row.innerHTML = `<button class="btn go" id="doShare">Share it</button>`
-    + `<button class="btn" id="doCopy">Copy link</button>`
-    + `<a class="btn ghost" href="${url.replace(/&/g, '&amp;')}" target="_blank" rel="noopener">Open it</a>`;
+  row.innerHTML = `<button class="btn go" id="doShare" data-measure="share">Share it</button>`
+    + `<button class="btn" id="doCopy" data-measure="copy">Copy link</button>`
+    + `<a class="btn ghost" data-measure="open" href="${url.replace(/&/g, '&amp;')}" target="_blank" rel="noopener">Open it</a>`;
   box.appendChild(row);
 
   setTimeout(() => {
@@ -705,7 +704,7 @@ function render() {
   renderStage();
   renderNav();
   $('fine').innerHTML = s.id === 'who'
-    ? 'The card is not saved on our servers. This page sends a note of the page, a halfway scroll, and each button or link tapped: the words on that control and, for a link, its address. On this page those words can be a card choice or a name on the picture, and the Open link\'s address contains the names and the note. '
+    ? 'The card lives only in the link, never on our servers. We count visits and taps, never the names or what the card says. '
       + '<a href="/privacy">How that works</a>'
     : '';
   speak(s);

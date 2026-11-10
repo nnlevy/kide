@@ -37,4 +37,4 @@ No ads, and nothing a child says leaves the device. Not a substitute for a speec
 
 ## More
 - [Toddler in a cast? Pip's Cast Club helps little ones heal — Kide](https://kide.us/cast): A gentle recovery companion for a preschooler with a broken leg or arm. Pip gets a cast too, counts the sleeps to the doctor visit, gives stickers for resting and plays sitting-still games. Free to start, no account.
-- [Make a card · Kide](https://kide.us/make): Build a card for a child you know. Choose who is on it, what they look like, and what it says — then send the link. The card is not saved on our servers. This page sends a note of the page, a halfway scroll, and each button or link tapped: the words on that control and, for a link, its address. On this page those words can be a card choice or a name on the picture, and the Open link's address contains the names and the note.
+- [Make a card · Kide](https://kide.us/make): Build a card for a child you know. Choose who is on it, what they look like, and what it says — then send the link. The card lives only in the link, never on our servers.
