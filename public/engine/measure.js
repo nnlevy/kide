@@ -68,6 +68,8 @@ const MEASURED = [
   /^\/(privacy|terms)\/?$/,
   /^\/for-slps\/?$/,
   /^\/make\/?$/,
+  // The public Cast Club page only. /cast/app is a child's screen.
+  /^\/cast\/?$/,
 ];
 
 export const isMeasured = (path) => MEASURED.some((rx) => rx.test(path));

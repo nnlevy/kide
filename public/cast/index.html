@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toddler in a cast? Pip's Cast Club helps little ones heal — Kide</title>
+<meta name="description" content="A gentle recovery companion for a preschooler with a broken leg or arm. Pip gets a cast too, counts the sleeps to the doctor visit, gives stickers for resting and plays sitting-still games. Free to start, no account.">
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#56C6E6">
+<meta name="color-scheme" content="light">
+<link rel="canonical" href="https://kide.us/cast">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Kide">
+<meta property="og:title" content="Pip's Cast Club: when your little one has a cast, Pip gets one too">
+<meta property="og:description" content="Stories, a countdown to the doctor visit, stickers for resting and sitting-still games for a preschooler with a cast, boot or crutches.">
+<meta property="og:url" content="https://kide.us/cast">
+<meta property="og:image" content="https://www.growth.business/api/og?domain=kide.us&amp;title=Pip%27s%20Cast%20Club&amp;template=page&amp;path=%2Fcast">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Pip's Cast Club — Kide">
+<meta name="twitter:description" content="When your little one has a cast, Pip gets one too.">
+<meta name="twitter:image" content="https://www.growth.business/api/og?domain=kide.us&amp;title=Pip%27s%20Cast%20Club&amp;template=page&amp;path=%2Fcast">
+<link rel="stylesheet" href="/cast/cast.css">
+<link rel="stylesheet" href="/mobile.css">
+<style>
+.hero{display:grid;gap:18px;align-items:center;margin-top:6px;}
+@media (min-width:720px){.hero{grid-template-columns:1.1fr 1fr;}}
+.demo{background:linear-gradient(180deg,var(--sky-top),var(--sky-bottom));border-radius:var(--radius-lg);padding:16px 16px 18px;color:var(--ink);box-shadow:0 8px 0 rgba(0,0,0,.05);}
+.demo .bubble{background:#fff;border-radius:18px;padding:10px 14px;font-weight:700;font-size:17px;min-height:3.2em;position:relative;margin:0 0 8px;}
+.demo .bubble::after{content:"";position:absolute;left:50%;bottom:-10px;border:10px solid transparent;border-top-color:#fff;border-bottom:0;transform:translateX(-50%);}
+.demo .pipbox{width:min(54vw,210px);aspect-ratio:1;margin:18px auto 14px;}
+.demo .demo-count{display:block;text-align:center;font-weight:800;background:rgba(255,255,255,.85);border-radius:999px;padding:8px 14px;margin:0 auto 12px;max-width:300px;font-size:17px;}
+.demo-row{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:8px;}
+.demo-sw{width:46px;height:46px;border-radius:50%;border:4px solid #fff;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.1);}
+.demo-sw[aria-pressed="true"]{border-color:var(--ink);}
+.demo-btn{min-height:46px;padding:8px 16px;border-radius:999px;border:2px solid #fff;background:rgba(255,255,255,.9);font:inherit;font-weight:800;font-size:16px;cursor:pointer;color:var(--ink);}
+.demo-btn[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink);}
+.demo-label{display:block;text-align:center;font-size:14px;font-weight:700;margin-top:12px;}
+.cta-row{display:flex;flex-direction:column;gap:10px;margin-top:20px;}
+.cta-row .small{font-size:15px;color:var(--ink-soft);margin:0;}
+.feature{background:#fff;border-radius:var(--radius);padding:16px;box-shadow:0 5px 0 rgba(0,0,0,.04);}
+.feature .em{font-size:30px;display:block;margin-bottom:6px;}
+.feature b{display:block;font-size:18px;margin-bottom:4px;}
+.steps{list-style:none;padding:0;margin:0;counter-reset:s;display:grid;gap:10px;}
+.steps li{counter-increment:s;background:#fff;border-radius:var(--radius);padding:14px 16px 14px 60px;position:relative;box-shadow:0 5px 0 rgba(0,0,0,.04);}
+.steps li::before{content:counter(s);position:absolute;left:14px;top:14px;width:34px;height:34px;border-radius:50%;background:var(--grass);display:flex;align-items:center;justify-content:center;font-weight:800;}
+.story-sample{background:#fff;border-radius:var(--radius-lg);padding:18px;box-shadow:0 6px 0 rgba(0,0,0,.05);}
+.story-sample .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+.story-sample .chips span{background:#E9F8EE;border:2px solid #CDEBD8;border-radius:999px;padding:6px 12px;font-size:15px;font-weight:700;}
+.story-sample blockquote{margin:0;font-size:19px;line-height:1.5;border-left:5px solid var(--sun);padding-left:14px;}
+.plans{display:grid;gap:12px;}
+@media (min-width:640px){.plans{grid-template-columns:1fr 1fr;}}
+.plan{background:#fff;border-radius:var(--radius-lg);padding:20px 18px;box-shadow:0 6px 0 rgba(0,0,0,.05);}
+.plan h3{font-size:21px;}
+.plan .price{font-size:26px;font-weight:800;margin:2px 0 10px;}
+.plan ul{padding-left:20px;margin:0 0 12px;}
+.plan li{margin:6px 0;}
+.promise{list-style:none;padding:0;margin:0;display:grid;gap:8px;}
+.promise li{background:#fff;border-radius:16px;padding:12px 14px 12px 44px;position:relative;}
+.promise li::before{content:"";position:absolute;left:16px;top:18px;width:12px;height:8px;border-left:3px solid #1F9D55;border-bottom:3px solid #1F9D55;transform:rotate(-45deg);}
+.faq details{background:#fff;border-radius:16px;padding:0 16px;margin-bottom:8px;}
+.faq summary{min-height:56px;display:flex;align-items:center;font-weight:800;cursor:pointer;font-size:17px;}
+.faq details p{margin:0 0 14px;}
+.reading{font-size:16px;}
+.reading li{margin:6px 0;}
+footer{margin-top:44px;padding:16px 0 32px;text-align:center;color:var(--ink-soft);font-size:15px;}
+footer .links{margin-top:8px;}
+footer a{display:inline-flex;align-items:center;min-height:44px;padding:0 6px;font-weight:700;}
+</style>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","name":"Kide","url":"https://kide.us","logo":"https://kide.us/favicon.ico","parentOrganization":{"@type":"Organization","name":"Quizbiz LLC"}},{"@type":"WebSite","name":"Kide","url":"https://kide.us"},{"@type":"WebPage","name":"Pip's Cast Club — Kide","url":"https://kide.us/cast","description":"A gentle recovery companion for a preschooler with a broken leg or arm, a cast, a boot or crutches."},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Kide","item":"https://kide.us/"},{"@type":"ListItem","position":2,"name":"Pip's Cast Club","item":"https://kide.us/cast"}]},{"@type":"WebApplication","name":"Pip's Cast Club","url":"https://kide.us/cast/app/","applicationCategory":"LifestyleApplication","operatingSystem":"Any web browser","audience":{"@type":"PeopleAudience","suggestedMinAge":3,"suggestedMaxAge":5}},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do I explain a cast to my 3 year old?","acceptedAnswer":{"@type":"Answer","text":"Keep it short and say it the same way every time, for example: Your bone got a little crack. The cast holds it still, like a big hug, while your body works on mending it. Pip's Cast Club has a story where Pip gets a cast too, so your child can see it happen to someone else first."}},{"@type":"Question","name":"What can a toddler do with a cast on their leg?","acceptedAnswer":{"@type":"Answer","text":"Ask your child's doctor what is safe. For the sitting-down hours, Pip's Cast Club has games that need only a finger: flower breaths, find the ladybug, painting Pip's cast and matching cards."}},{"@type":"Question","name":"Is this medical advice?","acceptedAnswer":{"@type":"Answer","text":"No. Pip is for comfort and routine. For pain, itching, swelling, moving, bathing or when the cast comes off, ask your child's doctor."}},{"@type":"Question","name":"What do you store about my child?","acceptedAnswer":{"@type":"Answer","text":"Only what you type, on your own phone: a first name or nickname, the kind of cast, the next doctor visit date and the stickers. There is no account, and nothing you type leaves your phone. Tonight's story sends only the taps you pick, never the name."}},{"@type":"Question","name":"What does it cost?","acceptedAnswer":{"@type":"Answer","text":"It is free to start. Family play is one payment for your family that opens every chapter, game and script, plus all of Pip's play on Kide. It does not renew."}}]}]}</script>
+</head>
+<body>
+<div class="wrap">
+  <nav><div class="row">
+    <a class="wordmark" href="/">kide</a>
+    <div class="nav-links"><a href="/words">Practice</a><a href="/sounds">Sounds</a><a href="/guides">Guides</a></div>
+  </div></nav>
+
+  <main>
+  <div class="hero">
+    <div>
+      <p class="eyebrow">Pip's Cast Club · for preschoolers</p>
+      <h1>When your little one has a cast, Pip gets one too.</h1>
+      <p class="lede">A gentle companion for the slow weeks after a broken leg or arm. Pip tells the story of their own cast, counts the sleeps to the next doctor visit, gives stickers for resting, and plays games that work sitting still.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary btn-block" href="/cast/app/">Start Pip's Cast Club, free</a>
+        <p class="small">Set-up takes about a minute. No account, no download.</p>
+      </div>
+    </div>
+
+    <div class="demo" data-demo role="group" aria-label="Try Pip">
+      <p class="bubble" id="demoSay" aria-live="polite">Hi! I hurt my leg too. Want to pick my cast color?</p>
+      <div class="pipbox" id="demoPip" aria-hidden="true"></div>
+      <span class="demo-count">3 sleeps until doctor day</span>
+      <span class="demo-label">Pick Pip's cast</span>
+      <div class="demo-row" id="demoColors" role="group" aria-label="Cast color"></div>
+      <div class="demo-row" role="group" aria-label="Where">
+        <button type="button" class="demo-btn" data-where="leg" aria-pressed="true">Leg</button>
+        <button type="button" class="demo-btn" data-where="arm" aria-pressed="false">Arm</button>
+        <button type="button" class="demo-btn" id="demoSticker">Give a sticker</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="doctor-note" role="note" style="margin-top:22px"><span class="ic" aria-hidden="true">🩺</span><div><b>Pip is for comfort, not medical care.</b>Kide never gives medical advice. For pain, itching, swelling, how much to move, bathing, or when the cast comes off, ask your child's doctor. If something seems wrong, call the doctor.</div></div>
+
+  <section>
+    <h2>Made for the hard parts of a cast</h2>
+    <div class="grid">
+      <div class="feature"><span class="em" aria-hidden="true">🌱</span><b>Pip has one too</b>Same color, same leg or arm. A child who sees Pip in a cast stops being the only one.</div>
+      <div class="feature"><span class="em" aria-hidden="true">📖</span><b>A story about bones</b>Pip's tumble, the picture camera, picking a color, slow days and doctor day, in short chapters you read together.</div>
+      <div class="feature"><span class="em" aria-hidden="true">🌙</span><b>Sleeps until the doctor</b>Type the visit date your doctor gave you. Pip counts down in moons a child can see.</div>
+      <div class="feature"><span class="em" aria-hidden="true">⭐</span><b>Stickers for resting</b>Rested, brave at the doctor, took turns, was a helper. Each sticker lands on Pip's cast.</div>
+      <div class="feature"><span class="em" aria-hidden="true">🧩</span><b>Games for sitting still</b>Flower breaths for calming down, find the ladybug, paint Pip's cast, matching cards. One finger is enough.</div>
+      <div class="feature"><span class="em" aria-hidden="true">💬</span><b>Words for hard moments</b>What to say about the x-ray, the noisy cast tool, feeling left out, and friends who ask.</div>
+      <div class="feature"><span class="em" aria-hidden="true">💌</span><b>A card for family</b>A picture card from your child and Pip, made on your phone, for grandparents, friends or school.</div>
+      <div class="feature"><span class="em" aria-hidden="true">😴</span><b>An ending that's Pip's idea</b>Every game ends with Pip's sleepy invite to rest, so putting the screen down is easy.</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>How it works</h2>
+    <ol class="steps">
+      <li><b>You set it up.</b> A first name or nickname if you like, cast or boot, leg or arm, the color, and the next visit date.</li>
+      <li><b>You hand it over.</b> Your child meets Pip in a matching cast. Story, stickers, games and rest time are big pictures, no reading needed.</li>
+      <li><b>Pip helps them rest.</b> When a game ends, Pip gets sleepy and asks to be tucked in. Only a grown-up can wake Pip up again.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Tonight's story, written for your child</h2>
+    <p>In the grown-up corner, tap what happened today and one thing your child loves. Pip writes a short bedtime story about the two of them, with AI, from those taps alone. Your child's name never leaves your phone: the story comes back with a blank, and your phone fills in the name. If the AI is unavailable, Pip writes one right on the phone.</p>
+    <div class="story-sample" data-demo>
+      <div class="chips" aria-label="Example taps"><span>Went to the doctor</span><span>Was very brave</span><span>Loves dinosaurs</span></div>
+      <blockquote>"We were statues for the picture camera," said Pip. "You were so brave, Mia. Brave can be a little bit scared, and still try." Then Pip closed both eyes and dreamed about dinosaurs, all floating by, slow and sleepy.</blockquote>
+    </div>
+  </section>
+
+  <section>
+    <h2>Free to start</h2>
+    <div class="plans">
+      <div class="plan">
+        <h3>Free</h3>
+        <ul>
+          <li>Pip in a matching cast, boot, splint or sling</li>
+          <li>The doctor-day countdown and every sticker</li>
+          <li>Chapter one of Pip's story</li>
+          <li>Flower breaths for calming down</li>
+          <li>Three things to say, including what to do when it's itchy: ask the doctor</li>
+          <li>Tonight's story and a card for family</li>
+        </ul>
+        <a class="btn btn-ghost btn-block" href="/cast/app/">Start free</a>
+      </div>
+      <div class="plan" data-own-price>
+        <h3>Family play</h3>
+        <p class="price">$15 once</p>
+        <ul>
+          <li>The rest of Pip's story, through to doctor day</li>
+          <li>Find the ladybug, paint Pip's cast and matching cards</li>
+          <li>Words for the visit, the x-ray, cast-off day, sad days and friends</li>
+          <li>More of tonight's stories each day</li>
+          <li>All of Pip's play on Kide, still ending with Pip's goodnight</li>
+        </ul>
+        <p class="small muted">One payment for your family. It does not renew.</p>
+        <a class="btn btn-secondary btn-block" href="/unlock/?from=cast">Get family play</a>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>What Pip will never do</h2>
+    <ul class="promise">
+      <li>Give medical advice. Every medical question is handed to your child's doctor, in plain words.</li>
+      <li>Ask for an account, an email or anything about your child beyond a nickname and the dates you type.</li>
+      <li>Send what you type off your phone. Try it with the phone in airplane mode once the page has loaded: everything for your child keeps working.</li>
+      <li>Show ads or load trackers on the screens your child uses. <a href="/privacy/">Read the privacy page</a>.</li>
+      <li>Sell to your child. Family play is only offered to grown-ups, behind a grown-up check.</li>
+    </ul>
+    <p style="margin-top:14px">Pip is the same sprout whose playtime on Kide always ends with a goodnight. <a href="/guides/screen-time-that-ends-itself">Why the goodbye works</a>.</p>
+  </section>
+
+  <section class="faq">
+    <h2>Questions parents ask</h2>
+    <details><summary>How do I explain a cast to my 3 year old?</summary><p>Keep it short and say it the same way every time: "Your bone got a little crack. The cast holds it still, like a big hug, while your body works on mending it." Pip's story lets your child watch it happen to someone else first.</p></details>
+    <details><summary>What can a toddler do with a cast on their leg?</summary><p>Ask your child's doctor what is safe. For the sitting-down hours, every Cast Club game needs only a finger.</p></details>
+    <details><summary>Is this medical advice?</summary><p>No. Pip is for comfort and routine. For pain, itching, swelling, moving, bathing or when the cast comes off, ask your child's doctor.</p></details>
+    <details><summary>What do you store about my child?</summary><p>Only what you type, on your own phone: a first name or nickname, the kind of cast, the next visit date and the stickers. There is no account, and nothing you type leaves your phone. Tonight's story sends only the taps you pick, never the name. One button in the grown-up corner deletes it all.</p></details>
+    <details><summary>Does it work for a boot, a splint, a sling or crutches?</summary><p>Yes. Pip wears whatever your child has, and the story and words follow along.</p></details>
+  </section>
+
+  <section>
+    <h2>Cast care from children's doctors</h2>
+    <p class="reading">For the medical side, follow your child's doctor first. These pages are written by clinicians:</p>
+    <ul class="reading">
+      <li><a href="https://www.nationwidechildrens.org/conditions/health-library/cast-types-and-maintenance-instructions" rel="noopener">Cast and splint care</a>, Nationwide Children's Hospital</li>
+      <li><a href="https://www.mayoclinic.org/healthy-lifestyle/childrens-health/in-depth/cast-care/art-20047159" rel="noopener">Cast care: do's and don'ts</a>, Mayo Clinic</li>
+    </ul>
+  </section>
+
+  <section style="text-align:center">
+    <a class="btn btn-primary btn-block" href="/cast/app/">Start Pip's Cast Club, free</a>
+  </section>
+  </main>
+
+  <footer>
+    kide.us — a Quizbiz LLC product
+    <div class="links"><a href="/sounds">Sounds</a> · <a href="/guides">Guides</a> · <a href="/play">Play with Pip</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></div>
+    <div class="links">Part of the portfolio network · <a href="https://growth.business/?from=kide.us">growth.business</a></div>
+  </footer>
+</div>
+<script type="module">
+import { mountPip } from "/cast/pip-cast.js";
+import { COLORS } from "/cast/content.js";
+const pick = ["blue", "pink", "green", "purple", "orange", "yellow"];
+const LINES = {
+  color: (c) => `Ooh, ${c}! That's my favorite now.`,
+  arm: "Now my cast is on my arm. Still cozy!",
+  leg: "Back to my leg. I'm sitting down for sitting-still games.",
+  sticker: ["A brave sticker! Thank you!", "A resting sticker. Rest helps.", "A helper star! My cast is getting so pretty.", "Took turns! That was kind."],
+};
+const STK = ["🦁", "🌙", "🌟", "🤝"];
+const state = { kind: "cast", where: "leg", color: "blue" };
+const stickers = [];
+const say = (t) => { document.getElementById("demoSay").textContent = t; };
+const draw = (mood = "happy") => mountPip(document.getElementById("demoPip"), { setup: state, stickers, mood });
+const row = document.getElementById("demoColors");
+row.innerHTML = pick.map((id) => {
+  const c = COLORS.find((x) => x.id === id);
+  return `<button type="button" class="demo-sw" style="background:${c.hex}" data-c="${id}" aria-label="${c.label}" aria-pressed="${id === state.color}"></button>`;
+}).join("");
+row.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-c]");
+  if (!b) return;
+  state.color = b.dataset.c;
+  row.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  say(LINES.color(b.getAttribute("aria-label").toLowerCase()));
+  draw("cheer");
+});
+document.querySelectorAll("[data-where]").forEach((b) => b.addEventListener("click", () => {
+  state.where = b.dataset.where;
+  document.querySelectorAll("[data-where]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  say(LINES[state.where]);
+  draw();
+}));
+let n = 0;
+document.getElementById("demoSticker").addEventListener("click", () => {
+  stickers.push(STK[n % STK.length]);
+  say(LINES.sticker[n % LINES.sticker.length]);
+  n++;
+  draw("cheer");
+});
+draw();
+// Parent-facing page: measured, with no identifier of any kind. The app
+// behind it (/cast/app) is a child's screen and sends nothing.
+import("/engine/measure.js").then((m) => m.start()).catch(() => {});
+</script>
+</body>
+</html>
