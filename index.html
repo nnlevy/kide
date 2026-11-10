@@ -228,8 +228,9 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
   <section class="claim-bar" id="claimBar" hidden aria-label="Your kide link">
     <h2 id="claimName">Welcome</h2>
     <button class="claim-x" id="claimX" type="button" aria-label="Close">&times;</button>
+    <p id="claimQueue"><span id="claimReward"></span></p>
     <div id="claimStart">
-      <p><span id="claimReward"></span> Parents see the page below.</p>
+      <p>Parents see the page below.</p>
       <button class="claim-btn" id="claimOpen" type="button">Claim your link</button>
       <form class="claim-form" id="claimForm" hidden novalidate>
         <label for="claimEmail">Your email, so a referral credit can be queued for you</label>
@@ -253,7 +254,7 @@ btn.disabled=true;m.textContent="";
 fetch("/api/ref/claim",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:c,claim:b.getAttribute("data-claim"),email:em})}).then(function(r){return r.json();}).then(function(d){btn.disabled=false;
 if(!d||!d.ok){m.textContent=(d&&d.error)||"That didn't save. Try again?";return;}
 if(d.link)link=d.link;document.getElementById("claimStart").hidden=true;document.getElementById("claimDone").hidden=false;
-document.getElementById("claimDoneText").textContent="You're all set. We saved "+em+" for referral credits. Share your link with parents you know:";
+document.getElementById("claimDoneText").textContent="You're all set. We saved "+em+". The referral record still waits on a queue. It is not a payment. Share your link with parents you know:";
 try{history.replaceState(null,"","/?ref="+c);}catch(e){}}).catch(function(){btn.disabled=false;m.textContent="That didn't save. Try again?";});};
 document.getElementById("claimShare").onclick=function(){var t=this;var data={title:"Kide",text:"I think your kiddo would love Pip.",url:link};
 if(navigator.share){navigator.share(data).catch(function(){});return;}

@@ -81,10 +81,22 @@ export function checkStory(raw) {
   return { title, pages };
 }
 
+// Family play on this phone raises the story allowance. The grown-up corner
+// already asked unlock status with the full cookie jar, which is what writes
+// the device marker. The story path only needs that device cookie. A parent
+// sign-in is not forwarded.
+function deviceCookieHeader(request) {
+  const m = (request.headers.get("cookie") || "").match(DEVICE);
+  return m ? `kide_device=${m[1]}` : "";
+}
+
 async function isUnlocked(request, env) {
   try {
     const url = new URL("/api/unlock/status", request.url);
-    const res = await handleUnlock(new Request(url.toString(), { method: "GET", headers: request.headers }), env);
+    const headers = new Headers();
+    const cookie = deviceCookieHeader(request);
+    if (cookie) headers.set("cookie", cookie);
+    const res = await handleUnlock(new Request(url.toString(), { method: "GET", headers }), env);
     const data = await res.json();
     return data && data.unlocked === true;
   } catch {

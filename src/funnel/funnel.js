@@ -71,10 +71,14 @@ export function deviceClass(ua) {
 // that also says WhatsApp. The preview fetcher's UA is only "WhatsApp/<version>".
 // Pinterest's in-app browser likewise names Pinterest; the crawler is
 // Pinterestbot or the short "Pinterest/<digits>" fetcher.
-// Crawler tokens end in "bot" (bingbot/2.0, Applebot, Googlebot). A standalone
-// "\bbot\b" misses those, because the letters before "bot" sit in the same
-// word. A UA that merely contains the word "preview" is not a crawler.
-const CRAWLER_UA = /[a-z]bot\b|crawler|spider|slurp|facebookexternalhit|skypeuripreview|embedly|quora link preview|ia_archiver/i;
+// A crawler token ends in "bot" and then a version slash, a closing mark, or
+// the end of the string (bingbot/2.0, Applebot, Googlebot, Somebot/1.2).
+// A device name such as CUBOT ends in the same letters, but the next word is
+// the model, so that phone is a real open. The word "preview" alone is not a
+// crawler (a desktop UA can say Preview/1.0). Bing's card fetcher is
+// BingPreview. Meta's link crawler is meta-externalagent and need not say
+// "bot" or "crawler".
+const CRAWLER_UA = /[a-z]bot(?:\/|[;)]|$)|bingpreview|meta-externalagent|\bfacebot\b|crawler|spider|slurp|facebookexternalhit|skypeuripreview|embedly|quora link preview|ia_archiver/i;
 
 export function isPreviewFetch(ua) {
   const s = String(ua || "").trim();

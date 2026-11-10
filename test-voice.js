@@ -142,7 +142,8 @@ const ok = (c, m) => { if (c) { pass++; console.log("  ✓ " + m); } else { fail
   ok(await page.locator(".handoff-card h2").innerText() === "Passing it over?", "handoff card is the next screen, not the game");
   const chips = await page.locator(".chip").allInnerTexts();
   ok(chips.some((c) => /Pip speaks/.test(c) && /ON/.test(c)), "handoff states speaking is ON");
-  ok(chips.some((c) => /Nothing leaves this device/.test(c)), "handoff states the privacy posture");
+  ok(chips.some((c) => /Today's play is counted/.test(c) && /\bON\b/.test(c)), "handoff says today's play is counted");
+  ok(!chips.some((c) => /Nothing leaves this device/.test(c)), "handoff does not say nothing leaves the device");
   ok(await page.locator('[data-act="handover"]').isVisible(), "handoff needs a deliberate tap");
 
   await page.locator('[data-act="handover"]').click();

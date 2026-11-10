@@ -10,6 +10,8 @@
 
 import { readFileSync } from "node:fs";
 import assert from "node:assert";
+import { deviceUnlockKey, unlockKey } from "./src/unlock/entitlement.js";
+import { handleUnlock } from "./src/unlock/handler.js";
 
 let pass = 0, fail = 0;
 const t = async (name, fn) => {
@@ -213,6 +215,132 @@ await t("the price on the public page matches the family unlock config", async (
   const { AMOUNT_LABEL } = await import("./src/unlock/config.js");
   assert(read("public/cast/index.html").includes(`${AMOUNT_LABEL} once`));
   assert(read("public/cast/app/grownup.js").includes(`${AMOUNT_LABEL} for your family`));
+  assert(!read("public/cast/app/grownup.js").includes("opens all of Kide"), "$15 is family play, not the clinician licence");
+  assert(read("public/cast/app/grownup.js").includes("It opens family play"));
+});
+
+console.log("\nthe promises match what leaves the phone");
+
+await t("visitor copy names the story send, the card, and what delete clears", () => {
+  const files = ["public/cast/index.html", "public/cast/app/grownup.js", "public/cast/app/index.html", "public/privacy/index.html"];
+  const pages = files.map(read).join("\n");
+  for (const gone of [
+    "only the taps",
+    "Only what you type",
+    "from those taps alone",
+    "beyond a nickname and the dates",
+    "Nothing you type leaves",
+    "nothing you type leaves",
+    "deletes it all",
+    "opens all of Kide",
+    "Delete everything on this phone",
+    "What you type stays on this phone",
+  ]) {
+    assert(!pages.includes(gone), `still says: ${gone}`);
+  }
+  const welcome = read("public/cast/index.html");
+  const grown = read("public/cast/app/grownup.js");
+  const setup = read("public/cast/app/index.html");
+  const privacy = read("public/privacy/index.html");
+  for (const src of [welcome, grown, privacy]) {
+    assert(src.includes("device cookie"), "missing the device cookie");
+    assert(src.includes("The device cookie lasts one year"), "missing the device cookie lifetime");
+    assert(src.includes("stored for 36 hours"), "missing the story count");
+    assert(src.includes("A new UTC day starts the allowance again"), "story count must restart on the UTC day");
+    assert(!src.includes("a day and a half"), "story count still says a day and a half");
+  }
+  assert(setup.includes("send those choices later"), "set-up does not say the choices are sent later");
+  assert(setup.includes("together with this phone's device cookie"));
+  assert(setup.includes("The device cookie lasts one year"));
+  assert(setup.includes("The visit date stays on this phone"));
+  assert(!setup.includes("The name and the visit date stay"), "the card does not carry the visit date");
+  assert(setup.includes("does not send the name or the visit date"));
+  assert(setup.includes("that picture can include the name"));
+  assert(!setup.includes("It stays on this phone"));
+  assert(welcome.includes("cast set-up saved at the start"));
+  assert(welcome.includes("picture can include the name"));
+  assert(grown.includes("picture can include the name"));
+  assert(grown.includes("This phone also sends its device cookie"));
+  assert(grown.includes("The name is not in that request"));
+  assert(!grown.includes("The name never leaves this phone"));
+  assert(welcome.includes("does not clear the device cookie"));
+  assert(grown.includes("Delete Cast Club on this phone clears what was saved here"));
+  assert(grown.includes("does not clear the device cookie or that story count"));
+  assert(privacy.includes("Cast Club welcome page"));
+  assert(privacy.includes("do not use a parent sign-in for that story"));
+  assert(pages.includes("whether family play is already on"));
+  const json = welcome.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1];
+  assert(json.includes("device cookie") && !json.includes("only the taps") && !json.includes("Only what you type"));
+  assert(json.includes("The device cookie lasts one year") && json.includes("stored for 36 hours") && json.includes("A new UTC day starts the allowance again"));
+  const visibleFaq = welcome.match(/What do you store about my child\?<\/summary><p>([^<]+)<\/p>/)[1];
+  const jsonFaq = JSON.parse(json)["@graph"].find((n) => n["@type"] === "FAQPage").mainEntity.find((q) => q.name === "What do you store about my child?").acceptedAnswer.text;
+  assert.equal(visibleFaq, jsonFaq, "the visible FAQ and the JSON-LD answer drifted");
+  assert(!/gpt-4o|kide\.cast\.v1/.test(pages), "visitor copy uses an internal name");
+});
+
+await t("a parent sign-in on the story request is not used", async () => {
+  const sessions = [];
+  const e = env({ reply: good });
+  e.PORTFOLIO_MESSAGING_SERVICE = {
+    async currentSession({ session }) {
+      sessions.push(session);
+      if (String(session).includes("__Host-rft_session=parent")) return { ok: true, email: "parent@example.com" };
+      return { ok: false };
+    },
+  };
+  e.PORTFOLIO_BILLING_SERVICE = {
+    async getCredits() {
+      return { ok: true, purchases: [{ domain: "kide.us", offeringId: "family_unlock", status: "paid" }] };
+    },
+  };
+  const id = "d".repeat(24);
+  const cookie = `kide_device=${id}; __Host-rft_session=parent`;
+  const first = await S.handleCastStory(post({ kind: "cast", where: "leg", crutches: true }, cookie), e);
+  assert.equal((await first.json()).ok, true);
+  const second = await S.handleCastStory(post({ kind: "cast" }, cookie), e);
+  assert.equal((await second.json()).reason, "limit", "a forwarded parent sign-in would have raised the allowance");
+  assert.equal(sessions.length, 0, "the story path asked who was signed in");
+  const sent = JSON.stringify(e.PORTFOLIO_AI_SERVICE.calls);
+  assert(!sent.includes(id), "the device number reached the story writer");
+});
+
+await t("a fresh email unlock writes this phone's device marker and the next story sees family play", async () => {
+  const id = "f".repeat(24);
+  const now = Date.now();
+  const at = now - 5000;
+  const e = env({ reply: good });
+  e.store.set(unlockKey("parent@example.com"), JSON.stringify({ unlocked: true, at }));
+  e.PORTFOLIO_MESSAGING_SERVICE = {
+    async currentSession() { return { ok: true, email: "parent@example.com" }; },
+  };
+  assert.equal(e.store.has(deviceUnlockKey(id)), false);
+  const session = "__Host-rft_session=abcdefghijklmnopqrstuvwxyzABCDEFGHIJK12345";
+  const status = await handleUnlock(new Request("https://kide.us/api/unlock/status", {
+    headers: { cookie: `kide_device=${id}; ${session}` },
+  }), e, { now });
+  assert.equal((await status.json()).unlocked, true);
+  const marker = JSON.parse(e.store.get(deviceUnlockKey(id)));
+  assert.equal(marker.unlocked, true);
+  assert.equal(marker.email, "parent@example.com");
+  assert.equal(marker.at, at);
+  const first = await S.handleCastStory(post({ kind: "cast" }, `kide_device=${id}`), e);
+  const story = await first.json();
+  assert.equal(story.ok, true, JSON.stringify(story));
+  assert.equal(story.left, S.FAMILY_PER_DAY - 1, "a device-only story request is still on the free limit");
+  const second = await S.handleCastStory(post({ kind: "cast" }, `kide_device=${id}`), e);
+  assert.equal((await second.json()).ok, true, "the second story is still the free limit");
+});
+
+await t("family play already on this phone still allows more stories", async () => {
+  const id = "e".repeat(24);
+  const e = env({ reply: good });
+  e.store.set(deviceUnlockKey(id), JSON.stringify({ unlocked: true, email: "parent@example.com", at: Date.now() }));
+  for (let i = 0; i < S.FAMILY_PER_DAY; i++) {
+    const r = await S.handleCastStory(post({ kind: "cast" }, `kide_device=${id}`), e);
+    assert.equal((await r.json()).ok, true, `story ${i + 1}`);
+  }
+  const over = await S.handleCastStory(post({ kind: "cast" }, `kide_device=${id}`), e);
+  assert.equal((await over.json()).reason, "limit");
 });
 
 console.log("\ncounting sleeps");

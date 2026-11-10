@@ -13,10 +13,14 @@
 // THE SPLIT THAT RESOLVES IT. This product has two audiences on two sets of
 // routes, and they are cleanly separable:
 //
-//   PARENT surfaces  /, /sounds, /sounds/*, /guides, /guides/*, /privacy, /terms,
-//                    /for-slps, /make
+//   PARENT surfaces  /, /sounds, /sounds/*, /guides, /guides/*,
+//                    /for-slps, /make, /cast
 //     An adult reading about speech development, a clinician reading about the
-//     record, or a parent building a card. Measured.
+//     record, a parent building a card, or a parent on the Cast Club welcome
+//     page. Measured.
+//
+//     /privacy and /terms do not load this file, so they are not measured.
+//     /cast/app is a child's screen and is not measured.
 //
 //     /for-slps was loading this module and was NOT on the list, so the one
 //     page built to reach the only customer who pays reported nothing at all --
@@ -26,7 +30,7 @@
 //     /make is the top of the sharing loop. If nobody can tell whether the card
 //     builder is used, nobody can tell whether it was worth building.
 //
-//   CHILD surfaces   /words, /play, /parent, /clinician
+//   CHILD surfaces   /words, /play, /parent, /clinician, /cast/app
 //     A child playing, or their practice record. NEVER measured. Not reduced
 //     measurement, not anonymised measurement -- no beacon is sent at all.
 //
@@ -65,7 +69,6 @@ const MEASURED = [
   /^\/$/,
   /^\/sounds(\/[a-z]+)?\/?$/,
   /^\/guides(\/[a-z0-9-]+)?\/?$/,
-  /^\/(privacy|terms)\/?$/,
   /^\/for-slps\/?$/,
   /^\/make\/?$/,
   // The public Cast Club page only. /cast/app is a child's screen.
