@@ -400,7 +400,7 @@ t('llms.txt lists every public page with its own title, and no private page', ()
     if (/\/(privacy|terms)$/.test(m[1])) continue;
     assert(llms.includes(`](${m[1]})`), `${m[1]} is in the sitemap but not in llms.txt`);
   }
-  assert(!/\/(parent|clinician|bench|engine|scene|account|unlock)\b/.test(llms), 'a private page leaked into llms.txt');
+  assert(!/\/(parent|clinician|bench|engine|scene|account|unlock|cast\/app)\b/.test(llms), 'a private page leaked into llms.txt');
   assert(!/\[\/[^\]]*\]\(/.test(llms), 'a page is listed with its path instead of a title');
 });
 

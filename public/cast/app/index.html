@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pip's Cast Club — Kide</title>
+<meta name="description" content="Pip's Cast Club: a gentle companion for a little one with a cast, boot or crutches. Set it up, then hand it over.">
+<!-- The app itself is a child's screen and holds what a parent typed. Reached
+     from /cast, never from search. -->
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#56C6E6">
+<meta name="color-scheme" content="light">
+<link rel="canonical" href="https://kide.us/cast">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Kide">
+<meta property="og:title" content="Pip's Cast Club — Kide">
+<meta property="og:description" content="When your little one has a cast, Pip gets one too.">
+<meta property="og:url" content="https://kide.us/cast">
+<meta property="og:image" content="https://kide.us/og-card.png">
+<link rel="stylesheet" href="/cast/cast.css">
+<link rel="stylesheet" href="/cast/app/app.css">
+<link rel="stylesheet" href="/mobile.css">
+</head>
+<body>
+<main class="wrap app">
+
+  <!-- ===================== grown-up set-up ===================== -->
+  <section id="setup" class="screen" hidden>
+    <p class="eyebrow">For the grown-up · about a minute</p>
+    <h1>Set up Pip's Cast Club</h1>
+    <div class="setup-pip-row">
+      <div class="pipbox pipbox-sm" id="setupPip" aria-hidden="true"></div>
+      <p class="setup-say" id="setupSay" aria-live="polite"></p>
+    </div>
+    <form id="setupForm" class="card" novalidate>
+      <label class="fl" for="nameIn">First name or nickname <span class="muted">(optional)</span></label>
+      <input id="nameIn" name="name" autocomplete="off" maxlength="20" placeholder="e.g. Mia" enterkeyhint="next">
+      <p class="hint">Pip uses it in the story. It stays on this phone.</p>
+
+      <fieldset><legend class="fl">What do they have?</legend><div class="chips" id="kindPick"></div></fieldset>
+      <fieldset><legend class="fl">Where is it?</legend><div class="chips" id="wherePick"></div></fieldset>
+      <fieldset id="colorRow"><legend class="fl">What color?</legend><div class="swatches" id="colorPick"></div></fieldset>
+      <div id="crutchRow"><label class="check"><input type="checkbox" id="crutchIn"><span>They're using crutches</span></label></div>
+
+      <label class="fl" for="dateIn">Next doctor visit <span class="muted">(optional)</span></label>
+      <input id="dateIn" name="doctorDate" type="date">
+      <p class="hint">Pip counts the sleeps until then. Use the date your child's doctor gave you.</p>
+
+      <div class="doctor-note" role="note"><span class="ic" aria-hidden="true">🩺</span><div><b>Pip is for comfort, not medical care.</b>For pain, itching, swelling, moving, bathing or when the cast comes off, ask your child's doctor. If something seems wrong, call the doctor.</div></div>
+      <button class="btn btn-primary btn-block" type="submit">Hand it to my little one</button>
+      <p class="hint center">No account. What you type stays on this phone.</p>
+    </form>
+  </section>
+
+  <!-- ===================== hand-off ===================== -->
+  <section id="handoff" class="screen kid center" hidden>
+    <h2 id="handoffSay">Hand the phone to your little one.</h2>
+    <div class="pipbox" id="handoffPip" aria-hidden="true"></div>
+    <button type="button" class="btn btn-primary btn-big" id="handoffGo">Tap to meet Pip</button>
+  </section>
+
+  <!-- ===================== kid home ===================== -->
+  <section id="home" class="screen kid" hidden>
+    <div class="kid-top"><span></span><button type="button" class="btn btn-ghost btn-small" data-grownup>Grown-ups</button></div>
+    <h1 class="center kid-hello" id="homeHello">Hi, friend!</h1>
+    <div class="pipbox pipbox-lg" id="homePip" aria-hidden="true"></div>
+    <p class="count" id="homeCount" hidden></p>
+    <div class="tiles">
+      <button type="button" class="tile" id="goStory"><span class="em" aria-hidden="true">📖</span><b>Story</b></button>
+      <button type="button" class="tile" id="goStickers"><span class="em" aria-hidden="true">⭐</span><b>Stickers</b></button>
+      <button type="button" class="tile" id="goGames"><span class="em" aria-hidden="true">🧩</span><b>Games</b></button>
+      <button type="button" class="tile" id="goRest"><span class="em" aria-hidden="true">🌙</span><b>Rest time</b></button>
+    </div>
+  </section>
+
+  <!-- ===================== story list ===================== -->
+  <section id="story" class="screen kid" hidden>
+    <div class="kid-top"><button type="button" class="btn btn-ghost btn-small" data-home>Home</button></div>
+    <h2 class="center">Pip's story</h2>
+    <div class="tiles tiles-1" id="storyTiles"></div>
+  </section>
+
+  <section id="reader" class="screen kid" hidden>
+    <div class="kid-top"><button type="button" class="btn btn-ghost btn-small" data-home>Home</button><span class="step" id="readerStep"></span></div>
+    <h2 class="center" id="readerTitle"></h2>
+    <div class="pipbox" id="readerPip" aria-hidden="true"></div>
+    <p class="read" id="readerText" aria-live="polite"></p>
+    <p class="hint center" id="readerAi" hidden>Written with AI for tonight, from what a grown-up picked.</p>
+    <div class="row2">
+      <button type="button" class="btn btn-ghost" id="readerBack">Back</button>
+      <button type="button" class="btn btn-primary" id="readerNext">Next page</button>
+    </div>
+  </section>
+
+  <!-- ===================== stickers ===================== -->
+  <section id="stickers" class="screen kid" hidden>
+    <div class="kid-top"><button type="button" class="btn btn-ghost btn-small" data-home>Home</button></div>
+    <h2 class="center">Pick a sticker for Pip's cast</h2>
+    <div class="pipbox" id="stickerPip" aria-hidden="true"></div>
+    <p class="center today" id="stickerToday" aria-live="polite"></p>
+    <div class="tiles" id="stickerBtns"></div>
+    <p class="center muted" id="stickerTotal"></p>
+  </section>
+
+  <!-- ===================== games ===================== -->
+  <section id="games" class="screen kid" hidden>
+    <div class="kid-top"><button type="button" class="btn btn-ghost btn-small" data-home>Home</button></div>
+    <h2 class="center">Sitting-still games</h2>
+    <div class="tiles" id="gameTiles"></div>
+  </section>
+
+  <section id="game" class="screen kid" hidden>
+    <div class="kid-top"><button type="button" class="btn btn-ghost btn-small" data-home>Home</button></div>
+    <h2 class="center" id="gameTitle"></h2>
+    <div id="gameRoot" class="game-root"></div>
+  </section>
+
+  <!-- ===================== the goodbye ===================== -->
+  <section id="sleepy" class="screen kid center" hidden>
+    <div class="pipbox" id="sleepyPip" aria-hidden="true"></div>
+    <h2 id="sleepySay">Pip is getting sleepy. Should we tuck Pip in?</h2>
+    <div class="stack">
+      <button type="button" class="btn btn-primary btn-big" id="tuckIn">Tuck Pip in</button>
+      <button type="button" class="btn btn-ghost" id="oneMore">One more</button>
+    </div>
+  </section>
+
+  <section id="night" class="screen kid center" hidden>
+    <div class="pipbox" id="nightPip" aria-hidden="true"></div>
+    <h2 id="nightSay">Goodnight, Pip.</h2>
+    <p class="count night-count" id="nightCount"></p>
+    <button type="button" class="btn btn-ghost btn-small wake" id="wakePip">Grown-ups: wake Pip</button>
+  </section>
+
+  <!-- ===================== grown-up check ===================== -->
+  <section id="gate" class="screen" hidden>
+    <form id="gateForm" class="card center">
+      <h2>A grown-up check</h2>
+      <p id="gatePrompt">What is 12 + 30?</p>
+      <label class="fl" for="gateIn">Your answer</label>
+      <input id="gateIn" inputmode="numeric" autocomplete="off" enterkeyhint="done">
+      <p class="gu-msg" id="gateMsg" role="status"></p>
+      <div class="stack">
+        <button class="btn btn-primary" type="submit">Continue</button>
+        <button class="btn btn-ghost" type="button" id="gateCancel">Back to Pip</button>
+      </div>
+    </form>
+  </section>
+
+  <section id="grownup" class="screen" hidden>
+    <div id="grownupRoot"><p>Opening the grown-up corner...</p></div>
+  </section>
+</main>
+<script type="module" src="/cast/app/app.js"></script>
+</body>
+</html>

@@ -36,4 +36,5 @@ No ads, and nothing a child says leaves the device. Not a substitute for a speec
 - [Why we don't send your child's voice anywhere — Kide Guides](https://kide.us/guides/your-childs-voice-stays-on-the-device): If a browser can't understand speech without sending it to a server, Pip doesn't offer the microphone there at all. No cloud fallback exists to switch on by mistake. Here's exactly how that works today.
 
 ## More
-- [Make a card · Kide](https://kide.us/make): Build a card for a child you know. Choose who is on it, what they look like, and what it says — then send the link. Nothing is stored and nothing leaves your device.
+- [Toddler in a cast? Pip's Cast Club helps little ones heal — Kide](https://kide.us/cast): A gentle recovery companion for a preschooler with a broken leg or arm. Pip gets a cast too, counts the sleeps to the doctor visit, gives stickers for resting and plays sitting-still games. Free to start, no account.
+- [Make a card · Kide](https://kide.us/make): Build a card for a child you know. Choose who is on it, what they look like, and what it says — then send the link. The card is not saved on our servers. This page sends an anonymous note of the page and the button tapped, with no card contents and no child's name.

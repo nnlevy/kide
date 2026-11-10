@@ -232,7 +232,7 @@ footer .links a{margin:0 8px;color:var(--ink-soft);}
       <p><span id="claimReward"></span> Parents see the page below.</p>
       <button class="claim-btn" id="claimOpen" type="button">Claim your link</button>
       <form class="claim-form" id="claimForm" hidden novalidate>
-        <label for="claimEmail">Your email, so your payouts reach you</label>
+        <label for="claimEmail">Your email, so a referral credit can be queued for you</label>
         <input id="claimEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" required>
         <button class="claim-btn" type="submit">Save</button>
         <p class="claim-msg" id="claimMsg" role="status"></p>
@@ -253,7 +253,7 @@ btn.disabled=true;m.textContent="";
 fetch("/api/ref/claim",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:c,claim:b.getAttribute("data-claim"),email:em})}).then(function(r){return r.json();}).then(function(d){btn.disabled=false;
 if(!d||!d.ok){m.textContent=(d&&d.error)||"That didn't save. Try again?";return;}
 if(d.link)link=d.link;document.getElementById("claimStart").hidden=true;document.getElementById("claimDone").hidden=false;
-document.getElementById("claimDoneText").textContent="You're all set. Payouts go to "+em+". Share your link with parents you know:";
+document.getElementById("claimDoneText").textContent="You're all set. We saved "+em+" for referral credits. Share your link with parents you know:";
 try{history.replaceState(null,"","/?ref="+c);}catch(e){}}).catch(function(){btn.disabled=false;m.textContent="That didn't save. Try again?";});};
 document.getElementById("claimShare").onclick=function(){var t=this;var data={title:"Kide",text:"I think your kiddo would love Pip.",url:link};
 if(navigator.share){navigator.share(data).catch(function(){});return;}
@@ -285,7 +285,7 @@ try{navigator.clipboard.writeText(link).then(function(){t.textContent="Link copi
     <span>Free</span>
     <a href="/account">Parent account</a>
     <span>No ads</span>
-    <span>Nothing leaves the device</span>
+    <span>Games stay on the device</span>
     <span>Ages 2&ndash;7</span>
   </div>
 
@@ -307,6 +307,7 @@ try{navigator.clipboard.writeText(link).then(function(){t.textContent="Link copi
       <div class="mini-card"><div class="emoji">🚽</div><b>Going Potty</b><span>Your child walks Pip through the routine — nothing is scored</span></div>
       <div class="mini-card"><div class="emoji">🫧</div><b>Washing Hands</b><span>Water, soap, scrub, rinse, dry — as many times as they like</span></div>
     </div>
+    <p class="desc" style="margin-top:14px"><a class="readmore" href="/cast">Little one in a cast? Pip gets one too, in Pip's Cast Club &rarr;</a></p>
   </section>
 
   <section id="companions">
@@ -377,6 +378,7 @@ try{navigator.clipboard.writeText(link).then(function(){t.textContent="Link copi
          explicitly to clinicians, so it never speaks to the wrong reader. -->
     <div class="links"><a href="/sounds">Sounds</a> · <a href="/guides">Guides</a> ·
       <a href="/make">Make a card</a> ·
+      <a href="/cast">Cast Club</a> ·
       <a href="/for-slps">For speech therapists</a></div>
     <div class="links" style="margin-top:8px"><a href="/account">Parent account</a> · <a href="/unlock">Family play</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></div>
     <div class="links" style="margin-top:8px">Part of the portfolio network ·
@@ -436,6 +438,22 @@ try{navigator.clipboard.writeText(link).then(function(){t.textContent="Link copi
    Feelings shipped. An email box under an unfinished-state promise was
    costing more credibility on the front page than an address is worth,
    and a parent who has actually played is a far better person to ask. */
+</script>
+<script>
+  // Family-play funnel: a tap on "play" from this page. The server adds the
+  // share code from its own cookie, and marks QA from the cookie it set.
+  (function(){
+    document.addEventListener("click", function (e) {
+      var a = e.target && e.target.closest ? e.target.closest('a[href="/play"],a[href="/play/"]') : null;
+      if (!a) return;
+      try {
+        var body = JSON.stringify({ step: "home_cta" });
+        if (!(navigator.sendBeacon && navigator.sendBeacon("/api/funnel", new Blob([body], { type: "application/json" })))) {
+          fetch("/api/funnel", { method: "POST", body: body, keepalive: true, credentials: "same-origin", headers: { "Content-Type": "application/json" } });
+        }
+      } catch (err) {}
+    }, { capture: true });
+  })();
 </script>
 <script type="module">
   // Parent-facing page: measured, with no identifier of any kind. Child-facing

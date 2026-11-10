@@ -25,7 +25,8 @@ export function checkoutInput({ origin, email, ref }) {
     priceId: STRIPE_PRICE_ID,
     email,
     successUrl: `${origin}/unlock/?checkout=success&email=${encodeURIComponent(email)}`,
-    cancelUrl: `${origin}/play/`,
+    // Backing out of Stripe lands on the offer again, with "Back to Pip" on it.
+    cancelUrl: `${origin}/unlock/?checkout=back`,
     sourceDomain: DOMAIN,
   };
   // The hub copies customMetadata to Stripe as metadata[custom_ref] and credits
