@@ -301,11 +301,6 @@ async function said(minMs, maxMs){
 }
 
 async function begin(){
-  $('stepWho').classList.add('hidden');
-  $('stepName').classList.add('hidden');
-  $('stepPlay').classList.remove('hidden');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-
   scene = new Scene($('stage'), actor, $('choices'));
   // Every caption from here on is spoken. Routing it through the scene
   // rather than each call site is what makes it impossible to add a line
@@ -339,6 +334,13 @@ async function begin(){
     : `Can you say ${first.w}?`,
     [Speech.CHROME.wake, Speech.wordLine(first.w)]);
   showSay(first.w);
+  // The heading already says "Tap the big button." Unhiding the step before
+  // showSay paints that button leaves no action at all while vocab and art
+  // are still loading. Paint the button, then reveal the step, in one turn.
+  $('stepWho').classList.add('hidden');
+  $('stepName').classList.add('hidden');
+  $('stepPlay').classList.remove('hidden');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 /** The one action a child ever takes.
