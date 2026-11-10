@@ -94,7 +94,7 @@ export function render(root, a) {
 
   <section class="card gu-card">
     <h2>What this stores</h2>
-    <p>On this phone only: the first name or nickname you typed, the set-up, the visit date, stickers and tonight's story. No account, and nothing about your child is sent to Kide. Pages your child uses carry no ads and no analytics.</p>
+    <p>On this phone only: the first name or nickname you typed, the set-up, the visit date, stickers and tonight's story. No account. Nothing you type leaves this phone; tonight's story sends only the taps you pick, never the name. Pages your child uses carry no ads and no analytics.</p>
     <button type="button" class="btn btn-ghost" id="guWipe">Delete everything on this phone</button>
   </section>`;
 
