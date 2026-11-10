@@ -18,7 +18,7 @@ const t = (name, fn) => {
 
 const { NORMS, CITATION } = await import('./public/engine/norms.js');
 const { LEX } = await import('./public/engine/lexicon.js');
-const { isMeasured } = await import('./public/engine/measure.js');
+const { isMeasured, destinationOf, labelOf } = await import('./public/engine/measure.js');
 const soundDirs = readdirSync('public/sounds', { withFileTypes: true })
   .filter((d) => d.isDirectory()).map((d) => d.name);
 const read = (p) => readFileSync(p, 'utf8');
@@ -105,6 +105,26 @@ t('no beacon is wired into a child-facing page', () => {
                    'public/cast/app/index.html']) {
     if (!existsSync(p)) continue;
     assert(!/measure\.js/.test(read(p)), `${p} loads the measurement module`);
+  }
+});
+
+t('a counted tap never carries a card\'s names, choices or note', () => {
+  // /make's Open link is the whole card: /gift?to=Maya&from=Grandpa&note=...
+  // Its buttons' words can be a child's name. A count may say where a tap went,
+  // never what was on the card.
+  const card = 'https://kide.us/gift?to=Maya&from=Grandpa&note=Get%20well&cast=a1';
+  assert(destinationOf(card) === '/gift', `card link sent as ${destinationOf(card)}`);
+  assert(destinationOf('/gift?to=Maya#x') === '/gift', 'relative link kept its query');
+  assert(destinationOf('https://growth.business/get-started?ref=kide') === 'https://growth.business/get-started',
+    'outside link kept its query');
+  assert(destinationOf('mailto:a@b.c?subject=Maya') === 'mailto:', 'mailto kept its address');
+  const btn = (text, role) => ({ textContent: text, getAttribute: (k) => (k === 'data-measure' ? role || null : null) });
+  assert(labelOf(btn('Maya'), '/make') === '', 'a name on a /make button was sent');
+  assert(labelOf(btn('Open it', 'open'), '/make') === 'open', 'declared role not sent on /make');
+  assert(labelOf(btn('Start practising'), '/') === 'Start practising', 'parent page label lost');
+  const make = read('public/make/index.html');
+  for (const role of ['share', 'copy', 'open']) {
+    assert(make.includes(`data-measure="${role}"`), `/make ${role} control has no declared role`);
   }
 });
 
@@ -391,6 +411,20 @@ t('the homepage links into the sound surface', () => {
   const h = read('index.html');
   assert((h.match(/\/sounds/g) || []).length >= 3,
     'the strongest page on the site barely links to the surface built to rank');
+});
+
+t('llms.txt lists every public page with its own title, and no private page', () => {
+  const llms = read('public/llms.txt');
+  const sitemap = read('public/sitemap.xml');
+  const worker = read('src/worker/index.ts');
+  assert(/url\.pathname === "\/llms\.txt"/.test(worker), 'the worker does not serve /llms.txt');
+  assert(llms.startsWith('# Kide\n\n> '), 'llms.txt has no title and summary line');
+  for (const m of sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)) {
+    if (/\/(privacy|terms)$/.test(m[1])) continue;
+    assert(llms.includes(`](${m[1]})`), `${m[1]} is in the sitemap but not in llms.txt`);
+  }
+  assert(!/\/(parent|clinician|bench|engine|scene|account|unlock|cast\/app)\b/.test(llms), 'a private page leaked into llms.txt');
+  assert(!/\[\/[^\]]*\]\(/.test(llms), 'a page is listed with its path instead of a title');
 });
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
