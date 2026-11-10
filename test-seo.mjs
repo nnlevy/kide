@@ -65,12 +65,13 @@ t('the measurement allow-list covers parents and excludes children', () => {
   // the worse of the two: it loaded measure.js, was not on the allow-list, and
   // so the one page built to reach the only customer who pays reported nothing
   // — every clinician who read it and left did so without a trace.
-  for (const p of ['/', '/sounds', '/sounds/r', '/guides', '/guides/a-slug', '/privacy',
-                   '/for-slps', '/make']) {
+  for (const p of ['/', '/sounds', '/sounds/r', '/guides', '/guides/a-slug',
+                   '/for-slps', '/make', '/cast', '/cast/']) {
     assert(isMeasured(p), `${p} is an adult surface and should be measured`);
   }
-  for (const p of ['/words', '/play', '/parent', '/clinician', '/bench', '/words/']) {
-    assert(!isMeasured(p), `${p} can be a child's screen and must NOT be measured`);
+  for (const p of ['/words', '/play', '/parent', '/clinician', '/bench', '/words/',
+                   '/privacy', '/privacy/', '/terms', '/terms/', '/cast/app', '/cast/app/']) {
+    assert(!isMeasured(p), `${p} must NOT be measured`);
   }
 });
 
@@ -91,7 +92,7 @@ t('every measured page actually loads the beacon, and vice versa', () => {
   // loads it but is not measured looks instrumented and is not, which is worse
   // than being plainly absent.
   const MEASURED_PAGES = ['index.html', 'public/sounds/index.html', 'public/guides/index.html',
-                          'public/for-slps/index.html', 'public/make/index.html'];
+                          'public/for-slps/index.html', 'public/make/index.html', 'public/cast/index.html'];
   for (const p of MEASURED_PAGES) {
     assert(/measure\.js/.test(read(p)), `${p} is measured but never loads measure.js`);
   }
@@ -99,7 +100,9 @@ t('every measured page actually loads the beacon, and vice versa', () => {
 
 t('no beacon is wired into a child-facing page', () => {
   for (const p of ['public/words/index.html', 'public/play/index.html',
-                   'public/parent/index.html', 'public/clinician/index.html']) {
+                   'public/parent/index.html', 'public/clinician/index.html',
+                   'public/privacy/index.html', 'public/terms/index.html',
+                   'public/cast/app/index.html']) {
     if (!existsSync(p)) continue;
     assert(!/measure\.js/.test(read(p)), `${p} loads the measurement module`);
   }

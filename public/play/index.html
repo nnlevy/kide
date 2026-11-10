@@ -20,7 +20,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Kide">
 <meta property="og:title" content="Pip the Sprout — a game that ends without a meltdown | Kide">
-<meta property="og:description" content="Pip reads every question aloud so a child too little to read can play alone — then gets sleepy and asks to be tucked in. Colors, counting and shapes. Free, no ads, nothing leaves the device.">
+<meta property="og:description" content="Pip reads every question aloud so a child too little to read can play alone — then gets sleepy and asks to be tucked in. Colors, counting and shapes. Free, no ads. Today's play is counted; what your child answers stays on the device.">
 <meta property="og:url" content="https://kide.us/play">
 <meta property="og:image" content="https://kide.us/og-card.png">
 <meta property="og:image:width" content="1200">
@@ -28,7 +28,7 @@
 <meta property="og:image:alt" content="A sleepy Pip the Sprout beside the words: the screen time that ends without a meltdown.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Pip the Sprout — a game that ends without a meltdown | Kide">
-<meta name="twitter:description" content="Pip reads every question aloud so a child too little to read can play alone — then gets sleepy and asks to be tucked in. Colors, counting and shapes. Free, no ads, nothing leaves the device.">
+<meta name="twitter:description" content="Pip reads every question aloud so a child too little to read can play alone — then gets sleepy and asks to be tucked in. Colors, counting and shapes. Free, no ads. Today's play is counted; what your child answers stays on the device.">
 <meta name="twitter:image" content="https://kide.us/og-card.png">
 
 <script type="application/ld+json">
@@ -961,8 +961,8 @@ function say(id){
    play and still counts as practice, but only a spoken answer is ever counted
    as evidence about articulation (see public/engine/clinical.js).
 
-   Nothing leaves the device. No audio is retained -- only which word, which
-   sound, and whether it was heard.
+   No recording leaves the device, and no audio is retained -- only which word,
+   which sound, and whether it was heard. Today's play time is counted on its own.
 --------------------------------------------------------------------------- */
 var PLAY_TARGETS = null;
 fetch("/data/play-targets.json").then(function(r){ return r.ok ? r.json() : null; })

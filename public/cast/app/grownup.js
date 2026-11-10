@@ -94,8 +94,8 @@ export function render(root, a) {
 
   <section class="card gu-card">
     <h2>What this stores</h2>
-    <p>On this phone only: the first name or nickname you typed, the set-up, the visit date, stickers and tonight's story. No account. Nothing you type leaves this phone; tonight's story sends only the taps you pick, never the name. Pages your child uses carry no ads and no analytics.</p>
-    <button type="button" class="btn btn-ghost" id="guWipe">Delete everything on this phone</button>
+    <p>On this phone: the nickname you typed, the cast set-up, the visit date, stickers, which chapters were opened, tonight's story, and whether family play is already on. No account. The name stays here unless you send the card, and that picture can include the name. A bedtime story sends the cast set-up, the taps you pick, and this phone's device cookie. It never sends the name. We count today's stories on that device number for a day and a half. Pages your child uses carry no ads and no analytics.</p>
+    <button type="button" class="btn btn-ghost" id="guWipe">Delete Cast Club on this phone</button>
   </section>`;
 
   root.querySelector("#guBack").addEventListener("click", api.back);
@@ -123,7 +123,7 @@ function familyBody(S, ch, ga, sc) {
   if (S.unlocked) {
     return `<p><b>Family play is on.</b> Every chapter, game and script is open, plus all of Pip's play on Kide.</p>`;
   }
-  return `<p data-own-price>One payment of $15 for your family. It does not renew, and it opens all of Kide, including:</p>
+  return `<p data-own-price>One payment of $15 for your family. It does not renew. It opens family play, including:</p>
     <ul class="gets">
       <li>${ch} more story chapters, through to doctor day</li>
       <li>${ga} more sitting-still games</li>
@@ -363,6 +363,6 @@ function confirmWipe(root) {
   const b = root.querySelector("#guWipe");
   if (b.dataset.armed === "1") return true;
   b.dataset.armed = "1";
-  b.textContent = "Tap again to delete everything";
+  b.textContent = "Tap again to delete Cast Club here";
   return false;
 }

@@ -531,7 +531,12 @@ await t('the policy names what is stored, what can be joined, and what is sent o
   assert.match(text, /fetch of that same link by a crawler/);
   assert.match(text, /page for speech-language pathologists/);
   assert.match(text, /card maker/);
-  assert.match(text, /this privacy page, the terms, and the clinician page do not send these notes/);
+  assert.match(text, /Cast Club welcome page/);
+  assert.match(text, /this privacy page, the terms, the clinician page, and the Cast Club app do not send these notes/);
+  assert.match(text, /together with this phone's device cookie/);
+  assert.match(text, /do not use a parent sign-in for that story/);
+  assert.match(text, /a day and a half/);
+  assert.match(text, /does not clear the device cookie or that story count/);
   assert.doesNotMatch(text, /this privacy page, the terms, the clinician page, and the card maker/);
   assert.match(text, /session cookie named kide_qa/);
   assert.match(text, /when the address contains kide_qa=1/);
@@ -581,6 +586,12 @@ await t('the policy names what is stored, what can be joined, and what is sent o
   assert.match(parent, /We record a referral when a family buys family play through your link/);
   assert.doesNotMatch(parent, /You earn/);
   assert.doesNotMatch(parent, /data\.reward \+ "\."/);
+  const play = readFileSync('public/play/index.html', 'utf8');
+  for (const attr of ['property="og:description"', 'name="twitter:description"']) {
+    const tag = play.slice(play.indexOf(attr), play.indexOf('>', play.indexOf(attr)));
+    assert.match(tag, /Today's play is counted/);
+    assert.doesNotMatch(tag, /nothing leaves the device/i);
+  }
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);
