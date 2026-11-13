@@ -446,7 +446,8 @@ async function resumeFromCheckout() {
   const q = new URLSearchParams(location.search);
   const state = q.get('checkout');
   if (!state) return;
-  history.replaceState(null, '', location.pathname + (q.get('data') ? `?data=${q.get('data')}` : ''));
+  const keep = q.get('data') ? `#data=${encodeURIComponent(q.get('data'))}` : location.hash;
+  history.replaceState(null, '', location.pathname + keep);
   if (state === 'cancel') return say('Checkout cancelled — nothing was charged.');
 
   const email = (q.get('email') || lsGet(LS_EMAIL, '') || '').trim();
@@ -504,7 +505,7 @@ function loadWorkedExample() {
 
 $('btnDemo').addEventListener('click', loadWorkedExample);
 
-// Real data arrives via ?data= (base64 JSON of the engine log) so a parent can
+// Real data arrives via #data= (base64 JSON of the engine log) so a parent can
 // hand a clinician a link without an account or a server round-trip.
 //
 // ?demo=1 loads the worked example directly, so /for-slps can link a clinician
@@ -512,7 +513,17 @@ $('btnDemo').addEventListener('click', loadWorkedExample);
 // impossible, and "press the button marked worked example" is a step at which
 // people leave.
 const query = new URLSearchParams(location.search);
-const param = query.get('data');
+// New links carry the record after the # (never sent to a server). Links
+// shared before that change carry ?data=; they still open, and the record is
+// moved into the fragment at once so a reload does not send it again.
+const fromHash = new URLSearchParams(location.hash.slice(1)).get('data');
+const fromQuery = query.get('data');
+const param = fromHash || fromQuery;
+if (fromQuery && !fromHash && !query.get('checkout')) {
+  query.delete('data');
+  const rest = query.toString();
+  history.replaceState(null, '', location.pathname + (rest ? `?${rest}` : '') + `#data=${encodeURIComponent(fromQuery)}`);
+}
 if (param) {
   try { render(buildRecord(JSON.parse(atob(param)))); }
   catch { render(buildRecord([])); }

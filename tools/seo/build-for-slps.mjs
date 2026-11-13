@@ -90,7 +90,7 @@ const FAQS = [
 
   ['Do I become a data processor if a family shares a record with me?',
    'No. The record never reaches us, and sharing it does not create an account. It lives in the family\'s browser, and '
-   + 'sharing produces a link with the data encoded in the URL, which opens on your device directly. '
+   + 'sharing produces a link with the data encoded after the # in the URL, a part browsers never send to a server, which opens on your device directly. '
    + 'No audio, no voiceprint, no embedding — the record holds phoneme-level outcomes, timestamps '
    + 'and a first name. The amended COPPA Rule lists voiceprints as biometric personal information '
    + `(${ECFR_LINK}, ${ECFR}), which is one reason none is ever created.`],
@@ -256,9 +256,9 @@ const html = `<!DOCTYPE html>
      name. No audio, no voiceprint, no embedding that could re-identify a child — the amended COPPA
      Rule lists voiceprints as biometric personal information (${ECFR_LINK}, ${ECFR}), which is one
      reason none is ever created.</p>
-  <p>Sharing is a link with the data encoded in the URL. It opens on your device straight from the
-     link. The record does not reach our servers on the way, because there is no route by which it
-     could.</p>
+  <p>Sharing is a link with the data encoded after the # in the URL. It opens on your device
+     straight from the link. Browsers never send the part after the # to a server, so the record
+     does not reach ours on the way.</p>
 
   <h2>What it costs</h2>
   <p><b>Nothing, for the family, permanently.</b> The game is free, the practice record is free, and
