@@ -429,7 +429,14 @@ try{navigator.clipboard.writeText(link).then(function(){t.textContent="Link copi
     if (!stats) return;
     stats.innerHTML = [
       [data.counts.words,  'words your child can be asked for'],
-      [data.counts.targets,'speech sounds practiced'],
+      // Distinct phonemes, not sound-and-position pairs: /p/ at the start and in
+      // the middle of a word is one speech sound, and an SLP will count it so.
+      // An empty word list is zero sounds. Do not substitute the sound-and-position
+      // pair count, which is a larger number than the sounds a child practices.
+      [Array.isArray(data.words)
+        ? new Set(data.words.map(function(w){ return w && w.ph; }).filter(Boolean)).size
+        : 0,
+       'speech sounds practiced'],
       [data.counts.scenes, 'places to go'],
       [data.counts.pairs,  'different little moments']
     ].map(function(x){ return '<div class="stat"><b>'+x[0]+'</b><span>'+x[1]+'</span></div>'; }).join('');

@@ -13,3 +13,16 @@
 
 /voice.js
   Cache-Control: public, max-age=86400
+
+# A legacy share link puts the practice record in ?data=. Same-origin subresources
+# would otherwise send that query in Referer. Assets are served before the Worker,
+# so the header has to live here. The page also moves ?data= into the fragment
+# before it asks for a stylesheet.
+/clinician
+  Referrer-Policy: no-referrer
+
+/clinician/
+  Referrer-Policy: no-referrer
+
+/clinician/*
+  Referrer-Policy: no-referrer

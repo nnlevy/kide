@@ -202,7 +202,8 @@ console.log('--- the share link ---');
   J.clear();
   for (let i = 0; i < 10; i++) J.record(ev({ at: T0 + i * 3600000 }));
   const link = J.exportLink('/clinician/', { days: 90, now: T0 + 86400000 });
-  ok('it points at the clinician surface', link.startsWith('/clinician/?data='));
+  ok('the record rides in the fragment, never the query', !link.includes('?'));
+  ok('it points at the clinician surface', link.startsWith('/clinician/#data='));
 
   const b64 = decodeURIComponent(link.split('data=')[1]);
   const decoded = JSON.parse(Buffer.from(b64, 'base64').toString('utf8'));
