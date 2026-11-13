@@ -198,6 +198,12 @@ if (!HUB) {
 
 console.log('\nno child\'s data is on a public page');
 
+t('the record is not described as holding a name', () => {
+  // journal.js keeps an allow-list and a name is not on it. Saying the record
+  // holds a first name is a claim the file cannot make true.
+  assert(!/first name/i.test(text), '/for-slps says the practice record holds a first name');
+});
+
 t('the page carries no practice record and no share payload', () => {
   // /for-slps is indexed. /clinician is not, precisely because it renders a
   // record. Nothing that could carry one belongs here.

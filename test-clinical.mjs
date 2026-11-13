@@ -185,6 +185,15 @@ console.log('--- adherence: the number nobody else can produce ---');
      narrativeFor(buildRecord(log, { now: T0 + 9 * 86400000 })).some((l) => /Longest break: 3 days/.test(l)));
 }
 {
+  const log = Array.from({ length: 8 }, (_, i) => ev({ at: T0 + i * 1000 }));
+  const lines = narrativeFor(buildRecord(log, { now: T0 + 1095 * 86400000 }));
+  ok('the adherence percent is its own sentence',
+     lines.some((l) => /^\d+% of the days in that span\.$/.test(l)));
+  ok('a long gap since practice is its own sentence',
+     lines.some((l) => /^No practice in the last \d+ days\.$/.test(l)));
+  ok('the percent is not glued to the session counts', !/%/.test(lines[0]));
+}
+{
   const a = adherenceFrom([], Date.now());
   eq('no data degrades safely', a.days, 0);
   ok('and says why', /no timestamps/.test(a.note));

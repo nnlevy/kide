@@ -168,7 +168,9 @@ export function exportLink(baseUrl = '/clinician/', { days = 90, now = Date.now(
   const b64 = typeof btoa === 'function'
     ? btoa(unescape(encodeURIComponent(json)))
     : Buffer.from(json, 'utf8').toString('base64');
-  return `${baseUrl}?data=${encodeURIComponent(b64)}`;
+  // After the #, never in the query: browsers do not send a fragment to any
+  // server, so the record cannot reach ours (or a CDN log) on the way.
+  return `${baseUrl}#data=${encodeURIComponent(b64)}`;
 }
 
 /** Rough storage footprint, for the parent surface to show honestly. */

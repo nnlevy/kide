@@ -105,11 +105,27 @@ t('every fetch on the page goes through the single api() helper', () => {
   assert(/^path,\s*options/.test(fetches[0]), `the lone fetch() is no longer api()'s: fetch(${fetches[0]})`);
 });
 
-t('the page has exactly one script block, so nothing is hiding in a second', () => {
-  // The extractor above joins them all, but a stray inline <script> is worth
-  // failing on in its own right: this page is a document, not an app.
-  assert.equal(scriptBlocks.length, 1, `expected 1 script block, found ${scriptBlocks.length}`);
+t('the only scripts are the legacy-link scrubber and the report module', () => {
+  // A second script is allowed only for the blocking move of ?data= into the
+  // fragment. It has to run before any stylesheet, or the record leaves in
+  // Referer. Anything else on this page is a new way off the device.
+  const tags = [...page.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)];
+  assert.equal(tags.length, 2, `expected 2 script blocks, found ${tags.length}`);
+  assert.equal(tags[0][1].trim(), '', 'the first script must be classic and blocking');
+  assert(/history\.replaceState/.test(tags[0][2]) && /has\("data"\)/.test(tags[0][2]),
+    'the first script no longer moves a legacy ?data= link into the fragment');
+  assert(!/fetch\s*\(|sendBeacon|XMLHttpRequest|import\s*\(/.test(tags[0][2]),
+    'the scrubber can move bytes off the device');
+  assert(/type="module"/.test(tags[1][1]), 'the report script is no longer a module');
   assert(!/<script[^>]*\ssrc=/i.test(page), 'the clinician page loads an external script');
+  const head = page.slice(page.indexOf('<head>'), page.indexOf('</head>'));
+  const body = head.slice('<head>'.length).trimStart();
+  assert(body.startsWith('<script>'), 'the scrubber is not the first thing in <head>');
+  const styleAt = head.search(/<link\b|<style\b/i);
+  assert(head.indexOf('<script>') < styleAt, 'a stylesheet precedes the scrubber');
+  assert(head.indexOf('name="referrer"') > 0 && head.indexOf('name="referrer"') < styleAt,
+    'the referrer policy is not set before stylesheets');
+  assert(/content="no-referrer"/.test(head), 'the referrer meta is not no-referrer');
 });
 
 t('the suite can actually see the requests it claims to police', () => {
@@ -144,7 +160,16 @@ t('the checkout return URL cannot carry the record', () => {
   assert(urls.length >= 2, 'the checkout return URLs are no longer visible to this suite');
   for (const u of urls) {
     assert(!/\bdata=/.test(u), `a checkout return URL carries the record: ${u}`);
+    assert(!/#/.test(u), `a checkout return URL carries a fragment: ${u}`);
   }
+  const save = pageCode.indexOf('sessionStorage.setItem(RETURN_HASH, location.hash');
+  const leave = pageCode.indexOf('location.href = out.url');
+  assert(save > 0 && leave > save, 'the fragment is not saved before the browser leaves for checkout');
+  const callAt = pageCode.indexOf('resumeFromCheckout();');
+  const readAt = pageCode.indexOf("new URLSearchParams(location.hash.slice(1)).get('data')");
+  assert(callAt > 0 && readAt > callAt, 'the fragment is restored after the record has already been read');
+  assert(/sessionStorage\.getItem\(RETURN_HASH\)/.test(pageCode),
+    'returning from checkout no longer reads the saved fragment');
 });
 
 console.log('\nnothing here can spend anybody\'s money');
@@ -423,6 +448,26 @@ t('the homepage links to the licence page without stating a price, and does not 
     `a coral CTA no longer points at free play: ${ctas.join(', ')}`);
   assert(/Let's Play/.test(visible) && /it's free/.test(visible),
     'the play CTA no longer says it is free');
+  assert(/Array\.isArray\(data\.words\)/.test(home),
+    'the homepage sound count does not use the word list');
+  assert(!/\|\|\s*data\.counts\.targets/.test(home),
+    'the homepage still falls back to the sound-and-position pair count');
+});
+
+t('a paid clinician is not told about the hub, and the chart text is at least 12px', () => {
+  assert(!/the hub can take/i.test(page), 'the clinician page still says the hub can take a moment');
+  assert(/your licence check can take a few seconds/.test(page),
+    'the slow licence check is no longer explained in plain words');
+  const tag = (page.match(/\.tag\{[^}]*\}/) || [''])[0];
+  assert(/font-size:\s*(1[2-9]|[2-9]\d)(?:\.\d+)?px/.test(tag), `the tag is still under 12px: ${tag}`);
+  assert(/font-size:\s*12\.5px;color:var\(--ink-faint\)/.test(page),
+    'the interval is still under 12px');
+  const headers = readFileSync('public/_headers', 'utf8');
+  for (const rule of ['/clinician\n', '/clinician/\n', '/clinician/*\n']) {
+    assert(headers.includes(rule), `_headers does not cover ${rule.trim()}`);
+  }
+  assert(/Referrer-Policy:\s*no-referrer/.test(headers),
+    '/clinician/ does not send Referrer-Policy: no-referrer');
 });
 
 console.log(`\n${pass} passed, ${fail} failed${skipped ? `, ${skipped} skipped` : ''}\n`);
