@@ -91,8 +91,8 @@ const FAQS = [
   ['Do I become a data processor if a family shares a record with me?',
    'No. The record never reaches us, and sharing it does not create an account. It lives in the family\'s browser, and '
    + 'sharing produces a link with the data encoded after the # in the URL, a part browsers never send to a server, which opens on your device directly. '
-   + 'No audio, no voiceprint, no embedding — the record holds phoneme-level outcomes, timestamps '
-   + 'and a first name. The amended COPPA Rule lists voiceprints as biometric personal information '
+   + 'No audio, no voiceprint, no embedding — the record holds phoneme-level outcomes and '
+   + 'timestamps. The amended COPPA Rule lists voiceprints as biometric personal information '
    + `(${ECFR_LINK}, ${ECFR}), which is one reason none is ever created.`],
 
   ['What does it cost the family?',
@@ -252,8 +252,8 @@ const html = `<!DOCTYPE html>
 
   <h2>You do not become a data processor</h2>
   <p>A parent account is separate from this record, and a family does not need one to share it. Nothing a child says is recorded, transmitted or stored: scoring
-     happens on the device, and the record holds phoneme-level outcomes, timestamps and a first
-     name. No audio, no voiceprint, no embedding that could re-identify a child — the amended COPPA
+     happens on the device, and the record holds phoneme-level outcomes and timestamps.
+     No audio, no voiceprint, no embedding that could re-identify a child — the amended COPPA
      Rule lists voiceprints as biometric personal information (${ECFR_LINK}, ${ECFR}), which is one
      reason none is ever created.</p>
   <p>Sharing is a link with the data encoded after the # in the URL. It opens on your device

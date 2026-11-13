@@ -1,6 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+(function () {
+  try {
+    var params = new URLSearchParams(location.search);
+    if (!params.has("data")) return;
+    var data = params.get("data");
+    params.delete("data");
+    var hash = new URLSearchParams(String(location.hash || "").replace(/^#/, ""));
+    if (!hash.get("data")) hash.set("data", data);
+    var query = params.toString();
+    var fragment = hash.toString();
+    history.replaceState(null, "", location.pathname + (query ? "?" + query : "") + (fragment ? "#" + fragment : ""));
+  } catch (e) { /* the referrer policy below still stops the query leaving on a subresource */ }
+})();
+</script>
+<meta name="referrer" content="no-referrer">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
@@ -22,6 +38,12 @@
   h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);
      margin:26px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
   .narrative p{font-size:15.5px;margin:0 0 8px}
+  /* The module fills these after it arrives. The first paint already holds a
+     short record, so a slow phone does not shift the sheet or the licence. */
+  #narrative{min-height:18rem}
+  #adherence{min-height:13rem}
+  #targets{min-height:12rem}
+  .narrative p a{white-space:normal;max-width:100%;flex-wrap:wrap}
   table{width:100%;border-collapse:collapse;font-size:14px}
   th{text-align:left;font-size:13px;text-transform:uppercase;letter-spacing:.04em;
      color:var(--ink-faint);font-weight:700;padding:8px 8px;border-bottom:1px solid var(--line)}
@@ -33,7 +55,7 @@
   .ci i{position:absolute;top:3px;height:10px;background:#BFD3C6;border-radius:5px}
   .ci b{position:absolute;top:0;width:2px;height:16px;background:var(--good)}
   .ci u{position:absolute;top:-3px;bottom:-3px;width:1px;background:var(--ink-faint);opacity:.35}
-  .tag{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700}
+  .tag{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12.5px;font-weight:700}
   .tag.up{background:#E6F0E9;color:var(--good)}
   .tag.flat{background:#F0F2F3;color:var(--ink-faint)}
   .tag.watch{background:#F6EEDC;color:var(--watch)}
@@ -99,6 +121,7 @@
     </dl>
   </section>
 
+  <section id="chart">
   <h2>Summary</h2>
   <div class="narrative" id="narrative"><p>No practice has been recorded yet.</p></div>
 
@@ -119,6 +142,7 @@
     <tbody><tr><td colspan="5" style="color:var(--ink-faint)">No sounds practiced yet.</td></tr></tbody>
   </table>
   <div class="note" id="method"><b>Method.</b> Rates are the proportion of attempts scored as clearly produced, from the audio — taps and attempts resolved on the encouragement cap are excluded (0 and 0 respectively here). Intervals are Jeffreys 90% credible intervals. <a href="https://doi.org/10.1214/ss/1009213286">Brown, Cai, and DasGupta (2001)</a> recommend equal-tailed Jeffreys intervals at small samples because Wald coverage is erratic near 0% and 100%. The 90% mass is this method's choice, not a figure from that paper (https://doi.org/10.1214/ss/1009213286). A change is reported when the earlier and later intervals do not overlap. <br><br><b>Kide is practice, not therapy. This report describes what was practiced and what happened. It does not diagnose, assess, or treat, and automated scoring of young children's speech is known to miss real errors more often than it false-flags correct speech. Interpretation requires a qualified clinician.</b></div>
+  </section>
 
   <section id="proAppendix" class="hidden">
     <h2>Method appendix</h2>
@@ -211,8 +235,10 @@
 </div>
 
 <script type="module">
-import { buildRecord, narrativeFor, METHOD_VERSION, MIN_ATTEMPTS_PER_TARGET, CI_MASS }
+import { buildRecord, narrativeFor, narrativeCites, METHOD_VERSION, MIN_ATTEMPTS_PER_TARGET, CI_MASS }
   from '../engine/clinical.js';
+
+const METHOD_LINK = '<a href="https://doi.org/10.1214/ss/1009213286">Brown, Cai, and DasGupta (2001)</a>';
 
 const $ = (id) => document.getElementById(id);
 let record = null;
@@ -224,7 +250,8 @@ function render(rec) {
     `Generated ${new Date(rec.generatedAt).toLocaleString()} · method ${rec.methodVersion} · `
     + `${rec.scoredAttempts} scored of ${rec.totalAttempts} attempts`;
 
-  $('narrative').innerHTML = narrativeFor(rec).map((l) => `<p>${l}</p>`).join('');
+  $('narrative').innerHTML = narrativeFor(rec).map((l) =>
+    `<p>${l}${narrativeCites(l) ? ` ${METHOD_LINK}` : ''}</p>`).join('');
 
   const a = rec.adherence;
   $('adherence').innerHTML = a.days ? [
@@ -258,7 +285,7 @@ function render(rec) {
         <u style="left:50%"></u>
       </div></td>
       <td class="num">${Math.round(c.point * 100)}%<br>
-        <span style="font-size:11px;color:var(--ink-faint)">${Math.round(c.lo * 100)}–${Math.round(c.hi * 100)}</span></td>
+        <span style="font-size:12.5px;color:var(--ink-faint)">${Math.round(c.lo * 100)}–${Math.round(c.hi * 100)}</span></td>
       <td><span class="tag ${tag[0]}">${tag[1]}</span></td></tr>`;
   }).join('') : '<tr><td colspan="5" style="color:var(--ink-faint)">No sounds practiced yet.</td></tr>';
 
@@ -305,6 +332,7 @@ $('btnJson').addEventListener('click', async () => {
 const LS_IDENTITY = 'kide.clinician.identity';
 const LS_EMAIL = 'kide.clinician.email';
 const LS_LICENSED = 'kide.clinician.licensed';
+const RETURN_HASH = 'kide.clinician.returnHash';
 
 /* localStorage is a convenience here and never load-bearing. In private
  * browsing, or with site data blocked, every read returns the fallback and
@@ -424,7 +452,12 @@ $('btnBuy').addEventListener('click', async (ev) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, offeringId: 'clinician_report' }),
     });
-    if (out.url) { lsSet(LS_EMAIL, email); location.href = out.url; return; }
+    if (out.url) {
+      try { sessionStorage.setItem(RETURN_HASH, location.hash || ''); } catch { /* storage off: the return opens without the fragment, and the record stays off the checkout URL */ }
+      lsSet(LS_EMAIL, email);
+      location.href = out.url;
+      return;
+    }
     say(out.error || 'Checkout is not available right now — try again shortly.', true);
   } catch {
     say('Checkout is not available right now — try again shortly.', true);
@@ -435,19 +468,25 @@ $('btnBuy').addEventListener('click', async (ev) => {
 
 /** Coming back from Stripe.
  *
- *  Note what is NOT here: the success URL cannot carry ?data=, because that is
- *  the child's record and it must not go to the hub or to Stripe. So a
- *  clinician lands back on an EMPTY report. The credit-metered version spent a
- *  credit here regardless and unlocked a blank page -- $39 for five reports,
- *  one destroyed on arrival. A licence has no such failure mode: the check is
- *  free and idempotent, and the clinician reopens the parent's link with the
- *  licence already active. */
+ *  The success URL cannot carry the fragment or ?data=, because that is the
+ *  child's record and it must not go out with checkout. The fragment is saved
+ *  in sessionStorage on this device before the browser leaves, and written
+ *  back here — synchronously, before the record is read. The credit-metered
+ *  version spent a credit on arrival and unlocked a blank page. A licence
+ *  check is free and idempotent, and the record is still the one the parent
+ *  sent. */
 async function resumeFromCheckout() {
   const q = new URLSearchParams(location.search);
   const state = q.get('checkout');
   if (!state) return;
-  const keep = q.get('data') ? `#data=${encodeURIComponent(q.get('data'))}` : location.hash;
+  let saved = '';
+  try { saved = sessionStorage.getItem(RETURN_HASH) || ''; } catch { saved = ''; }
+  const fromQuery = q.get('data');
+  const keep = fromQuery
+    ? `#data=${encodeURIComponent(fromQuery)}`
+    : (location.hash || (saved.charAt(0) === '#' ? saved : ''));
   history.replaceState(null, '', location.pathname + keep);
+  try { sessionStorage.removeItem(RETURN_HASH); } catch { /* already gone */ }
   if (state === 'cancel') return say('Checkout cancelled — nothing was charged.');
 
   const email = (q.get('email') || lsGet(LS_EMAIL, '') || '').trim();
@@ -455,8 +494,8 @@ async function resumeFromCheckout() {
   $('proEmail').value = email;
   say('Payment received — activating…');
 
-  // The hub can take a moment to record the purchase, so give it a few tries
-  // rather than telling a clinician who just paid that they have not.
+  // The licence check can take a moment to see the purchase, so give it a few
+  // tries rather than telling a clinician who just paid that they have not.
   for (let attempt = 0; attempt < 4; attempt++) {
     const s = await checkLicence(email);
     if (s === 'yes') {
@@ -466,7 +505,7 @@ async function resumeFromCheckout() {
     }
     if (attempt < 3) await new Promise((r) => setTimeout(r, 1500));
   }
-  say('Payment received. Press "Check my licence" in a moment — the hub can take a few seconds.');
+  say('Payment received. Press "Check my licence" in a moment — your licence check can take a few seconds.');
 }
 
 /** A worked example, so the artifact can be evaluated before a real child has
@@ -512,10 +551,15 @@ $('btnDemo').addEventListener('click', loadWorkedExample);
 // straight at a populated report. Judging this artifact from an empty page is
 // impossible, and "press the button marked worked example" is a step at which
 // people leave.
+//
+// Restore a checkout return's fragment before anything reads it. The rewrite
+// itself is synchronous; the licence check continues after the record paints.
+resumeFromCheckout();
 const query = new URLSearchParams(location.search);
 // New links carry the record after the # (never sent to a server). Links
-// shared before that change carry ?data=; they still open, and the record is
-// moved into the fragment at once so a reload does not send it again.
+// shared before that change carry ?data=; the blocking script in <head> moves
+// that query into the fragment before any stylesheet is requested, and this
+// is the same move again in case that script did not run.
 const fromHash = new URLSearchParams(location.hash.slice(1)).get('data');
 const fromQuery = query.get('data');
 const param = fromHash || fromQuery;
@@ -533,8 +577,6 @@ if (param) {
 } else {
   render(buildRecord([]));
 }
-
-resumeFromCheckout();
 </script>
 </body>
 </html>

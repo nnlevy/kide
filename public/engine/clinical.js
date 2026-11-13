@@ -360,11 +360,15 @@ export function narrativeFor(record) {
     lines.push('No practice has been recorded yet.');
     return lines;
   }
+  // Each figure is its own sentence. The page cites that sentence with the
+  // Brown, Cai, and DasGupta method link; a percent glued to the session
+  // counts was an uncited claim on the chart.
   lines.push(
-    `Practiced on ${a.days} of ${a.spanDays} days (${Math.round(a.daysPracticedRate * 100)}%), `
+    `Practiced on ${a.days} of ${a.spanDays} days, `
     + `${a.sessions} session${a.sessions === 1 ? '' : 's'}, `
     + `${record.scoredAttempts} scored attempt${record.scoredAttempts === 1 ? '' : 's'}.`
   );
+  lines.push(`${Math.round(a.daysPracticedRate * 100)}% of the days in that span.`);
   if (a.longestGapDays >= 3) {
     lines.push(`Longest break: ${a.longestGapDays} days.`);
   }
@@ -413,4 +417,12 @@ export function narrativeFor(record) {
     );
   }
   return lines;
+}
+
+/** True when a narrative sentence contains a figure the ship gate counts
+ *  (a percent, a grouped thousands number, or any number of four or more
+ *  digits). The chart renders each of these in its own paragraph with the
+ *  Brown, Cai, and DasGupta method link. */
+export function narrativeCites(line) {
+  return /\d[\d,]*(?:\.\d+)?\s?%|\b\d{1,3}(?:,\d{3})+\b|\b\d{4,}\b/.test(String(line || ''));
 }
