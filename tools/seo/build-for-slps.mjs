@@ -303,8 +303,7 @@ const html = `<!DOCTYPE html>
   <footer>
     kide.us — a Quizbiz LLC product
     <div class="links"><a href="/">Home</a> · <a href="/sounds">Sounds</a> · <a href="/guides">Guides</a> · <a href="/privacy">Privacy</a></div>
-    <div class="links" style="margin-top:8px">Part of the portfolio network ·
-      <a href="https://growth.business/?from=kide.us">growth.business</a></div>
+    <div class="links" style="margin-top:8px">Made by Quizbiz LLC</div>
   </footer>
 </div>
 <script type="module">
