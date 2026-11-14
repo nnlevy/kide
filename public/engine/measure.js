@@ -60,6 +60,15 @@
  * dashboard that read as "no traffic yet".
  *
  * Verified: www -> 301 on POST and on OPTIONS; apex -> 204 on the real payload.
+ *
+ * CREDENTIALS MODE. sendBeacon always sends with credentials mode "include".
+ * The apex answers the CORS check with an empty Access-Control-Allow-Credentials,
+ * which the browser rejects whenever the request's credentials mode is include.
+ * That dropped every visit on /, /for-slps, /guides and /sounds: the request
+ * never left the browser, and send() swallowed it. fetch with credentials
+ * "omit" is the request the host accepts. keepalive is what keeps that note
+ * alive across the next navigation, which is the only reason sendBeacon was
+ * used. Do not switch this call back to sendBeacon.
  */
 const ENDPOINT = 'https://riskfreetrial.org/api/analytics';
 const DOMAIN = 'kide.us';
@@ -116,12 +125,15 @@ function send(eventName, label, destination) {
       destination: destination || '',
       referrer: document.referrer ? new URL(document.referrer).origin : '',
     });
-    if (navigator.sendBeacon) {
-      navigator.sendBeacon(ENDPOINT, new Blob([body], { type: 'application/json' }));
-    } else {
-      fetch(ENDPOINT, { method: 'POST', body, keepalive: true,
-        headers: { 'Content-Type': 'application/json' } });
-    }
+    // credentials: 'omit' — see the note above ENDPOINT. A rejected promise
+    // must not surface as an unhandled error on the page.
+    fetch(ENDPOINT, {
+      method: 'POST',
+      body,
+      keepalive: true,
+      credentials: 'omit',
+      headers: { 'Content-Type': 'application/json' },
+    }).catch(() => {});
   } catch { /* measurement must never affect the page */ }
 }
 
