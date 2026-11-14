@@ -1,10 +1,9 @@
 // Bring the hand-written pages up to the standard the generated ones set.
 //
-// /sounds is generated, so it carries the full portfolio head block by
-// construction. /guides, /privacy, /terms and the homepage were written by hand
-// at different times and drifted apart -- one had no og:image at all, none had
-// the Organization/WebSite @graph, and only the generated pages carried the
-// portfolio cross-link.
+// /sounds is generated, so it carries the full head block by construction.
+// /guides, /privacy, /terms and the homepage were written by hand at different
+// times and drifted apart -- one had no og:image at all, and none had the
+// Organization/WebSite @graph. The footer names Quizbiz LLC.
 //
 // This is idempotent and additive: it never overwrites a tag that is already
 // there, so hand-tuned copy survives. Run it from the build.
@@ -92,11 +91,15 @@ for (const [file, path, kind] of PAGES) {
       `<script type="application/ld+json">${JSON.stringify(graph)}</script>\n</head>`);
   }
 
-  // The portfolio cross-link, with the ?from= attribution the other sites use.
-  if (!/growth\.business/.test(html) && /<\/footer>/.test(html)) {
+  // Who made the site. Do not put the old network line back. A footer that
+  // already names Quizbiz LLC, or that still carries that old line, is left
+  // alone so this pass does not rewrite pages owned elsewhere.
+  if (!/Made by Quizbiz LLC/.test(html)
+      && !/Part of the portfolio network/.test(html)
+      && !/Quizbiz LLC/.test(html)
+      && /<\/footer>/.test(html)) {
     html = html.replace('</footer>',
-      '  <div class="links" style="margin-top:8px">Part of the portfolio network ·\n'
-      + '    <a href="https://growth.business/?from=kide.us">growth.business</a></div>\n</footer>');
+      '  <div class="links" style="margin-top:8px">Made by Quizbiz LLC</div>\n</footer>');
   }
 
   if (html !== before) { writeFileSync(file, html); changed++; }

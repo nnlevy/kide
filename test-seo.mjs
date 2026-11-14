@@ -400,10 +400,13 @@ t('the sitemap is generated, not hand-kept', () => {
     'a hand-written sitemap is back in the worker');
 });
 
-t('the portfolio cross-link is present with attribution', () => {
-  const pages = [...soundPages.map(([c]) => `public/sounds/${c}/index.html`), 'public/sounds/index.html'];
+t('the footer names who made the site', () => {
+  const pages = [...soundPages.map(([c]) => `public/sounds/${c}/index.html`), 'public/sounds/index.html',
+    'public/for-slps/index.html', 'public/terms/index.html', 'public/cast/index.html'];
   for (const p of pages) {
-    assert(/growth\.business\/\?from=kide\.us/.test(read(p)), `${p} has no portfolio footer link`);
+    const html = read(p);
+    assert(/Made by Quizbiz LLC/.test(html), `${p} does not say who made it`);
+    assert(!/Part of the portfolio network/.test(html), `${p} still names an internal network`);
   }
 });
 
